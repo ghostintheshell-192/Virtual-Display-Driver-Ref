@@ -127,14 +127,7 @@ namespace
 
 
 // === MONITOR EMULATION SETTINGS ===
-bool monitorEmulationEnabled = false;
-bool emulatePhysicalDimensions = false;
-int physicalWidthMm = 510;
-int physicalHeightMm = 287;
-bool manufacturerEmulationEnabled = false;
-wstring manufacturerName = L"Generic";
-wstring modelName = L"Virtual Display";
-wstring serialNumber = L"VDD001";
+
 
 std::map<std::wstring, std::pair<std::wstring, std::wstring>> SettingsQueryMap = {
 	{L"LoggingEnabled", {L"LOGS", L"logging"}},
@@ -2451,14 +2444,14 @@ extern "C" NTSTATUS DriverEntry(
 	g_settings.colors.sdr_white_level = GetDoubleSetting(L"SdrWhiteLevel");
 
 	// === LOAD MONITOR EMULATION SETTINGS ===
-	monitorEmulationEnabled = EnabledQuery(L"MonitorEmulationEnabled");
-	emulatePhysicalDimensions = EnabledQuery(L"EmulatePhysicalDimensions");
-	physicalWidthMm = GetIntegerSetting(L"PhysicalWidthMm");
-	physicalHeightMm = GetIntegerSetting(L"PhysicalHeightMm");
-	manufacturerEmulationEnabled = EnabledQuery(L"ManufacturerEmulationEnabled");
-	manufacturerName = GetStringSetting(L"ManufacturerName");
-	modelName = GetStringSetting(L"ModelName");
-	serialNumber = GetStringSetting(L"SerialNumber");
+	g_settings.mon_emul.enabled = EnabledQuery(L"MonitorEmulationEnabled");
+	g_settings.mon_emul.emulate_physical_dimensions = EnabledQuery(L"EmulatePhysicalDimensions");
+	g_settings.mon_emul.physical_width = GetIntegerSetting(L"PhysicalWidthMm");
+	g_settings.mon_emul.physical_height = GetIntegerSetting(L"PhysicalHeightMm");
+	g_settings.mon_emul.manufacturer_emulation_enabled = EnabledQuery(L"ManufacturerEmulationEnabled");
+	g_settings.mon_emul.manufacturer_name = GetStringSetting(L"ManufacturerName");
+	g_settings.mon_emul.model_name = GetStringSetting(L"ModelName");
+	g_settings.mon_emul.serial_number = GetStringSetting(L"SerialNumber");
 
 	xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
 

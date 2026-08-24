@@ -114,8 +114,23 @@ struct AutoResolutionSettings
 	int fallback_refresh = 60;
 };
 
+struct MonitorEmulationSettings
+{
+	std::wstring manufacturer_name = L"Generic";
+	std::wstring model_name = L"Virtual Display";
+	std::wstring serial_number = L"VDD001";
+
+	bool enabled = false;
+	bool emulate_physical_dimensions = false;
+	bool manufacturer_emulation_enabled = false;
+
+	int physical_width = 510; //UoM: millimeters
+	int physical_height = 287; //UoM: millimeters
+};
+
 struct DriverSettings
 {
+	MonitorEmulationSettings mon_emul;
 	AutoResolutionSettings auto_res;
 	HdrSettings hdr;
 	ColorSettings colors;
