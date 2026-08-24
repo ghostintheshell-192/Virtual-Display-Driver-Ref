@@ -44,8 +44,45 @@ struct EdidSettings
 	bool edid_cea_override = false;
 };
 
+struct ColorSettings
+{
+	std::wstring force_bit_depth = L"auto";
+	std::wstring primary_color_space = L"sRGB";
+	std::wstring color_format = L"RGB";
+
+	bool color_space_enabled = false;
+	bool hdr_plus = false;
+	bool sdr10 = false;
+	bool auto_select_from_color_space = false;
+	bool fp16_surface_support = true;
+	bool wide_color_gamut = false;
+	bool hdr_tone_mapping = false;
+
+	bool primaries_enabled = false;
+
+	struct primaries_defaults
+	{
+		double redX = 0.708;
+		double redY = 0.292;
+		double greenX = 0.170;
+		double greenY = 0.797;
+		double blueX = 0.131;
+		double blueY = 0.046;
+		double whiteX = 0.3127;
+		double whiteY = 0.3290;
+	} defaults;
+
+	double sdr_white_level = 80.0;
+	double gamma_correction = 2.4;
+
+	IDDCX_BITS_PER_COMPONENT SDR_COLOR = IDDCX_BITS_PER_COMPONENT_8;
+	IDDCX_BITS_PER_COMPONENT HDR_COLOR = IDDCX_BITS_PER_COMPONENT_10;
+
+};
+
 struct DriverSettings
 {
+	ColorSettings colors;
 	EdidSettings edid;
 	CursorSettings cursor;
 	LogSettings logs;
