@@ -114,21 +114,6 @@ namespace
 	}
 }
 
-//Mouse settings
-
-
-// === EDID INTEGRATION SETTINGS ===
-
-// === HDR ADVANCED SETTINGS ===
-
-// === AUTO RESOLUTIONS SETTINGS ===
-
-// === COLOR ADVANCED SETTINGS ===
-
-
-// === MONITOR EMULATION SETTINGS ===
-
-
 std::map<std::wstring, std::pair<std::wstring, std::wstring>> SettingsQueryMap = {
 	{L"LoggingEnabled", {L"LOGS", L"logging"}},
 	{L"DebugLoggingEnabled", {L"DEBUGLOGS", L"debuglogging"}},
