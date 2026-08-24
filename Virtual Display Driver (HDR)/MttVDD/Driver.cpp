@@ -122,19 +122,6 @@ namespace
 // === HDR ADVANCED SETTINGS ===
 
 // === AUTO RESOLUTIONS SETTINGS ===
-bool autoResolutionsEnabled = false;
-wstring sourcePriority = L"manual";
-int minRefreshRate = 24;
-int maxRefreshRate = 240;
-bool excludeFractionalRates = false;
-int minResolutionWidth = 640;
-int minResolutionHeight = 480;
-int maxResolutionWidth = 7680;
-int maxResolutionHeight = 4320;
-
-int fallbackWidth = 1920;
-int fallbackHeight = 1080;
-int fallbackRefresh = 60;
 
 // === COLOR ADVANCED SETTINGS ===
 
@@ -909,7 +896,7 @@ VddHdrMetadata ConvertManualToSmpteMetadata() {
 vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& profile) {
     vector<tuple<int, int, int, int>> generatedModes;
     
-    if (!autoResolutionsEnabled) {
+    if (!g_settings.auto_res.enabled) {
         vddlog("i", "Auto resolutions disabled, skipping EDID mode generation");
         return generatedModes;
     }
@@ -924,18 +911,18 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
         bool passesFilter = true;
         
         // Resolution range filtering
-        if (width < minResolutionWidth || width > maxResolutionWidth ||
-            height < minResolutionHeight || height > maxResolutionHeight) {
+        if (width < g_settings.auto_res.min_resolution_width || width > g_settings.auto_res.max_resolution_width ||
+            height < g_settings.auto_res.min_resolution_height || height > g_settings.auto_res.max_resolution_height) {
             passesFilter = false;
         }
         
         // Refresh rate filtering
-        if (nominalRefreshRate < minRefreshRate || nominalRefreshRate > maxRefreshRate) {
+        if (nominalRefreshRate < g_settings.auto_res.min_refresh_rate || nominalRefreshRate > g_settings.auto_res.max_refresh_rate) {
             passesFilter = false;
         }
         
         // Fractional rate filtering
-        if (excludeFractionalRates && refreshRateMultiplier != 1000) {
+        if (g_settings.auto_res.exclude_fractional_rates && refreshRateMultiplier != 1000) {
             passesFilter = false;
         }
         
@@ -983,7 +970,9 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
 tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profile, 
                                                    const vector<tuple<int, int, int, int>>& availableModes) {
     // Default fallback mode
-    tuple<int, int, int, int> preferredMode = make_tuple(fallbackWidth, fallbackHeight, 1000, fallbackRefresh);
+	tuple<int, int, int, int> preferredMode =
+		make_tuple(g_settings.auto_res.fallback_width, g_settings.auto_res.fallback_height, 1000,
+				   g_settings.auto_res.fallback_refresh);
     
     if (!g_settings.edid.preferred) {
         vddlog("i", "EDID preferred mode disabled, using fallback");
@@ -1013,15 +1002,15 @@ vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, 
                                                         const vector<tuple<int, int, int, int>>& edidModes) {
     vector<tuple<int, int, int, int>> mergedModes;
     
-    if (sourcePriority == L"edid") {
+    if (g_settings.auto_res.source_priority == L"edid") {
         mergedModes = edidModes;
         vddlog("i", "Using EDID-only mode list");
     }
-    else if (sourcePriority == L"manual") {
+    else if (g_settings.auto_res.source_priority == L"manual") {
         mergedModes = manualModes;
         vddlog("i", "Using manual-only mode list");
     }
-    else if (sourcePriority == L"combined") {
+    else if (g_settings.auto_res.source_priority == L"combined") {
         // Start with manual modes
         mergedModes = manualModes;
         
@@ -1284,7 +1273,7 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 	}
 
 	// === ENHANCED MODE MANAGEMENT ===
-	if (autoResolutionsEnabled) {
+	if (g_settings.auto_res.enabled) {
 		// Store original manual modes
 		vector<tuple<int, int, int, int>> originalModes = monitorModes;
 		
@@ -1312,7 +1301,7 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 			   << "  Final optimized modes: " << finalModes.size() << "\n"
 			   << "  Preferred mode: " << get<0>(preferredMode) << "x" << get<1>(preferredMode) 
 			   << "@" << get<3>(preferredMode) << "Hz\n"
-			   << "  Source priority: " << WStringToString(sourcePriority);
+			   << "  Source priority: " << WStringToString(g_settings.auto_res.source_priority);
 			vddlog("i", ss.str().c_str());
 		} else {
 			vddlog("e", "Mode list validation failed, keeping original modes");
@@ -2415,6 +2404,7 @@ extern "C" NTSTATUS DriverEntry(
 	g_settings.edid.profile_path = GetStringSetting(L"EdidProfilePath");
 	g_settings.edid.override_manual_settings = EnabledQuery(L"OverrideManualSettings");
 	g_settings.edid.fallback_on_error = EnabledQuery(L"FallbackOnError");
+	g_settings.edid.preferred = EnabledQuery(L"UseEdidPreferred");
 
 	// === LOAD HDR ADVANCED SETTINGS ===
 	g_settings.hdr.static_metadata_enabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
@@ -2439,19 +2429,18 @@ extern "C" NTSTATUS DriverEntry(
 	g_settings.colors.primary_color_space = GetStringSetting(L"PrimaryColorSpace");
 
 	// === LOAD AUTO RESOLUTIONS SETTINGS ===
-	autoResolutionsEnabled = EnabledQuery(L"AutoResolutionsEnabled");
-	sourcePriority = GetStringSetting(L"SourcePriority");
-	minRefreshRate = GetIntegerSetting(L"MinRefreshRate");
-	maxRefreshRate = GetIntegerSetting(L"MaxRefreshRate");
-	excludeFractionalRates = EnabledQuery(L"ExcludeFractionalRates");
-	minResolutionWidth = GetIntegerSetting(L"MinResolutionWidth");
-	minResolutionHeight = GetIntegerSetting(L"MinResolutionHeight");
-	maxResolutionWidth = GetIntegerSetting(L"MaxResolutionWidth");
-	maxResolutionHeight = GetIntegerSetting(L"MaxResolutionHeight");
-	g_settings.edid.preferred = EnabledQuery(L"UseEdidPreferred");
-	fallbackWidth = GetIntegerSetting(L"FallbackWidth");
-	fallbackHeight = GetIntegerSetting(L"FallbackHeight");
-	fallbackRefresh = GetIntegerSetting(L"FallbackRefresh");
+	g_settings.auto_res.enabled = EnabledQuery(L"AutoResolutionsEnabled");
+	g_settings.auto_res.source_priority = GetStringSetting(L"SourcePriority");
+	g_settings.auto_res.min_refresh_rate = GetIntegerSetting(L"MinRefreshRate");
+	g_settings.auto_res.max_refresh_rate = GetIntegerSetting(L"MaxRefreshRate");
+	g_settings.auto_res.exclude_fractional_rates = EnabledQuery(L"ExcludeFractionalRates");
+	g_settings.auto_res.min_resolution_width = GetIntegerSetting(L"MinResolutionWidth");
+	g_settings.auto_res.min_resolution_height = GetIntegerSetting(L"MinResolutionHeight");
+	g_settings.auto_res.max_resolution_width = GetIntegerSetting(L"MaxResolutionWidth");
+	g_settings.auto_res.max_resolution_height = GetIntegerSetting(L"MaxResolutionHeight");
+	g_settings.auto_res.fallback_width = GetIntegerSetting(L"FallbackWidth");
+	g_settings.auto_res.fallback_height = GetIntegerSetting(L"FallbackHeight");
+	g_settings.auto_res.fallback_refresh = GetIntegerSetting(L"FallbackRefresh");
 
 	// === LOAD COLOR ADVANCED SETTINGS ===
 	g_settings.colors.auto_select_from_color_space = EnabledQuery(L"AutoSelectFromColorSpace");

@@ -94,8 +94,29 @@ struct HdrSettings
 	double min_display_mastering_luminance = 0.05;
 };
 
+struct AutoResolutionSettings
+{
+	std::wstring source_priority = L"manual";
+
+	bool enabled = false;
+	bool exclude_fractional_rates = false;
+
+	int min_refresh_rate = 24;
+	int max_refresh_rate = 240;
+	
+	int min_resolution_width = 640;
+	int min_resolution_height = 480;
+	int max_resolution_width = 7680;
+	int max_resolution_height = 4320;
+
+	int fallback_width = 1920;
+	int fallback_height = 1080;
+	int fallback_refresh = 60;
+};
+
 struct DriverSettings
 {
+	AutoResolutionSettings auto_res;
 	HdrSettings hdr;
 	ColorSettings colors;
 	EdidSettings edid;
