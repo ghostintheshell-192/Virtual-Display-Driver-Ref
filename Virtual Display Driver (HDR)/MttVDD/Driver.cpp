@@ -96,7 +96,7 @@ wstring confpath = L"C:\\VirtualDisplayDriver";
 bool HDRPlus = false;
 bool SDR10 = false;
 bool customEdid = false;
-bool hardwareCursor = false;
+
 bool preventManufacturerSpoof = false;
 bool edidCeaOverride = false;
 
@@ -122,10 +122,6 @@ namespace
 }
 
 //Mouse settings
-bool alphaCursorSupport = true;
-int CursorMaxX = 128;
-int CursorMaxY = 128;
-IDDCX_XOR_CURSOR_SUPPORT XorCursorSupportLevel = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 
 
 //Rest
@@ -2432,20 +2428,20 @@ extern "C" NTSTATUS DriverEntry(
 	ColourFormat = GetStringSetting(L"ColourFormat");
 
 	//Cursor
-	hardwareCursor = EnabledQuery(L"HardwareCursorEnabled");
-	alphaCursorSupport = EnabledQuery(L"AlphaCursorSupport");
-	CursorMaxX = GetIntegerSetting(L"CursorMaxX");
-	CursorMaxY = GetIntegerSetting(L"CursorMaxY");
+	g_settings.cursor.hardware_cursor = EnabledQuery(L"HardwareCursorEnabled");
+	g_settings.cursor.alpha_cursor_support = EnabledQuery(L"AlphaCursorSupport");
+	g_settings.cursor.max_x = GetIntegerSetting(L"CursorMaxX");
+	g_settings.cursor.max_y = GetIntegerSetting(L"CursorMaxY");
 
 	int xorCursorSupportLevelInt = GetIntegerSetting(L"XorCursorSupportLevel");
 	std::string xorCursorSupportLevelName;
 
 	if (xorCursorSupportLevelInt < 0 || xorCursorSupportLevelInt > 3) {
 		vddlog("w", "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
-		XorCursorSupportLevel = IDDCX_XOR_CURSOR_SUPPORT_FULL;
+		g_settings.cursor.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 	}
 	else {
-		XorCursorSupportLevel = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
+		g_settings.cursor.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
 	}
 
 	// === LOAD NEW EDID INTEGRATION SETTINGS ===
@@ -2510,7 +2506,7 @@ extern "C" NTSTATUS DriverEntry(
 	modelName = GetStringSetting(L"ModelName");
 	serialNumber = GetStringSetting(L"SerialNumber");
 
-	xorCursorSupportLevelName = XorCursorSupportLevelToString(XorCursorSupportLevel);
+	xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
 
 	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 
@@ -3905,7 +3901,7 @@ void IndirectDeviceContext::AssignSwapChain(IDDCX_MONITOR Monitor, IDDCX_SWAPCHA
 			vddlog("d", "Created a new processing thread for this monitor.");
 		}
 
-		if (hardwareCursor){
+		if (g_settings.cursor.hardware_cursor){
 			HANDLE mouseEvent = CreateEventA(
 				nullptr, 
 				false,   
@@ -3922,10 +3918,10 @@ void IndirectDeviceContext::AssignSwapChain(IDDCX_MONITOR Monitor, IDDCX_SWAPCHA
 			IDDCX_CURSOR_CAPS cursorInfo = {};
 			cursorInfo.Size = sizeof(cursorInfo);
 			cursorInfo.ColorXorCursorSupport = IDDCX_XOR_CURSOR_SUPPORT_FULL; 
-			cursorInfo.AlphaCursorSupport = alphaCursorSupport;
+			cursorInfo.AlphaCursorSupport = g_settings.cursor.alpha_cursor_support;
 
-			cursorInfo.MaxX = CursorMaxX;       //Apparently in most cases 128 is fine but for safe guarding we will go 512, older intel cpus may be limited to 64x64
-			cursorInfo.MaxY = CursorMaxY;
+			cursorInfo.MaxX = g_settings.cursor.max_x;       //Apparently in most cases 128 is fine but for safe guarding we will go 512, older intel cpus may be limited to 64x64
+			cursorInfo.MaxY = g_settings.cursor.max_y;
 
 			//DirectXDevice->QueryMaxCursorSize(&cursorInfo.MaxX, &cursorInfo.MaxY);                 Experimental to get max cursor size - THIS IS NTO WORKING CODE
 

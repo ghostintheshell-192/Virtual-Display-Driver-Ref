@@ -1,4 +1,5 @@
 #pragma once
+#include <IddCx.h>
 
 
 /* DriverSettings(una istanza globale : g_settings)
@@ -19,7 +20,19 @@ struct LogSettings
 	bool send_logs_through_pipe = true;
 };
 
+struct CursorSettings
+{
+	bool hardware_cursor = false;
+	bool alpha_cursor_support = true;
+
+	int max_x = 128;
+	int max_y = 128;
+
+	IDDCX_XOR_CURSOR_SUPPORT xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
+};
+
 struct DriverSettings
 {
+	CursorSettings cursor;
 	LogSettings logs;
 };
