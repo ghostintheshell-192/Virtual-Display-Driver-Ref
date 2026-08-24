@@ -1,3 +1,12 @@
+# Scope
+
+Refactoring fork for studio purposes. Based on commit d7244969b2aa8bb38e76d79505eda217996cefea. 
+
+No upstream merging planned.
+
+All the credits go to the original creators (thank you guys).
+
+
 # 🛠️ Virtual Display Driver Development Team
 
 | 👤 Developer          | 🏷️ Role                            | 💖 Support Us                                                                                                         |
