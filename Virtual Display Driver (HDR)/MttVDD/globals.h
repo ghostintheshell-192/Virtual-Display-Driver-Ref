@@ -84,14 +84,14 @@ struct ColorSettings
 
 struct HdrSettings
 {
-	bool hdr10StaticMetadataEnabled = false;
-	bool enableMatrixTransform = false;
+	bool static_metadata_enabled = false;
+	bool matrix_transform_enabled = false;
 
-	int maxContentLightLevel = 1000;
-	int maxFrameAvgLightLevel = 400;
+	int max_content_light_level = 1000;
+	int max_frame_avg_light_level = 400;
 
-	double maxDisplayMasteringLuminance = 1000.0;
-	double minDisplayMasteringLuminance = 0.05;
+	double max_display_mastering_luminance = 1000.0; //standard SMPTE ST.2086 - UoM nits (candle over squared meter) - indicates how luminous a display is, even when it is virtual.
+	double min_display_mastering_luminance = 0.05;
 };
 
 struct DriverSettings

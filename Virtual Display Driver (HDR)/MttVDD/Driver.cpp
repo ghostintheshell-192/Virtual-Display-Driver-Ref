@@ -742,7 +742,7 @@ VddGammaRamp ConvertEdidToGammaRamp(const EdidProfileData& profile) {
     gammaRamp.colorSpace = profile.primaryColorSpace;
     
     // Generate matrix if matrix transforms are enabled
-	if (g_settings.hdr.enableMatrixTransform)
+	if (g_settings.hdr.matrix_transform_enabled)
 	{
         gammaRamp.matrix = ConvertGammaToMatrix(profile.gamma, profile.primaryColorSpace);
         gammaRamp.useMatrix = gammaRamp.matrix.isValid;
@@ -761,7 +761,7 @@ VddGammaRamp ConvertManualToGammaRamp() {
     gammaRamp.colorSpace = g_settings.colors.primary_color_space;
     
     // Generate matrix if matrix transforms are enabled
-	if (g_settings.hdr.enableMatrixTransform)
+	if (g_settings.hdr.matrix_transform_enabled)
 	{
         gammaRamp.matrix = ConvertGammaToMatrix(g_settings.colors.gamma_correction, g_settings.colors.primary_color_space);
         gammaRamp.useMatrix = gammaRamp.matrix.isValid;
@@ -864,11 +864,11 @@ VddHdrMetadata ConvertEdidToSmpteMetadata(const EdidProfileData& profile) {
     metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(profile.minLuminance);
     
     // Use configured content light levels (from vdd_settings.xml)
-	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr.maxContentLightLevel);
-	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr.maxFrameAvgLightLevel);
+	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr.max_content_light_level);
+	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr.max_frame_avg_light_level);
     
     // Mark as valid if we have HDR10 support
-    metadata.isValid = profile.hdr10Supported && g_settings.hdr.hdr10StaticMetadataEnabled;
+    metadata.isValid = profile.hdr10Supported && g_settings.hdr.static_metadata_enabled;
     
     return metadata;
 }
@@ -890,15 +890,15 @@ VddHdrMetadata ConvertManualToSmpteMetadata() {
     metadata.white_point_y = ConvertChromaticityToSmpte(g_settings.colors.defaults.whiteY);
     
     // Convert manual luminance values
-    metadata.max_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr.maxDisplayMasteringLuminance);
-    metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr.minDisplayMasteringLuminance);
+    metadata.max_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr.max_display_mastering_luminance);
+    metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr.min_display_mastering_luminance);
     
     // Use configured content light levels
-	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr.maxContentLightLevel);
-	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr.maxFrameAvgLightLevel);
+	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr.max_content_light_level);
+	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr.max_frame_avg_light_level);
     
     // Mark as valid if HDR10 metadata is enabled and color primaries are enabled
-    metadata.isValid = g_settings.hdr.hdr10StaticMetadataEnabled && g_settings.colors.primaries_enabled;
+    metadata.isValid = g_settings.hdr.static_metadata_enabled && g_settings.colors.primaries_enabled;
     
     return metadata;
 }
@@ -1320,14 +1320,14 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 	}
 
 	// Apply HDR settings if configured
-	if (g_settings.hdr.hdr10StaticMetadataEnabled && profile.hdr10Supported) {
-		if (g_settings.edid.override_manual_settings || g_settings.hdr.maxDisplayMasteringLuminance == 1000.0)
+	if (g_settings.hdr.static_metadata_enabled && profile.hdr10Supported) {
+		if (g_settings.edid.override_manual_settings || g_settings.hdr.max_display_mastering_luminance == 1000.0)
 		{ // Default value
-			g_settings.hdr.maxDisplayMasteringLuminance = profile.maxLuminance;
+			g_settings.hdr.max_display_mastering_luminance = profile.maxLuminance;
 		}
-		if (g_settings.edid.override_manual_settings || g_settings.hdr.minDisplayMasteringLuminance == 0.05)
+		if (g_settings.edid.override_manual_settings || g_settings.hdr.min_display_mastering_luminance == 0.05)
 		{ // Default value
-			g_settings.hdr.minDisplayMasteringLuminance = profile.minLuminance;
+			g_settings.hdr.min_display_mastering_luminance = profile.minLuminance;
 		}
 	}
 
@@ -1350,7 +1350,7 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 	}
 
 	// Generate and store HDR metadata for all monitors if HDR is enabled
-	if (g_settings.hdr.hdr10StaticMetadataEnabled && profile.hdr10Supported) {
+	if (g_settings.hdr.static_metadata_enabled && profile.hdr10Supported) {
 		VddHdrMetadata hdrMetadata = ConvertEdidToSmpteMetadata(profile);
 		
 		if (hdrMetadata.isValid) {
@@ -2417,12 +2417,12 @@ extern "C" NTSTATUS DriverEntry(
 	g_settings.edid.fallback_on_error = EnabledQuery(L"FallbackOnError");
 
 	// === LOAD HDR ADVANCED SETTINGS ===
-	g_settings.hdr.hdr10StaticMetadataEnabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
-	g_settings.hdr.maxDisplayMasteringLuminance = GetDoubleSetting(L"MaxDisplayMasteringLuminance");
-	g_settings.hdr.minDisplayMasteringLuminance = GetDoubleSetting(L"MinDisplayMasteringLuminance");
-	g_settings.hdr.maxContentLightLevel = GetIntegerSetting(L"MaxContentLightLevel");
-	g_settings.hdr.maxFrameAvgLightLevel = GetIntegerSetting(L"MaxFrameAvgLightLevel");
-	g_settings.hdr.enableMatrixTransform = EnabledQuery(L"EnableMatrixTransform");
+	g_settings.hdr.static_metadata_enabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
+	g_settings.hdr.max_display_mastering_luminance = GetDoubleSetting(L"MaxDisplayMasteringLuminance");
+	g_settings.hdr.min_display_mastering_luminance = GetDoubleSetting(L"MinDisplayMasteringLuminance");
+	g_settings.hdr.max_content_light_level = GetIntegerSetting(L"MaxContentLightLevel");
+	g_settings.hdr.max_frame_avg_light_level = GetIntegerSetting(L"MaxFrameAvgLightLevel");
+	g_settings.hdr.matrix_transform_enabled = EnabledQuery(L"EnableMatrixTransform");
 
 	g_settings.colors.primaries_enabled = EnabledQuery(L"ColorPrimariesEnabled");
 	g_settings.colors.defaults.redX = GetDoubleSetting(L"RedX");
@@ -4259,12 +4259,12 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	
 	logStream.str("");
 	logStream << "Monitor Object: " << MonitorObject 
-			  << ", HDR10 Metadata Enabled: " << (g_settings.hdr.hdr10StaticMetadataEnabled ? "Yes" : "No")
+			  << ", HDR10 Metadata Enabled: " << (g_settings.hdr.static_metadata_enabled ? "Yes" : "No")
 			  << ", Color Primaries Enabled: " << (g_settings.colors.primaries_enabled ? "Yes" : "No");
 	vddlog("d", logStream.str().c_str());
 
 	// Check if HDR metadata processing is enabled
-	if (!g_settings.hdr.hdr10StaticMetadataEnabled) {
+	if (!g_settings.hdr.static_metadata_enabled) {
 		vddlog("i", "HDR10 static metadata is disabled, skipping metadata configuration");
 		return STATUS_SUCCESS;
 	}
@@ -4521,7 +4521,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	logStream.str("");
 	logStream << "Monitor Object: " << MonitorObject 
 			  << ", Color Space Enabled: " << (g_settings.colors.color_space_enabled ? "Yes" : "No")
-			  << ", Matrix Transform Enabled: " << (g_settings.hdr.enableMatrixTransform ? "Yes" : "No");
+			  << ", Matrix Transform Enabled: " << (g_settings.hdr.matrix_transform_enabled ? "Yes" : "No");
 	vddlog("d", logStream.str().c_str());
 
 	// Check if color space processing is enabled
