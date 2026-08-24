@@ -42,6 +42,8 @@ struct EdidSettings
 	bool custom_edid = false;
 	bool prevent_manufacturer_spoof = false;
 	bool edid_cea_override = false;
+	bool override_manual_settings = false;
+	bool fallback_on_error = true;
 };
 
 struct ColorSettings

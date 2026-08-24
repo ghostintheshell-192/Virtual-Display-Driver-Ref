@@ -119,11 +119,6 @@ namespace
 
 // === EDID INTEGRATION SETTINGS ===
 
-
-
-bool overrideManualSettings = false;
-bool fallbackOnError = true;
-
 // === HDR ADVANCED SETTINGS ===
 bool hdr10StaticMetadataEnabled = false;
 double maxDisplayMasteringLuminance = 1000.0;
@@ -1331,16 +1326,16 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 
 	// Apply HDR settings if configured
 	if (hdr10StaticMetadataEnabled && profile.hdr10Supported) {
-		if (overrideManualSettings || maxDisplayMasteringLuminance == 1000.0) { // Default value
+		if (g_settings.edid.override_manual_settings || maxDisplayMasteringLuminance == 1000.0) { // Default value
 			maxDisplayMasteringLuminance = profile.maxLuminance;
 		}
-		if (overrideManualSettings || minDisplayMasteringLuminance == 0.05) { // Default value
+		if (g_settings.edid.override_manual_settings || minDisplayMasteringLuminance == 0.05) { // Default value
 			minDisplayMasteringLuminance = profile.minLuminance;
 		}
 	}
 
 	// Apply color primaries if configured
-	if (g_settings.colors.primaries_enabled && (overrideManualSettings || g_settings.colors.defaults.redX == 0.708)) { // Default Rec.2020 values
+	if (g_settings.colors.primaries_enabled && (g_settings.edid.override_manual_settings || g_settings.colors.defaults.redX == 0.708)) { // Default Rec.2020 values
 		g_settings.colors.defaults.redX = profile.redX;
 		g_settings.colors.defaults.redY = profile.redY;
 		g_settings.colors.defaults.greenX = profile.greenX;
@@ -1352,7 +1347,7 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 	}
 
 	// Apply color space settings
-	if (g_settings.colors.color_space_enabled && (overrideManualSettings || g_settings.colors.primary_color_space == L"sRGB")) { // Default value
+	if (g_settings.colors.color_space_enabled && (g_settings.edid.override_manual_settings || g_settings.colors.primary_color_space == L"sRGB")) { // Default value
 		g_settings.colors.primary_color_space = profile.primaryColorSpace;
 		g_settings.colors.gamma_correction = profile.gamma;
 	}
@@ -2421,8 +2416,8 @@ extern "C" NTSTATUS DriverEntry(
 	g_settings.edid.enabled = EnabledQuery(L"EdidIntegrationEnabled");
 	g_settings.edid.auto_configure = EnabledQuery(L"AutoConfigureFromEdid");
 	g_settings.edid.profile_path = GetStringSetting(L"EdidProfilePath");
-	overrideManualSettings = EnabledQuery(L"OverrideManualSettings");
-	fallbackOnError = EnabledQuery(L"FallbackOnError");
+	g_settings.edid.override_manual_settings = EnabledQuery(L"OverrideManualSettings");
+	g_settings.edid.fallback_on_error = EnabledQuery(L"FallbackOnError");
 
 	// === LOAD HDR ADVANCED SETTINGS ===
 	hdr10StaticMetadataEnabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
@@ -2665,7 +2660,7 @@ void loadSettings() {
 					vddlog("w", "EDID profile loaded but not applied (integration disabled)");
 				}
 			} else {
-				if (fallbackOnError) {
+				if (g_settings.edid.fallback_on_error) {
 					vddlog("w", "EDID profile loading failed, using manual settings");
 				} else {
 					vddlog("e", "EDID profile loading failed and fallback disabled");
@@ -4303,7 +4298,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	}
 
 	// Priority 2: Use manual configuration if no EDID data or manual override
-	if (!hasValidMetadata || overrideManualSettings) {
+	if (!hasValidMetadata || g_settings.edid.override_manual_settings) {
 		if (g_settings.colors.primaries_enabled) {
 			metadata = ConvertManualToSmpteMetadata();
 			hasValidMetadata = metadata.isValid;
@@ -4565,7 +4560,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	}
 
 	// Priority 2: Use manual configuration if no EDID data or manual override
-	if (!hasValidGammaRamp || overrideManualSettings) {
+	if (!hasValidGammaRamp || g_settings.edid.override_manual_settings) {
 		gammaRamp = ConvertManualToGammaRamp();
 		hasValidGammaRamp = gammaRamp.isValid;
 		vddlog("i", "Using manually configured gamma ramp");
