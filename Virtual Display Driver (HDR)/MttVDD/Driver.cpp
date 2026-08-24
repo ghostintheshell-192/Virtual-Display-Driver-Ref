@@ -13,6 +13,7 @@ Environment:
 --*/
 
 #include "Driver.h"
+#include "globals.h"
 //#include "Driver.tmh"
 #include<fstream>
 #include<sstream>
@@ -39,9 +40,6 @@ Environment:
 #include <cwchar>
 #include <map>
 #include <set>
-
-
-
 
 
 #define PIPE_NAME L"\\\\.\\pipe\\MTTVirtualDisplayPipe"
@@ -83,6 +81,8 @@ EVT_IDD_CX_ADAPTER_COMMIT_MODES2 VirtualDisplayDriverEvtIddCxAdapterCommitModes2
 
 EVT_IDD_CX_MONITOR_SET_GAMMA_RAMP VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp;
 
+DriverSettings g_settings;
+
 struct
 {
 	AdapterOption Adapter;
@@ -92,15 +92,13 @@ vector< DISPLAYCONFIG_VIDEO_SIGNAL_INFO> s_KnownMonitorModes2;
 UINT numVirtualDisplays;
 wstring gpuname;
 wstring confpath = L"C:\\VirtualDisplayDriver";
-bool logsEnabled = false;
-bool debugLogs = false;
+
 bool HDRPlus = false;
 bool SDR10 = false;
 bool customEdid = false;
 bool hardwareCursor = false;
 bool preventManufacturerSpoof = false;
 bool edidCeaOverride = false;
-bool sendLogsThroughPipe = true;
 
 constexpr DISPLAYCONFIG_VIDEO_SIGNAL_INFO dispinfo(UINT32 h, UINT32 v, UINT32 rn, UINT32 rd);
 
@@ -1483,11 +1481,11 @@ void  SendToPipe(const std::string& logMessage) {
 }
 
 void vddlog(const char* type, const char* message) {
-	if (!logsEnabled) {
+	if (!g_settings.logs.enable_standard_logs) {
 		return;
 	}
 
-	if (type != nullptr && type[0] == 'd' && !debugLogs) {
+	if (type != nullptr && type[0] == 'd' && !g_settings.logs.enable_debug_logs) {
 		return;
 	}
 
@@ -1547,7 +1545,7 @@ void vddlog(const char* type, const char* message) {
 
 		fclose(logFile);
 
-		if (sendLogsThroughPipe && g_pipeHandle != INVALID_HANDLE_VALUE) {
+		if (g_settings.logs.send_logs_through_pipe && g_pipeHandle != INVALID_HANDLE_VALUE) {
 			string logMessage = ss.str() + " [" + logType + "] " + message + "\n";
 			SendToPipe(logMessage);
 		}
@@ -2081,13 +2079,13 @@ void HandleClient(HANDLE hPipe) {
 			wchar_t* param = buffer + 10;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"debuglogging");
-				debugLogs = true;
+				g_settings.logs.enable_debug_logs = true;
 				vddlog("c", "Pipe debugging enabled");
 				vddlog("d", "Debug Logs Enabled");
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"debuglogging");
-				debugLogs = false;
+				g_settings.logs.enable_debug_logs = false;
 				vddlog("c", "Debugging disabled");
 			}
 		}
@@ -2095,12 +2093,12 @@ void HandleClient(HANDLE hPipe) {
 			wchar_t* param = buffer + 8;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"logging");
-				logsEnabled = true;
+				g_settings.logs.enable_standard_logs = true;
 				vddlog("c", "Logging Enabled");
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"logging");
-				logsEnabled = false;
+				g_settings.logs.enable_standard_logs = false;
 				vddlog("c", "Logging disabled"); // We can keep this here just to make it delete the logs on disable
 			}
 		}
@@ -2417,13 +2415,13 @@ extern "C" NTSTATUS DriverEntry(
 
 	Config.EvtDriverUnload = EvtDriverUnload;
 	initpath();
-	logsEnabled = EnabledQuery(L"LoggingEnabled");
-	debugLogs = EnabledQuery(L"DebugLoggingEnabled");
+	g_settings.logs.enable_standard_logs = EnabledQuery(L"LoggingEnabled");
+	g_settings.logs.enable_debug_logs = EnabledQuery(L"DebugLoggingEnabled");
 
 	customEdid = EnabledQuery(L"CustomEdidEnabled");
 	preventManufacturerSpoof = EnabledQuery(L"PreventMonitorSpoof");
 	edidCeaOverride = EnabledQuery(L"EdidCeaOverride");
-	sendLogsThroughPipe = EnabledQuery(L"SendLogsThroughPipe");
+	g_settings.logs.send_logs_through_pipe = EnabledQuery(L"SendLogsThroughPipe");
 
 
 	//colour
