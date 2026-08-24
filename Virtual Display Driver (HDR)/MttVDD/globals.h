@@ -82,8 +82,21 @@ struct ColorSettings
 
 };
 
+struct HdrSettings
+{
+	bool hdr10StaticMetadataEnabled = false;
+	bool enableMatrixTransform = false;
+
+	int maxContentLightLevel = 1000;
+	int maxFrameAvgLightLevel = 400;
+
+	double maxDisplayMasteringLuminance = 1000.0;
+	double minDisplayMasteringLuminance = 0.05;
+};
+
 struct DriverSettings
 {
+	HdrSettings hdr;
 	ColorSettings colors;
 	EdidSettings edid;
 	CursorSettings cursor;
