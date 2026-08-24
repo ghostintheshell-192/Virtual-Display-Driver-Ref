@@ -95,10 +95,6 @@ wstring confpath = L"C:\\VirtualDisplayDriver";
 
 bool HDRPlus = false;
 bool SDR10 = false;
-bool customEdid = false;
-
-bool preventManufacturerSpoof = false;
-bool edidCeaOverride = false;
 
 constexpr DISPLAYCONFIG_VIDEO_SIGNAL_INFO dispinfo(UINT32 h, UINT32 v, UINT32 rn, UINT32 rd);
 
@@ -131,9 +127,9 @@ IDDCX_BITS_PER_COMPONENT HDRCOLOUR = IDDCX_BITS_PER_COMPONENT_10;
 wstring ColourFormat = L"RGB";
 
 // === EDID INTEGRATION SETTINGS ===
-bool edidIntegrationEnabled = false;
-bool autoConfigureFromEdid = false;
-wstring edidProfilePath = L"EDID/monitor_profile.xml";
+
+
+
 bool overrideManualSettings = false;
 bool fallbackOnError = true;
 
@@ -165,7 +161,7 @@ int minResolutionWidth = 640;
 int minResolutionHeight = 480;
 int maxResolutionWidth = 7680;
 int maxResolutionHeight = 4320;
-bool useEdidPreferred = false;
+
 int fallbackWidth = 1920;
 int fallbackHeight = 1080;
 int fallbackRefresh = 60;
@@ -1022,7 +1018,7 @@ tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profi
     // Default fallback mode
     tuple<int, int, int, int> preferredMode = make_tuple(fallbackWidth, fallbackHeight, 1000, fallbackRefresh);
     
-    if (!useEdidPreferred) {
+    if (!g_settings.edid.preferred) {
         vddlog("i", "EDID preferred mode disabled, using fallback");
         return preferredMode;
     }
@@ -1316,7 +1312,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 }
 
 bool ApplyEdidProfile(const EdidProfileData& profile) {
-	if (!edidIntegrationEnabled) {
+	if (!g_settings.edid.enabled) {
 		return false;
 	}
 
@@ -2414,9 +2410,9 @@ extern "C" NTSTATUS DriverEntry(
 	g_settings.logs.enable_standard_logs = EnabledQuery(L"LoggingEnabled");
 	g_settings.logs.enable_debug_logs = EnabledQuery(L"DebugLoggingEnabled");
 
-	customEdid = EnabledQuery(L"CustomEdidEnabled");
-	preventManufacturerSpoof = EnabledQuery(L"PreventMonitorSpoof");
-	edidCeaOverride = EnabledQuery(L"EdidCeaOverride");
+	g_settings.edid.custom_edid = EnabledQuery(L"CustomEdidEnabled");
+	g_settings.edid.prevent_manufacturer_spoof = EnabledQuery(L"PreventMonitorSpoof");
+	g_settings.edid.edid_cea_override = EnabledQuery(L"EdidCeaOverride");
 	g_settings.logs.send_logs_through_pipe = EnabledQuery(L"SendLogsThroughPipe");
 
 
@@ -2445,9 +2441,9 @@ extern "C" NTSTATUS DriverEntry(
 	}
 
 	// === LOAD NEW EDID INTEGRATION SETTINGS ===
-	edidIntegrationEnabled = EnabledQuery(L"EdidIntegrationEnabled");
-	autoConfigureFromEdid = EnabledQuery(L"AutoConfigureFromEdid");
-	edidProfilePath = GetStringSetting(L"EdidProfilePath");
+	g_settings.edid.enabled = EnabledQuery(L"EdidIntegrationEnabled");
+	g_settings.edid.auto_configure = EnabledQuery(L"AutoConfigureFromEdid");
+	g_settings.edid.profile_path = GetStringSetting(L"EdidProfilePath");
 	overrideManualSettings = EnabledQuery(L"OverrideManualSettings");
 	fallbackOnError = EnabledQuery(L"FallbackOnError");
 
@@ -2483,7 +2479,7 @@ extern "C" NTSTATUS DriverEntry(
 	minResolutionHeight = GetIntegerSetting(L"MinResolutionHeight");
 	maxResolutionWidth = GetIntegerSetting(L"MaxResolutionWidth");
 	maxResolutionHeight = GetIntegerSetting(L"MaxResolutionHeight");
-	useEdidPreferred = EnabledQuery(L"UseEdidPreferred");
+	g_settings.edid.preferred = EnabledQuery(L"UseEdidPreferred");
 	fallbackWidth = GetIntegerSetting(L"FallbackWidth");
 	fallbackHeight = GetIntegerSetting(L"FallbackHeight");
 	fallbackRefresh = GetIntegerSetting(L"FallbackRefresh");
@@ -2683,9 +2679,9 @@ void loadSettings() {
 		RebuildKnownMonitorModesCache();
 		
 		// === APPLY EDID INTEGRATION ===
-		if (edidIntegrationEnabled && autoConfigureFromEdid) {
+		if (g_settings.edid.enabled && g_settings.edid.auto_configure) {
 			EdidProfileData edidProfile;
-			if (LoadEdidProfile(edidProfilePath, edidProfile)) {
+			if (LoadEdidProfile(g_settings.edid.profile_path, edidProfile)) {
 				if (ApplyEdidProfile(edidProfile)) {
 					vddlog("i", "EDID profile applied successfully");
 				} else {
@@ -3508,7 +3504,7 @@ void updateCeaExtensionCount(vector<BYTE>& edid, int count) {
 }
 
 vector<BYTE> loadEdid(const string& filePath) {
-	if (customEdid) {
+	if (g_settings.edid.custom_edid) {
 		vddlog("i", "Attempting to use user Edid");
 	}
 	else {
@@ -3536,7 +3532,7 @@ vector<BYTE> loadEdid(const string& filePath) {
 			return hardcodedEdid;
 		}
 
-		if (edidCeaOverride) {
+		if (g_settings.edid.edid_cea_override) {
 			if (buffer.size() == 256) {
 				for (int i = 128; i < 256; ++i) {
 					buffer[i] = hardcodedEdid[i];
@@ -3561,7 +3557,7 @@ vector<BYTE> loadEdid(const string& filePath) {
 int maincalc() {
 	vector<BYTE> edid = loadEdid(WStringToString(confpath) + "\\user_edid.bin");
 
-	if (!preventManufacturerSpoof) modifyEdid(edid);
+	if (!g_settings.edid.prevent_manufacturer_spoof) modifyEdid(edid);
 	BYTE checksum = calculateChecksum(edid);
 	edid[127] = checksum;
 	// Setting this variable is depricated, hardcoded edid is either returned or custom in loading edid function
@@ -4303,7 +4299,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	bool hasValidMetadata = false;
 
 	// Priority 1: Use EDID-derived metadata if available
-	if (edidIntegrationEnabled && autoConfigureFromEdid) {
+	if (g_settings.edid.enabled && g_settings.edid.auto_configure) {
 		// First check for monitor-specific metadata
 		auto storeIt = g_HdrMetadataStore.find(MonitorObject);
 		if (storeIt != g_HdrMetadataStore.end() && storeIt->second.isValid) {
@@ -4555,7 +4551,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	bool hasValidGammaRamp = false;
 
 	// Priority 1: Use EDID-derived gamma settings if available
-	if (edidIntegrationEnabled && autoConfigureFromEdid) {
+	if (g_settings.edid.enabled && g_settings.edid.auto_configure) {
 		// First check for monitor-specific gamma ramp
 		auto storeIt = g_GammaRampStore.find(MonitorObject);
 		if (storeIt != g_GammaRampStore.end() && storeIt->second.isValid) {

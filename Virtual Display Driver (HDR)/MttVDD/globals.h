@@ -1,5 +1,6 @@
 #pragma once
 #include <IddCx.h>
+#include <string>
 
 
 /* DriverSettings(una istanza globale : g_settings)
@@ -31,8 +32,21 @@ struct CursorSettings
 	IDDCX_XOR_CURSOR_SUPPORT xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 };
 
+struct EdidSettings
+{
+	std::wstring profile_path = L"EDID/monitor_profile.xml";
+
+	bool enabled = false;
+	bool preferred = false;
+	bool auto_configure = false;
+	bool custom_edid = false;
+	bool prevent_manufacturer_spoof = false;
+	bool edid_cea_override = false;
+};
+
 struct DriverSettings
 {
+	EdidSettings edid;
 	CursorSettings cursor;
 	LogSettings logs;
 };
