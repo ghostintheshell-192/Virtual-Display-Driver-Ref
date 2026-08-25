@@ -2,7 +2,7 @@
 #include <atlcomcli.h>
 #include <chrono>
 #include <cstdio>
-//#include <fstream>
+// #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -17,15 +17,15 @@
 #pragma comment(lib, "xmllite.lib")
 #pragma comment(lib, "shlwapi.lib")
 
-using namespace std;
-
 namespace Refactoring
 {
+
 void vddlog(const char *type, const char *message);
 
 DriverSettings g_settings;
 
-wstring confpath = L"C:\\VirtualDisplayDriver";
+//std::wstring confpath = L"C:\\VirtualDisplayDriver";
+std::wstring confpath = L"C:\\data\\repos\\Sandbox\\Virtual-Display-Driver-Ref\\Virtual Display Driver (HDR)";
 std::map<std::wstring, std::wstring> SettingsQueryMap = {
 	{L"LoggingEnabled", L"logging"},
 	{L"DebugLoggingEnabled", L"debuglogging"},
@@ -114,6 +114,7 @@ std::map<std::wstring, std::wstring> SettingsQueryMap = {
 	{L"SerialNumber", L"serial_number"},
 	// Monitor Emulation End
 };
+
 void LogQueries(const char *severity, const std::wstring &xmlName)
 {
 	if (xmlName.find(L"logging") == std::wstring::npos)
@@ -129,13 +130,13 @@ void LogQueries(const char *severity, const std::wstring &xmlName)
 	}
 }
 
-string WStringToString(const wstring &wstr)
+std::string WStringToString(const std::wstring &wstr)
 { // basically just a function for converting strings since codecvt is depricated in c++ 17
 	if (wstr.empty())
 		return "";
 
 	int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), NULL, 0, NULL, NULL);
-	string str(size_needed, 0);
+	std::string str(size_needed, 0);
 	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &str[0], size_needed, NULL, NULL);
 	return str;
 }
@@ -577,32 +578,32 @@ void vddlog(const char *type, const char *message)
 	}
 
 	FILE *logFile;
-	wstring logsDir = confpath + L"\\Logs";
+	std::wstring logsDir = confpath + L"\\Logs";
 
-	auto now = chrono::system_clock::now();
-	auto in_time_t = chrono::system_clock::to_time_t(now);
+	auto now = std::chrono::system_clock::now();
+	auto in_time_t = std::chrono::system_clock::to_time_t(now);
 	tm tm_buf;
 	localtime_s(&tm_buf, &in_time_t);
 	wchar_t date_str[11];
 	wcsftime(date_str, sizeof(date_str) / sizeof(wchar_t), L"%Y-%m-%d", &tm_buf);
 
-	wstring logPath = logsDir + L"\\log_" + date_str + L".txt";
+	std::wstring logPath = logsDir + L"\\log_" + date_str + L".txt";
 
 	if (!CreateDirectoryW(logsDir.c_str(), NULL) && GetLastError() != ERROR_ALREADY_EXISTS)
 	{
 		// Best effort only.
 	}
 
-	string narrow_logPath = WStringToString(logPath);
+	std::string narrow_logPath = WStringToString(logPath);
 	const char *mode = "a";
 	errno_t err = fopen_s(&logFile, narrow_logPath.c_str(), mode);
 	if (err == 0 && logFile != nullptr)
 	{
-		stringstream ss;
-		ss << put_time(&tm_buf, "%Y-%m-%d %X");
+		std::stringstream ss;
+		ss << std::put_time(&tm_buf, "%Y-%m-%d %X");
 
 		const char logTypeCode = (type != nullptr) ? type[0] : '\0';
-		string logType;
+		std::string logType;
 		switch (logTypeCode)
 		{
 		case 'e':
@@ -635,7 +636,7 @@ void vddlog(const char *type, const char *message)
 
 		fclose(logFile);
 
-		string logMessage = ss.str() + " [" + logType + "] " + message + "\n";
+		std::string logMessage = ss.str() + " [" + logType + "] " + message + "\n";
 		std::cout << logMessage;
 	}
 }
@@ -649,7 +650,7 @@ bool initpath()
 	lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
 	if (lResult != ERROR_SUCCESS)
 	{
-		ostringstream oss;
+		std::ostringstream oss;
 		oss << "Failed to open registry key for path. Error code: " << lResult;
 		return false;
 	}
@@ -657,7 +658,7 @@ bool initpath()
 	lResult = RegQueryValueExW(hKey, L"VDDPATH", NULL, NULL, (LPBYTE)szPath, &dwBufferSize);
 	if (lResult != ERROR_SUCCESS)
 	{
-		ostringstream oss;
+		std::ostringstream oss;
 		oss << "Failed to open registry key for path. Error code: " << lResult;
 		RegCloseKey(hKey);
 		return false;
@@ -670,7 +671,6 @@ bool initpath()
 	return true;
 }
 
-//_Use_decl_annotations_
 bool GetSettings()
 {
 	initpath();
@@ -774,8 +774,8 @@ bool GetSettings()
 	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 
 	vddlog("i", "Driver Starting");
-	string utf8_confpath = WStringToString(confpath);
-	string logtext = "VDD Path: " + utf8_confpath;
+	std::string utf8_confpath = WStringToString(confpath);
+	std::string logtext = "VDD Path: " + utf8_confpath;
 	vddlog("i", logtext.c_str());
 
 	return true;
