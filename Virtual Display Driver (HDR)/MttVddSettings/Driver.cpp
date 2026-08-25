@@ -1,21 +1,16 @@
 #include "globals.h"
-#include "globals_ref.h"
-#include<fstream>
-#include<sstream>
-#include<string>
-#include<tuple>
-#include<vector>
-#include<iomanip>
-#include<chrono>
-#include <xmllite.h>
-#include <shlwapi.h>
 #include <atlcomcli.h>
-#include <iostream>
-#include <windows.h>
+#include <chrono>
 #include <cstdio>
-#include <set>
+//#include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <map>
-
+#include <shlwapi.h>
+#include <sstream>
+#include <string>
+#include <windows.h>
+#include <xmllite.h>
 
 #define PIPE_NAME L"\\\\.\\pipe\\MTTVirtualDisplayPipe"
 
@@ -24,114 +19,120 @@
 
 using namespace std;
 
-void vddlog(const char* type, const char* message);
+namespace Refactoring
+{
+void vddlog(const char *type, const char *message);
 
 DriverSettings g_settings;
 
 wstring confpath = L"C:\\VirtualDisplayDriver";
+std::map<std::wstring, std::wstring> SettingsQueryMap = {
+	{L"LoggingEnabled", L"logging"},
+	{L"DebugLoggingEnabled", L"debuglogging"},
+	{L"CustomEdidEnabled", L"CustomEdid"},
 
-std::map<std::wstring, std::pair<std::wstring, std::wstring>> SettingsQueryMap = {
-	{L"LoggingEnabled", {L"LOGS", L"logging"}},
-	{L"DebugLoggingEnabled", {L"DEBUGLOGS", L"debuglogging"}},
-	{L"CustomEdidEnabled", {L"CUSTOMEDID", L"CustomEdid"}},
+	{L"PreventMonitorSpoof", L"PreventSpoof"},
+	{L"EdidCeaOverride", L"EdidCeaOverride"},
+	{L"SendLogsThroughPipe", L"SendLogsThroughPipe"},
 
-	{L"PreventMonitorSpoof", {L"PREVENTMONITORSPOOF", L"PreventSpoof"}},
-	{L"EdidCeaOverride", {L"EDIDCEAOVERRIDE", L"EdidCeaOverride"}},
-	{L"SendLogsThroughPipe", {L"SENDLOGSTHROUGHPIPE", L"SendLogsThroughPipe"}},
-	
-	//Cursor Begin
-	{L"HardwareCursorEnabled", {L"HARDWARECURSOR", L"HardwareCursor"}},
-	{L"AlphaCursorSupport", {L"ALPHACURSORSUPPORT", L"AlphaCursorSupport"}},
-	{L"CursorMaxX", {L"CURSORMAXX", L"CursorMaxX"}},
-	{L"CursorMaxY", {L"CURSORMAXY", L"CursorMaxY"}},
-	{L"XorCursorSupportLevel", {L"XORCURSORSUPPORTLEVEL", L"XorCursorSupportLevel"}},
-	//Cursor End
-	
-	//Colour Begin
-	{L"HDRPlusEnabled", {L"HDRPLUS", L"HDRPlus"}},
-	{L"SDR10Enabled", {L"SDR10BIT", L"SDR10bit"}},
-	{L"ColourFormat", {L"COLOURFORMAT", L"ColourFormat"}},
-	//Colour End
-	
-	//EDID Integration Begin
-	{L"EdidIntegrationEnabled", {L"EDIDINTEGRATION", L"enabled"}},
-	{L"AutoConfigureFromEdid", {L"AUTOCONFIGFROMEDID", L"auto_configure_from_edid"}},
-	{L"EdidProfilePath", {L"EDIDPROFILEPATH", L"edid_profile_path"}},
-	{L"OverrideManualSettings", {L"OVERRIDEMANUALSETTINGS", L"override_manual_settings"}},
-	{L"FallbackOnError", {L"FALLBACKONERROR", L"fallback_on_error"}},
-	//EDID Integration End
-	
-	//HDR Advanced Begin
-	{L"Hdr10StaticMetadataEnabled", {L"HDR10STATICMETADATA", L"enabled"}},
-	{L"MaxDisplayMasteringLuminance", {L"MAXLUMINANCE", L"max_display_mastering_luminance"}},
-	{L"MinDisplayMasteringLuminance", {L"MINLUMINANCE", L"min_display_mastering_luminance"}},
-	{L"MaxContentLightLevel", {L"MAXCONTENTLIGHT", L"max_content_light_level"}},
-	{L"MaxFrameAvgLightLevel", {L"MAXFRAMEAVGLIGHT", L"max_frame_avg_light_level"}},
-	{L"ColorPrimariesEnabled", {L"COLORPRIMARIES", L"enabled"}},
-	{L"RedX", {L"REDX", L"red_x"}},
-	{L"RedY", {L"REDY", L"red_y"}},
-	{L"GreenX", {L"GREENX", L"green_x"}},
-	{L"GreenY", {L"GREENY", L"green_y"}},
-	{L"BlueX", {L"BLUEX", L"blue_x"}},
-	{L"BlueY", {L"BLUEY", L"blue_y"}},
-	{L"WhiteX", {L"WHITEX", L"white_x"}},
-	{L"WhiteY", {L"WHITEY", L"white_y"}},
-	{L"ColorSpaceEnabled", {L"COLORSPACE", L"enabled"}},
-	{L"GammaCorrection", {L"GAMMA", L"gamma_correction"}},
-	{L"PrimaryColorSpace", {L"PRIMARYCOLORSPACE", L"primary_color_space"}},
-	{L"EnableMatrixTransform", {L"MATRIXTRANSFORM", L"enable_matrix_transform"}},
-	//HDR Advanced End
-	
-	//Auto Resolutions Begin
-	{L"AutoResolutionsEnabled", {L"AUTORESOLUTIONS", L"enabled"}},
-	{L"SourcePriority", {L"SOURCEPRIORITY", L"source_priority"}},
-	{L"MinRefreshRate", {L"MINREFRESHRATE", L"min_refresh_rate"}},
-	{L"MaxRefreshRate", {L"MAXREFRESHRATE", L"max_refresh_rate"}},
-	{L"ExcludeFractionalRates", {L"EXCLUDEFRACTIONAL", L"exclude_fractional_rates"}},
-	{L"MinResolutionWidth", {L"MINWIDTH", L"min_resolution_width"}},
-	{L"MinResolutionHeight", {L"MINHEIGHT", L"min_resolution_height"}},
-	{L"MaxResolutionWidth", {L"MAXWIDTH", L"max_resolution_width"}},
-	{L"MaxResolutionHeight", {L"MAXHEIGHT", L"max_resolution_height"}},
-	{L"UseEdidPreferred", {L"USEEDIDPREFERRED", L"use_edid_preferred"}},
-	{L"FallbackWidth", {L"FALLBACKWIDTH", L"fallback_width"}},
-	{L"FallbackHeight", {L"FALLBACKHEIGHT", L"fallback_height"}},
-	{L"FallbackRefresh", {L"FALLBACKREFRESH", L"fallback_refresh"}},
-	//Auto Resolutions End
-	
-	//Color Advanced Begin
-	{L"AutoSelectFromColorSpace", {L"AUTOSELECTCOLOR", L"auto_select_from_color_space"}},
-	{L"ForceBitDepth", {L"FORCEBITDEPTH", L"force_bit_depth"}},
-	{L"Fp16SurfaceSupport", {L"FP16SUPPORT", L"fp16_surface_support"}},
-	{L"WideColorGamut", {L"WIDECOLORGAMUT", L"wide_color_gamut"}},
-	{L"HdrToneMapping", {L"HDRTONEMAPPING", L"hdr_tone_mapping"}},
-	{L"SdrWhiteLevel", {L"SDRWHITELEVEL", L"sdr_white_level"}},
-	//Color Advanced End
-	
-	//Monitor Emulation Begin
-	{L"MonitorEmulationEnabled", {L"MONITOREMULATION", L"enabled"}},
-	{L"EmulatePhysicalDimensions", {L"EMULATEPHYSICAL", L"emulate_physical_dimensions"}},
-	{L"PhysicalWidthMm", {L"PHYSICALWIDTH", L"physical_width_mm"}},
-	{L"PhysicalHeightMm", {L"PHYSICALHEIGHT", L"physical_height_mm"}},
-	{L"ManufacturerEmulationEnabled", {L"MANUFACTUREREMULATION", L"enabled"}},
-	{L"ManufacturerName", {L"MANUFACTURERNAME", L"manufacturer_name"}},
-	{L"ModelName", {L"MODELNAME", L"model_name"}},
-	{L"SerialNumber", {L"SERIALNUMBER", L"serial_number"}},
-	//Monitor Emulation End
+	// Cursor Begin
+	{L"HardwareCursorEnabled", L"HardwareCursor"},
+	{L"AlphaCursorSupport", L"AlphaCursorSupport"},
+	{L"CursorMaxX", L"CursorMaxX"},
+	{L"CursorMaxY", L"CursorMaxY"},
+	{L"XorCursorSupportLevel", L"XorCursorSupportLevel"},
+	// Cursor End
+
+	// Colour Begin
+	{L"HDRPlusEnabled", L"HDRPlus"},
+	{L"SDR10Enabled", L"SDR10bit"},
+	{L"ColourFormat", L"ColourFormat"},
+	// Colour End
+
+	// EDID Integration Begin
+	{L"EdidIntegrationEnabled", L"enabled"},
+	{L"AutoConfigureFromEdid", L"auto_configure_from_edid"},
+	{L"EdidProfilePath", L"edid_profile_path"},
+	{L"OverrideManualSettings", L"override_manual_settings"},
+	{L"FallbackOnError", L"fallback_on_error"},
+	// EDID Integration End
+
+	// HDR Advanced Begin
+	{L"Hdr10StaticMetadataEnabled", L"enabled"},
+	{L"MaxDisplayMasteringLuminance", L"max_display_mastering_luminance"},
+	{L"MinDisplayMasteringLuminance", L"min_display_mastering_luminance"},
+	{L"MaxContentLightLevel", L"max_content_light_level"},
+	{L"MaxFrameAvgLightLevel", L"max_frame_avg_light_level"},
+	{L"ColorPrimariesEnabled", L"enabled"},
+	{L"RedX", L"red_x"},
+	{L"RedY", L"red_y"},
+	{L"GreenX", L"green_x"},
+	{L"GreenY", L"green_y"},
+	{L"BlueX", L"blue_x"},
+	{L"BlueY", L"blue_y"},
+	{L"WhiteX", L"white_x"},
+	{L"WhiteY", L"white_y"},
+	{L"ColorSpaceEnabled", L"enabled"},
+	{L"GammaCorrection", L"gamma_correction"},
+	{L"PrimaryColorSpace", L"primary_color_space"},
+	{L"EnableMatrixTransform", L"enable_matrix_transform"},
+	// HDR Advanced End
+
+	// Auto Resolutions Begin
+	{L"AutoResolutionsEnabled", L"enabled"},
+	{L"SourcePriority", L"source_priority"},
+	{L"MinRefreshRate", L"min_refresh_rate"},
+	{L"MaxRefreshRate", L"max_refresh_rate"},
+	{L"ExcludeFractionalRates", L"exclude_fractional_rates"},
+	{L"MinResolutionWidth", L"min_resolution_width"},
+	{L"MinResolutionHeight", L"min_resolution_height"},
+	{L"MaxResolutionWidth", L"max_resolution_width"},
+	{L"MaxResolutionHeight", L"max_resolution_height"},
+	{L"UseEdidPreferred", L"use_edid_preferred"},
+	{L"FallbackWidth", L"fallback_width"},
+	{L"FallbackHeight", L"fallback_height"},
+	{L"FallbackRefresh", L"fallback_refresh"},
+	// Auto Resolutions End
+
+	// Color Advanced Begin
+	{L"AutoSelectFromColorSpace", L"auto_select_from_color_space"},
+	{L"ForceBitDepth", L"force_bit_depth"},
+	{L"Fp16SurfaceSupport", L"fp16_surface_support"},
+	{L"WideColorGamut", L"wide_color_gamut"},
+	{L"HdrToneMapping", L"hdr_tone_mapping"},
+	{L"SdrWhiteLevel", L"sdr_white_level"},
+	// Color Advanced End
+
+	// Monitor Emulation Begin
+	{L"MonitorEmulationEnabled", L"enabled"},
+	{L"EmulatePhysicalDimensions", L"emulate_physical_dimensions"},
+	{L"PhysicalWidthMm", L"physical_width_mm"},
+	{L"PhysicalHeightMm", L"physical_height_mm"},
+	{L"ManufacturerEmulationEnabled", L"enabled"},
+	{L"ManufacturerName", L"manufacturer_name"},
+	{L"ModelName", L"model_name"},
+	{L"SerialNumber", L"serial_number"},
+	// Monitor Emulation End
 };
-
-void LogQueries(const char* severity, const std::wstring& xmlName) {
-	if (xmlName.find(L"logging") == std::wstring::npos) { 
+void LogQueries(const char *severity, const std::wstring &xmlName)
+{
+	if (xmlName.find(L"logging") == std::wstring::npos)
+	{
 		int size_needed = WideCharToMultiByte(CP_UTF8, 0, xmlName.c_str(), (int)xmlName.size(), NULL, 0, NULL, NULL);
-		if (size_needed > 0) {
+		if (size_needed > 0)
+		{
 			std::string strMessage(size_needed, 0);
-			WideCharToMultiByte(CP_UTF8, 0, xmlName.c_str(), (int)xmlName.size(), &strMessage[0], size_needed, NULL, NULL);
+			WideCharToMultiByte(CP_UTF8, 0, xmlName.c_str(), (int)xmlName.size(), &strMessage[0], size_needed, NULL,
+								NULL);
 			vddlog(severity, strMessage.c_str());
 		}
 	}
 }
 
-string WStringToString(const wstring& wstr) { //basically just a function for converting strings since codecvt is depricated in c++ 17
-	if (wstr.empty()) return "";
+string WStringToString(const wstring &wstr)
+{ // basically just a function for converting strings since codecvt is depricated in c++ 17
+	if (wstr.empty())
+		return "";
 
 	int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), NULL, 0, NULL, NULL);
 	string str(size_needed, 0);
@@ -139,47 +140,59 @@ string WStringToString(const wstring& wstr) { //basically just a function for co
 	return str;
 }
 
-bool EnabledQuery(const std::wstring& settingKey) {
+bool EnabledQuery(const std::wstring &settingKey)
+{
 	auto it = SettingsQueryMap.find(settingKey);
-	if (it == SettingsQueryMap.end()) {
+	if (it == SettingsQueryMap.end())
+	{
 		vddlog("e", "requested data not found in xml, consider updating xml!");
 		return false;
 	}
 
-	std::wstring regName = it->second.first;
-	std::wstring xmlName = it->second.second;
+	std::wstring xmlName = it->second;
 
 	std::wstring settingsname = confpath + L"\\vdd_settings.xml";
 	HKEY hKey;
 	DWORD dwValue;
 	DWORD dwBufferSize = sizeof(dwValue);
-	LONG lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
+	LONG lResult =
+		RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
 
-	if (lResult == ERROR_SUCCESS) {
+	if (lResult == ERROR_SUCCESS)
+	{
+		std::wstring regName = xmlName;
+		CharUpperBuffW(&regName[0], static_cast<DWORD>(regName.length()));
 		lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)&dwValue, &dwBufferSize);
-		if (lResult == ERROR_SUCCESS) {
+		if (lResult == ERROR_SUCCESS)
+		{
 			RegCloseKey(hKey);
-			if (dwValue == 1) {
+			if (dwValue == 1)
+			{
 				LogQueries("d", xmlName + L" - is enabled (value = 1).");
 				return true;
 			}
-			else if (dwValue == 0) {
+			else if (dwValue == 0)
+			{
 				goto check_xml;
 			}
 		}
-		else {
+		else
+		{
 			LogQueries("d", xmlName + L" - Failed to retrieve value from registry. Attempting to read as string.");
 			wchar_t path[MAX_PATH];
 			dwBufferSize = sizeof(path);
 			lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)path, &dwBufferSize);
-			if (lResult == ERROR_SUCCESS) {
+			if (lResult == ERROR_SUCCESS)
+			{
 				std::wstring logValue(path);
 				RegCloseKey(hKey);
-				if (logValue == L"true" || logValue == L"1") {
+				if (logValue == L"true" || logValue == L"1")
+				{
 					LogQueries("d", xmlName + L" - is enabled (string value).");
 					return true;
 				}
-				else if (logValue == L"false" || logValue == L"0") {
+				else if (logValue == L"false" || logValue == L"0")
+				{
 					goto check_xml;
 				}
 			}
@@ -190,38 +203,47 @@ bool EnabledQuery(const std::wstring& settingKey) {
 
 check_xml:
 	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
+	HRESULT hr =
+		SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create file stream for XML settings.");
 		return false;
 	}
 
 	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
+	hr = CreateXmlReader(__uuidof(IXmlReader), (void **)&pReader, nullptr);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create XML reader.");
 		return false;
 	}
 
 	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to set input for XML reader.");
 		return false;
 	}
 
 	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
+	const wchar_t *pwszLocalName;
 	bool xmlLoggingValue = false;
 
-	while (S_OK == pReader->Read(&nodeType)) {
-		if (nodeType == XmlNodeType_Element) {
+	while (S_OK == pReader->Read(&nodeType))
+	{
+		if (nodeType == XmlNodeType_Element)
+		{
 			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0) {
+			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0)
+			{
 				pReader->Read(&nodeType);
-				if (nodeType == XmlNodeType_Text) {
-					const wchar_t* pwszValue;
+				if (nodeType == XmlNodeType_Text)
+				{
+					const wchar_t *pwszValue;
 					pReader->GetValue(&pwszValue, nullptr);
-					if (pwszValue) {
+					if (pwszValue)
+					{
 						xmlLoggingValue = (wcscmp(pwszValue, L"true") == 0);
 					}
 					LogQueries("i", xmlName + (xmlLoggingValue ? L" is enabled." : L" is disabled."));
@@ -234,42 +256,53 @@ check_xml:
 	return xmlLoggingValue;
 }
 
-int GetIntegerSetting(const std::wstring& settingKey) {
+int GetIntegerSetting(const std::wstring &settingKey)
+{
 	auto it = SettingsQueryMap.find(settingKey);
-	if (it == SettingsQueryMap.end()) {
+	if (it == SettingsQueryMap.end())
+	{
 		vddlog("e", "requested data not found in xml, consider updating xml!");
 		return -1;
 	}
 
-	std::wstring regName = it->second.first;
-	std::wstring xmlName = it->second.second;
+	std::wstring xmlName = it->second;
 
 	std::wstring settingsname = confpath + L"\\vdd_settings.xml";
 	HKEY hKey;
 	DWORD dwValue;
 	DWORD dwBufferSize = sizeof(dwValue);
-	LONG lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
+	LONG lResult =
+		RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
 
-	if (lResult == ERROR_SUCCESS) {
+	if (lResult == ERROR_SUCCESS)
+	{
+		std::wstring regName = xmlName;
+		CharUpperBuffW(&regName[0], static_cast<DWORD>(regName.length()));
 		lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)&dwValue, &dwBufferSize);
-		if (lResult == ERROR_SUCCESS) {
+		if (lResult == ERROR_SUCCESS)
+		{
 			RegCloseKey(hKey);
 			LogQueries("d", xmlName + L" - Retrieved integer value: " + std::to_wstring(dwValue));
 			return static_cast<int>(dwValue);
 		}
-		else {
-			LogQueries("d", xmlName + L" - Failed to retrieve integer value from registry. Attempting to read as string.");
+		else
+		{
+			LogQueries("d",
+					   xmlName + L" - Failed to retrieve integer value from registry. Attempting to read as string.");
 			wchar_t path[MAX_PATH];
 			dwBufferSize = sizeof(path);
 			lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)path, &dwBufferSize);
 			RegCloseKey(hKey);
-			if (lResult == ERROR_SUCCESS) {
-				try {
+			if (lResult == ERROR_SUCCESS)
+			{
+				try
+				{
 					int logValue = std::stoi(path);
 					LogQueries("d", xmlName + L" - Retrieved string value: " + std::to_wstring(logValue));
 					return logValue;
 				}
-				catch (const std::exception&) {
+				catch (const std::exception &)
+				{
 					LogQueries("d", xmlName + L" - Failed to convert registry string value to integer.");
 				}
 			}
@@ -277,43 +310,54 @@ int GetIntegerSetting(const std::wstring& settingKey) {
 	}
 
 	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
+	HRESULT hr =
+		SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create file stream for XML settings.");
 		return -1;
 	}
 
 	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
+	hr = CreateXmlReader(__uuidof(IXmlReader), (void **)&pReader, nullptr);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create XML reader.");
 		return -1;
 	}
 
 	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to set input for XML reader.");
 		return -1;
 	}
 
 	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
+	const wchar_t *pwszLocalName;
 	int xmlLoggingValue = -1;
 
-	while (S_OK == pReader->Read(&nodeType)) {
-		if (nodeType == XmlNodeType_Element) {
+	while (S_OK == pReader->Read(&nodeType))
+	{
+		if (nodeType == XmlNodeType_Element)
+		{
 			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0) {
+			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0)
+			{
 				pReader->Read(&nodeType);
-				if (nodeType == XmlNodeType_Text) {
-					const wchar_t* pwszValue;
+				if (nodeType == XmlNodeType_Text)
+				{
+					const wchar_t *pwszValue;
 					pReader->GetValue(&pwszValue, nullptr);
-					if (pwszValue) {
-						try {
+					if (pwszValue)
+					{
+						try
+						{
 							xmlLoggingValue = std::stoi(pwszValue);
 							LogQueries("i", xmlName + L" - Retrieved from XML: " + std::to_wstring(xmlLoggingValue));
 						}
-						catch (const std::exception&) {
+						catch (const std::exception &)
+						{
 							LogQueries("d", xmlName + L" - Failed to convert XML string value to integer.");
 						}
 					}
@@ -326,68 +370,84 @@ int GetIntegerSetting(const std::wstring& settingKey) {
 	return xmlLoggingValue;
 }
 
-std::wstring GetStringSetting(const std::wstring& settingKey) {
+std::wstring GetStringSetting(const std::wstring &settingKey)
+{
 	auto it = SettingsQueryMap.find(settingKey);
-	if (it == SettingsQueryMap.end()) {
+	if (it == SettingsQueryMap.end())
+	{
 		vddlog("e", "requested data not found in xml, consider updating xml!");
-		return L""; 
+		return L"";
 	}
 
-	std::wstring regName = it->second.first;
-	std::wstring xmlName = it->second.second;
+	std::wstring xmlName = it->second;
 
 	std::wstring settingsname = confpath + L"\\vdd_settings.xml";
 	HKEY hKey;
 	DWORD dwBufferSize = MAX_PATH;
 	wchar_t buffer[MAX_PATH];
 
-	LONG lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
-	if (lResult == ERROR_SUCCESS) {
+	LONG lResult =
+		RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
+	if (lResult == ERROR_SUCCESS)
+	{
+		std::wstring regName = xmlName;
+		CharUpperBuffW(&regName[0], static_cast<DWORD>(regName.length()));
 		lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)buffer, &dwBufferSize);
 		RegCloseKey(hKey);
 
-		if (lResult == ERROR_SUCCESS) {
+		if (lResult == ERROR_SUCCESS)
+		{
 			LogQueries("d", xmlName + L" - Retrieved string value from registry: " + buffer);
-			return std::wstring(buffer);  
+			return std::wstring(buffer);
 		}
-		else {
+		else
+		{
 			LogQueries("d", xmlName + L" - Failed to retrieve string value from registry. Attempting to read as XML.");
 		}
 	}
 
 	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
+	HRESULT hr =
+		SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create file stream for XML settings.");
-		return L""; 
+		return L"";
 	}
 
 	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
+	hr = CreateXmlReader(__uuidof(IXmlReader), (void **)&pReader, nullptr);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create XML reader.");
-		return L""; 
+		return L"";
 	}
 
 	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to set input for XML reader.");
-		return L"";  
+		return L"";
 	}
 
 	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
-	std::wstring xmlLoggingValue = L"";  
+	const wchar_t *pwszLocalName;
+	std::wstring xmlLoggingValue = L"";
 
-	while (S_OK == pReader->Read(&nodeType)) {
-		if (nodeType == XmlNodeType_Element) {
+	while (S_OK == pReader->Read(&nodeType))
+	{
+		if (nodeType == XmlNodeType_Element)
+		{
 			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0) {
+			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0)
+			{
 				pReader->Read(&nodeType);
-				if (nodeType == XmlNodeType_Text) {
-					const wchar_t* pwszValue;
+				if (nodeType == XmlNodeType_Text)
+				{
+					const wchar_t *pwszValue;
 					pReader->GetValue(&pwszValue, nullptr);
-					if (pwszValue) {
+					if (pwszValue)
+					{
 						xmlLoggingValue = pwszValue;
 					}
 					LogQueries("i", xmlName + L" - Retrieved from XML: " + xmlLoggingValue);
@@ -397,81 +457,101 @@ std::wstring GetStringSetting(const std::wstring& settingKey) {
 		}
 	}
 
-	return xmlLoggingValue;  
+	return xmlLoggingValue;
 }
 
-double GetDoubleSetting(const std::wstring& settingKey) {
+double GetDoubleSetting(const std::wstring &settingKey)
+{
 	auto it = SettingsQueryMap.find(settingKey);
-	if (it == SettingsQueryMap.end()) {
+	if (it == SettingsQueryMap.end())
+	{
 		vddlog("e", "requested data not found in xml, consider updating xml!");
 		return 0.0;
 	}
 
-	std::wstring regName = it->second.first;
-	std::wstring xmlName = it->second.second;
+	std::wstring xmlName = it->second;
 
 	std::wstring settingsname = confpath + L"\\vdd_settings.xml";
 	HKEY hKey;
 	DWORD dwBufferSize = MAX_PATH;
 	wchar_t buffer[MAX_PATH];
 
-	LONG lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
-	if (lResult == ERROR_SUCCESS) {
+	LONG lResult =
+		RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
+	if (lResult == ERROR_SUCCESS)
+	{
+		std::wstring regName = xmlName;
+		CharUpperBuffW(&regName[0], static_cast<DWORD>(regName.length()));
 		lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)buffer, &dwBufferSize);
-		if (lResult == ERROR_SUCCESS) {
+		if (lResult == ERROR_SUCCESS)
+		{
 			RegCloseKey(hKey);
-			try {
+			try
+			{
 				double regValue = std::stod(buffer);
 				LogQueries("d", xmlName + L" - Retrieved from registry: " + std::to_wstring(regValue));
 				return regValue;
 			}
-			catch (const std::exception&) {
+			catch (const std::exception &)
+			{
 				LogQueries("d", xmlName + L" - Failed to convert registry value to double.");
 			}
 		}
-		else {
+		else
+		{
 			RegCloseKey(hKey);
 		}
 	}
 
 	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
+	HRESULT hr =
+		SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create file stream for XML settings.");
 		return 0.0;
 	}
 
 	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
+	hr = CreateXmlReader(__uuidof(IXmlReader), (void **)&pReader, nullptr);
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to create XML reader.");
 		return 0.0;
 	}
 
 	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
+	if (FAILED(hr))
+	{
 		LogQueries("d", xmlName + L" - Failed to set input for XML reader.");
 		return 0.0;
 	}
 
 	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
+	const wchar_t *pwszLocalName;
 	double xmlLoggingValue = 0.0;
 
-	while (S_OK == pReader->Read(&nodeType)) {
-		if (nodeType == XmlNodeType_Element) {
+	while (S_OK == pReader->Read(&nodeType))
+	{
+		if (nodeType == XmlNodeType_Element)
+		{
 			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0) {
+			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0)
+			{
 				pReader->Read(&nodeType);
-				if (nodeType == XmlNodeType_Text) {
-					const wchar_t* pwszValue;
+				if (nodeType == XmlNodeType_Text)
+				{
+					const wchar_t *pwszValue;
 					pReader->GetValue(&pwszValue, nullptr);
-					if (pwszValue) {
-						try {
+					if (pwszValue)
+					{
+						try
+						{
 							xmlLoggingValue = std::stod(pwszValue);
 							LogQueries("i", xmlName + L" - Retrieved from XML: " + std::to_wstring(xmlLoggingValue));
 						}
-						catch (const std::exception&) {
+						catch (const std::exception &)
+						{
 							LogQueries("d", xmlName + L" - Failed to convert XML value to double.");
 						}
 					}
@@ -560,20 +640,23 @@ void vddlog(const char *type, const char *message)
 	}
 }
 
-bool initpath() {
+bool initpath()
+{
 	HKEY hKey;
 	wchar_t szPath[MAX_PATH];
 	DWORD dwBufferSize = sizeof(szPath);
 	LONG lResult;
 	lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
-	if (lResult != ERROR_SUCCESS) {
+	if (lResult != ERROR_SUCCESS)
+	{
 		ostringstream oss;
 		oss << "Failed to open registry key for path. Error code: " << lResult;
 		return false;
 	}
 
 	lResult = RegQueryValueExW(hKey, L"VDDPATH", NULL, NULL, (LPBYTE)szPath, &dwBufferSize);
-	if (lResult != ERROR_SUCCESS) {
+	if (lResult != ERROR_SUCCESS)
+	{
 		ostringstream oss;
 		oss << "Failed to open registry key for path. Error code: " << lResult;
 		RegCloseKey(hKey);
@@ -599,15 +682,15 @@ bool GetSettings()
 	g_settings.edid.edid_cea_override = EnabledQuery(L"EdidCeaOverride");
 	g_settings.logs.send_logs_through_pipe = EnabledQuery(L"SendLogsThroughPipe");
 
-
-	//colour
+	// colour
 	g_settings.colors.hdr_plus = EnabledQuery(L"HDRPlusEnabled");
 	g_settings.colors.sdr10 = EnabledQuery(L"SDR10Enabled");
-	//g_settings.colors.HDR_COLOR = g_settings.colors.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 : IDDCX_BITS_PER_COMPONENT_10;
-	//g_settings.colors.SDR_COLOR = g_settings.colors.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8;
+	// g_settings.colors.HDR_COLOR = g_settings.colors.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 :
+	// IDDCX_BITS_PER_COMPONENT_10; g_settings.colors.SDR_COLOR = g_settings.colors.sdr10 ? IDDCX_BITS_PER_COMPONENT_10
+	// : IDDCX_BITS_PER_COMPONENT_8;
 	g_settings.colors.color_format = GetStringSetting(L"ColourFormat");
 
-	//Cursor
+	// Cursor
 	g_settings.cursor.hardware_cursor = EnabledQuery(L"HardwareCursorEnabled");
 	g_settings.cursor.alpha_cursor_support = EnabledQuery(L"AlphaCursorSupport");
 	g_settings.cursor.max_x = GetIntegerSetting(L"CursorMaxX");
@@ -616,13 +699,13 @@ bool GetSettings()
 	int xorCursorSupportLevelInt = GetIntegerSetting(L"XorCursorSupportLevel");
 	std::string xorCursorSupportLevelName;
 
-	//if (xorCursorSupportLevelInt < 0 || xorCursorSupportLevelInt > 3) {
+	// if (xorCursorSupportLevelInt < 0 || xorCursorSupportLevelInt > 3) {
 	//	vddlog("w", "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
 	//	g_settings.cursor.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
-	//}
-	//else {
+	// }
+	// else {
 	//	g_settings.cursor.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
-	//}
+	// }
 
 	// === LOAD NEW EDID INTEGRATION SETTINGS ===
 	g_settings.edid.enabled = EnabledQuery(L"EdidIntegrationEnabled");
@@ -686,11 +769,9 @@ bool GetSettings()
 	g_settings.mon_emul.model_name = GetStringSetting(L"ModelName");
 	g_settings.mon_emul.serial_number = GetStringSetting(L"SerialNumber");
 
-	//xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
+	// xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
 
 	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
-
-
 
 	vddlog("i", "Driver Starting");
 	string utf8_confpath = WStringToString(confpath);
@@ -699,3 +780,4 @@ bool GetSettings()
 
 	return true;
 }
+} // namespace Refactoring
