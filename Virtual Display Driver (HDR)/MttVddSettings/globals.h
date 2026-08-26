@@ -2,18 +2,20 @@
 //#include <IddCx.h>
 #include <string>
 
-
 /* DriverSettings(una istanza globale : g_settings)
 ├── LogSettings(logs, debug, send_through_pipe)
 ├── EdidSettings(custom_edid, prevent_spoof, cea_override)
 ├── EdidIntegrationSettings(integration_enabled, auto_configure, profile_path, ...)
 ├── CursorSettings(hardware_cursor, alpha_support, max_x, max_y, xor_level)
 ├── ColourSettings(hdr_plus, sdr10, format)
-├── HdrAdvancedSettings(static_metadata_enabled, luminance, content_light_levels, primaries, color_space, 
+├── HdrAdvancedSettings(static_metadata_enabled, luminance, content_light_levels, primaries, color_space,
 | gamma, force_bit_depth, fp16, wide_gamut, tone_mapping, ...)
 ├── AutoResolutionSettings(enabled, source_priority, min / max refresh, min / max resolution, ...)
 └── MonitorEmulationSettings(enabled, physical_dimensions, manufacturer, model, serial) */
 
+
+namespace Refactoring
+{
 struct LogSettings
 {
 	bool enable_standard_logs = false;
@@ -29,7 +31,7 @@ struct CursorSettings
 	int max_x = 128;
 	int max_y = 128;
 
-	//IDDCX_XOR_CURSOR_SUPPORT xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
+	// IDDCX_XOR_CURSOR_SUPPORT xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 };
 
 struct EdidSettings
@@ -54,8 +56,8 @@ struct ColourSettings
 	bool sdr10 = false;
 	std::wstring color_format = L"RGB";
 
-	//IDDCX_BITS_PER_COMPONENT SDR_COLOR = IDDCX_BITS_PER_COMPONENT_8;
-	//IDDCX_BITS_PER_COMPONENT HDR_COLOR = IDDCX_BITS_PER_COMPONENT_10;
+	// IDDCX_BITS_PER_COMPONENT SDR_COLOR = IDDCX_BITS_PER_COMPONENT_8;
+	// IDDCX_BITS_PER_COMPONENT HDR_COLOR = IDDCX_BITS_PER_COMPONENT_10;
 };
 
 struct BitDepthManagementSettings
@@ -68,8 +70,8 @@ struct BitDepthManagementSettings
 
 struct ColorFormatExtendedSettings
 {
-	bool wide_color_gamut = false; //not used
-	bool hdr_tone_mapping = false; //not used
+	bool wide_color_gamut = false; // not used
+	bool hdr_tone_mapping = false; // not used
 	double sdr_white_level = 80.0;
 };
 
@@ -108,7 +110,8 @@ struct HdrAdvancedSettings
 	int max_content_light_level = 1000;
 	int max_frame_avg_light_level = 400;
 
-	double max_display_mastering_luminance = 1000.0; //standard SMPTE ST.2086 - UoM nits (candle over squared meter) - indicates how luminous a display is, even when it is virtual.
+	double max_display_mastering_luminance = 1000.0; // standard SMPTE ST.2086 - UoM nits (candle over squared meter) -
+													 // indicates how luminous a display is, even when it is virtual.
 	double min_display_mastering_luminance = 0.05;
 
 	ColorPrimariesSettings color_primaries;
@@ -154,8 +157,8 @@ struct MonitorEmulationSettings
 	bool emulate_physical_dimensions = false;
 	bool manufacturer_emulation_enabled = false;
 
-	int physical_width = 510; //UoM: millimeters
-	int physical_height = 287; //UoM: millimeters
+	int physical_width = 510;  // UoM: millimeters
+	int physical_height = 287; // UoM: millimeters
 };
 
 struct DriverSettings
@@ -170,3 +173,4 @@ struct DriverSettings
 	CursorSettings cursor;
 	LogSettings logs;
 };
+}

@@ -1,6 +1,7 @@
-#include "Driver.cpp"
+#include "register.h"
 
-void main()
+int main()
 {
-	GetSettings();
+	//override_defaults();
+	return 0;
 }
