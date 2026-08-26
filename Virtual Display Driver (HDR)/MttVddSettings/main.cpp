@@ -1,5 +1,3 @@
-#include "register.h"
-
 int main()
 {
 	//override_defaults();

@@ -144,7 +144,6 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Driver.h" />
     <ClInclude Include="globals.h" />
   </ItemGroup>
   <ItemGroup>
