@@ -1,22 +1,8 @@
 #include "globals.h"
-//#include <cstdio>
-//#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <windows.h>
-
-//#define PIPE_NAME L"\\\\.\\pipe\\MTTVirtualDisplayPipe"
-
-//#pragma comment(lib, "xmllite.lib")
-//#pragma comment(lib, "shlwapi.lib")
-
-// forward declaration
-__declspec(dllimport)
-void vddlog(const char *type, const char *message);
-
-__declspec(dllimport)
-std::string WStringToString(const std::wstring &wstr);
 
 namespace Refactoring
 {
@@ -279,10 +265,10 @@ void override_defaults()
 	// xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
 	//vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 	
-	vddlog("i", "Driver Starting");
-	std::string utf8_confpath = WStringToString(confpath);
-	std::string logtext = "VDD Path: " + utf8_confpath;
-	vddlog("i", logtext.c_str());
+	//vddlog("i", "Driver Starting");
+	//std::string utf8_confpath = WStringToString(confpath);
+	//std::string logtext = "VDD Path: " + utf8_confpath;
+	//vddlog("i", logtext.c_str());
 
 	RegCloseKey(reg_hKey);
 }
