@@ -140,11 +140,14 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Driver.cpp" />
+    <ClCompile Include="registry_reader.cpp" />
+    <ClCompile Include="settings_loader.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="globals.h" />
+    <ClInclude Include="registry_reader.h" />
+    <ClInclude Include="settings_loader.h" />
     <ClInclude Include="utilities.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
