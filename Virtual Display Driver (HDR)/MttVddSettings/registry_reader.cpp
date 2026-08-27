@@ -44,6 +44,7 @@ void Refactoring::RegistryReader::InitializePath(std::wstring &path) const
 	if (lResult == ERROR_SUCCESS)
 	{
 		std::wcout << L"Config Path updated: " + path;
+		return;
 	}
 
 	std::cout << "Failed to open registry key for vdd path override. Error code: " << lResult;
