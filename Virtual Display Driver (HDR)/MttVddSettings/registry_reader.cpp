@@ -4,8 +4,9 @@
 
 bool Refactoring::RegistryReader::OpenRegistry()
 {
-	LONG lResult;
-	lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &reg_handle_key);
+	reg_handle_key = nullptr;
+	LONG lResult =
+		RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &reg_handle_key);
 
 	if (lResult == ERROR_SUCCESS)
 	{
@@ -16,11 +17,11 @@ bool Refactoring::RegistryReader::OpenRegistry()
 
 bool Refactoring::RegistryReader::CloseRegistry()
 {
-	LONG lResult;
-	lResult = RegCloseKey(reg_handle_key);
+	LONG lResult = RegCloseKey(reg_handle_key);
 
 	if (lResult == ERROR_SUCCESS)
 	{
+		reg_handle_key = nullptr;
 		return true;
 	}
 	return false;
