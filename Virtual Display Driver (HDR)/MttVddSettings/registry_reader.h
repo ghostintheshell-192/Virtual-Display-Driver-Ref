@@ -9,6 +9,9 @@ namespace Refactoring
 class RegistryReader
 {
   public:
+	RegistryReader() : reg_handle_key(nullptr) {};
+	~RegistryReader() = default;
+
 	bool OpenRegistry();
 	bool CloseRegistry();
 	bool IsRegistryOpen() const;
