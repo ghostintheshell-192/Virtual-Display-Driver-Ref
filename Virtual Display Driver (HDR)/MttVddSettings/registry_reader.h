@@ -31,6 +31,5 @@ class RegistryReader
   private:
 	std::wstring GetRawRegistryValue(HKEY hKey, const std::wstring &setting_name);
 	HKEY reg_handle_key;
-	bool registry_open;
 };
 } // namespace Refactoring

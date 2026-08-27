@@ -10,10 +10,10 @@ void Refactoring::SettingsLoader::Init()
 	check_registry = reg_reader.OpenRegistry();
 
 	if (check_registry)
+	{
 		reg_reader.InitializePath(conf_path);
-
-	if (reg_reader.IsRegistryOpen())
 		reg_reader.CloseRegistry();
+	}
 }
 
 void Refactoring::SettingsLoader::LoadSettings()

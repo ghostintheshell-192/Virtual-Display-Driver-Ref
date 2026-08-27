@@ -9,10 +9,8 @@ bool Refactoring::RegistryReader::OpenRegistry()
 
 	if (lResult == ERROR_SUCCESS)
 	{
-		registry_open = true;
 		return true;
 	}
-	registry_open = false;
 	return false;
 }
 
@@ -23,23 +21,22 @@ bool Refactoring::RegistryReader::CloseRegistry()
 
 	if (lResult == ERROR_SUCCESS)
 	{
-		registry_open = false;
 		return true;
 	}
-	registry_open = true;
 	return false;
 }
 
 bool Refactoring::RegistryReader::IsRegistryOpen() const
 {
-	return registry_open;
+	return reg_handle_key != nullptr;
 }
 
 void Refactoring::RegistryReader::InitializePath(std::wstring path)
 {
-	OpenRegistry();
-	char * szPath[MAX_PATH];
-	DWORD dwBufferSize = sizeof(szPath);
+	if (!IsRegistryOpen())
+		return;
+
+	DWORD dwBufferSize = sizeof(path);
 	LONG lResult;
 
 	lResult = RegQueryValueExW(reg_handle_key, L"VDDPATH", NULL, NULL, (LPBYTE)path[0], &dwBufferSize);
@@ -50,7 +47,6 @@ void Refactoring::RegistryReader::InitializePath(std::wstring path)
 
 	std::cout << "Failed to open registry key for vdd path override. Error code: " << lResult;
 	std::cout << "Config Path remains at default value.";
-	CloseRegistry();
 }
 
 std::wstring Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const std::wstring &setting_name)
@@ -81,16 +77,3 @@ std::wstring Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const s
 
 	return L"";
 }
-
-//template <typename T>
-//bool Refactoring::RegistryReader::GetSetting(const std::wstring &parent, const std::wstring &setting_name, T &result)
-//{
-//	std::wstring complete_reg_name = parent + L"_" + setting_name;
-//	std::wstring raw_reg_value = GetRawRegistryValue(reg_handle_key, complete_reg_name);
-//
-//	if (raw_reg_value.empty())
-//		return false;
-//
-//	result = convert_setting<T>(raw_reg_value);
-//	return true;
-//}
