@@ -32,7 +32,7 @@ bool Refactoring::RegistryReader::IsRegistryOpen() const
 	return reg_handle_key != nullptr;
 }
 
-void Refactoring::RegistryReader::InitializePath(std::wstring path)
+void Refactoring::RegistryReader::InitializePath(std::wstring &path) const
 {
 	if (!IsRegistryOpen())
 		return;

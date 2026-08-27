@@ -13,7 +13,7 @@ class RegistryReader
 	bool CloseRegistry();
 	bool IsRegistryOpen() const;
 
-	void InitializePath(std::wstring path);
+	void InitializePath(std::wstring &path) const;
 
 	template <typename T> bool GetSetting(const std::wstring &parent, const std::wstring &setting_name, T &result)
 	{
