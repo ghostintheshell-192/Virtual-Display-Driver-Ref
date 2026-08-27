@@ -40,7 +40,7 @@ void Refactoring::RegistryReader::InitializePath(std::wstring &path) const
 	DWORD dwBufferSize = sizeof(path);
 	LONG lResult;
 
-	lResult = RegQueryValueExW(reg_handle_key, L"VDDPATH", NULL, NULL, (LPBYTE)path[0], &dwBufferSize);
+	lResult = RegQueryValueExW(reg_handle_key, L"VDDPATH", NULL, NULL, (LPBYTE)&path[0], &dwBufferSize);
 	if (lResult == ERROR_SUCCESS)
 	{
 		std::wcout << L"Config Path updated: " + path;
