@@ -20,14 +20,6 @@ bool Refactoring::XmlReader::OpenFile(std::string path)
 bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingValuePtr &result)
 {
 	std::vector<std::string> values = tokenize(value, '.');
-
-	tinyxml2::XMLElement *element = settings_file.RootElement();
-
-	if (!element)
-	{
-		std::cout << "Failed to read nodes in xml file\n";
-		return false;
-	}
 	std::string raw_value;
 
 	tinyxml2::XMLElement *current = settings_file.RootElement();
@@ -52,6 +44,5 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 		},
 		result);
 
-	// result = convert_setting<T>(raw_value);
 	return true;
 }
