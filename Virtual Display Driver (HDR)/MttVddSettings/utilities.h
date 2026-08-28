@@ -4,8 +4,6 @@
 
 namespace Refactoring
 {
-const int8_t MAX_LEVEL = 3;
-
 
 template <typename T> static T convert_setting(const std::string &value) = delete;
 

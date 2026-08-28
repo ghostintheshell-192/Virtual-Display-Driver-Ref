@@ -2,8 +2,6 @@
 #include <iostream>
 #include <string>
 
-typedef std::vector<std::string> keys;
-
 void Refactoring::SettingsLoader::Init()
 {
 	conf_path = "C:\\data\\repos\\Sandbox\\Virtual-Display-Driver-Ref\\Virtual Display Driver (HDR)";
@@ -108,9 +106,9 @@ void Refactoring::SettingsLoader::LoadSettings()
 	for (const auto &entry : entries)
 	{
 		if (check_xml)
-			xml_reader.GetSetting(entry.key, entry.container_value);
+			xml_reader.GetSetting(entry.key, entry.container);
 		if (check_registry)
-			reg_reader.GetSetting(entry.key, entry.container_value);
+			reg_reader.GetSetting(entry.key, entry.container);
 	}
 
 	if (check_registry)

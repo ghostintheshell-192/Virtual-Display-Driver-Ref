@@ -1,6 +1,7 @@
 #pragma once
 //#include <IddCx.h>
 #include <string>
+#include <variant>
 
 /* DriverSettings(una istanza globale : g_settings)
 ├── LogSettings(logs, debug, send_through_pipe)
@@ -16,6 +17,9 @@
 
 namespace Refactoring
 {
+
+typedef std::variant<bool *, int *, double *, std::string *> SettingValuePtr;
+
 struct LogSettings
 {
 	bool enable_standard_logs = false;
@@ -173,4 +177,11 @@ struct DriverSettings
 	CursorSettings cursor;
 	LogSettings logs;
 };
+
+struct DataElements
+{
+	std::string key;
+	SettingValuePtr container;
+};
+
 }

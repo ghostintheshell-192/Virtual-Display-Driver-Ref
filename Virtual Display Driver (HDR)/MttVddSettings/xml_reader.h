@@ -1,7 +1,7 @@
 #pragma once
 #include "tinyxml2.h"
 #include <string>
-#include <variant>
+#include "globals.h"
 
 namespace Refactoring
 {
@@ -12,10 +12,8 @@ class XmlReader
 	~XmlReader() = default;
 
 	bool OpenFile(std::string path);
-	bool CloseFile();
-	bool IsFileOpen() const;
 
-	bool GetSetting(const std::string &value, const std::variant<bool *, int *, double *, std::string *> &result);
+	bool GetSetting(const std::string &value, const SettingValuePtr &result);
 
   protected:
   private:

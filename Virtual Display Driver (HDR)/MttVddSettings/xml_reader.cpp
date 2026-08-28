@@ -1,5 +1,6 @@
 #include "xml_reader.h"
 #include "utilities.h"
+#include "globals.h"
 #include <iostream>
 
 bool Refactoring::XmlReader::OpenFile(std::string path)
@@ -16,17 +17,7 @@ bool Refactoring::XmlReader::OpenFile(std::string path)
 	return false;
 }
 
-bool Refactoring::XmlReader::CloseFile()
-{
-	return true;
-}
-
-bool Refactoring::XmlReader::IsFileOpen() const
-{
-	return false;
-}
-
-bool Refactoring::XmlReader::GetSetting(const std::string &value, const std::variant<bool *, int *, double *, std::string *> &result)
+bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingValuePtr &result)
 {
 	std::vector<std::string> values = tokenize(value, '.');
 

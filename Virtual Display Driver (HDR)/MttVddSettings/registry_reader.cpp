@@ -84,3 +84,20 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 
 	return "";
 }
+
+	
+bool Refactoring::RegistryReader::GetSetting(std::string value_key, const SettingValuePtr &result)
+{
+	std::string raw_reg_value = GetRawRegistryValue(reg_handle_key, value_key);
+
+	if (raw_reg_value.empty())
+		return false;
+
+	std::visit(
+		[&raw_reg_value](auto *ptr) {
+			using T = std::remove_pointer_t<decltype(ptr)>;
+			*ptr = convert_setting<T>(raw_reg_value);
+		},
+		result);
+	return true;
+}

@@ -1,10 +1,8 @@
 #pragma once
-#include <Windows.h>
 #include "globals.h"
 #include "registry_reader.h"
 #include "xml_reader.h"
 #include <vector>
-#include <variant>
 
 namespace Refactoring
 {
@@ -16,8 +14,6 @@ namespace Refactoring
 
 		void Init();
 		void LoadSettings();
-		void OverrideDefaultsRegistry();
-		void OverrideDefaultsXml();
 
 	  protected:
 	  private:
@@ -30,12 +26,6 @@ namespace Refactoring
 
 		std::string conf_path;
 
-		struct data
-		{
-			std::string key;
-			std::variant<bool *, int *, double *, std::string *> container_value;
-		};
-
-		std::vector<data> entries;
+		std::vector<DataElements> entries;
 	};
 }
