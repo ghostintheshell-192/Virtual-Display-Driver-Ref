@@ -9,7 +9,7 @@ namespace Refactoring
 	class SettingsLoader
 	{
 	  public:
-		SettingsLoader() = default;
+		SettingsLoader() : check_registry(false), check_xml(false){}
 		~SettingsLoader() = default;
 
 		void Init();
