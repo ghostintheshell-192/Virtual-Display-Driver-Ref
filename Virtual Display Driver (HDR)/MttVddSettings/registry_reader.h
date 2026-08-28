@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <string>
+#include <vector>
 #include "utilities.h"
 // #include <iostream>
 
@@ -16,11 +17,12 @@ class RegistryReader
 	bool CloseRegistry();
 	bool IsRegistryOpen() const;
 
-	void InitializePath(std::wstring &path) const;
+	void InitializePath(std::string &path) const;
 
-	template <typename T> bool GetSetting(const std::wstring &parent, const std::wstring &setting_name, T &result)
+	template <typename T> bool GetSetting(const std::vector<std::wstring> &values, T &result)
 	{
-		std::wstring complete_reg_name = parent + L"_" + setting_name;
+		//values are always 2: parent and settingname
+		std::wstring complete_reg_name = values[0] + L"_" + values[1];
 		std::wstring raw_reg_value = GetRawRegistryValue(reg_handle_key, complete_reg_name);
 
 		if (raw_reg_value.empty())

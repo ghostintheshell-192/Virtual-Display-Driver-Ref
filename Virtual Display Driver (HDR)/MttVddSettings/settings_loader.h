@@ -24,6 +24,6 @@ namespace Refactoring
 		bool check_registry;
 		bool check_xml;
 
-		std::wstring conf_path;
+		std::string conf_path;
 	};
 }

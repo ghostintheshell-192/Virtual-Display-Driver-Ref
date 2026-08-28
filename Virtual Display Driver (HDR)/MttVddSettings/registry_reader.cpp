@@ -32,7 +32,7 @@ bool Refactoring::RegistryReader::IsRegistryOpen() const
 	return reg_handle_key != nullptr;
 }
 
-void Refactoring::RegistryReader::InitializePath(std::wstring &path) const
+void Refactoring::RegistryReader::InitializePath(std::string &path) const
 {
 	if (!IsRegistryOpen())
 		return;
@@ -43,7 +43,7 @@ void Refactoring::RegistryReader::InitializePath(std::wstring &path) const
 	lResult = RegQueryValueExW(reg_handle_key, L"VDDPATH", NULL, NULL, (LPBYTE)&path[0], &dwBufferSize);
 	if (lResult == ERROR_SUCCESS)
 	{
-		std::wcout << L"Config Path updated: " + path;
+		std::cout << "Config Path updated: " + path;
 		return;
 	}
 
