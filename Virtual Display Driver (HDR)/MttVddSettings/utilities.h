@@ -34,19 +34,17 @@ static std::vector<std::string> tokenize(std::string str, char divider)
 {
 
 	std::vector<std::string> tokens;
-	int8_t count = 0;
 	size_t pos = 0;
 
 	while (pos != std::string::npos)
 	{
 		pos = 0;
-		pos = str.find_first_of(&divider, 0, str.size());
+		pos = str.find(divider);
 
 		std::string new_str = str.substr(0, pos);
 		str = str.substr(pos + 1, str.size());
 
 		tokens.push_back(new_str);
-		count++;
 	}
 
 	return tokens;
