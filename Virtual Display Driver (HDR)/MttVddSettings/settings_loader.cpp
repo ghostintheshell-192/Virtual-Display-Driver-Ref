@@ -22,16 +22,16 @@ void Refactoring::SettingsLoader::Init()
 
 void Refactoring::SettingsLoader::LoadSettings()
 {
+	if (check_xml)
+	{
+		OverrideDefaultsXml();
+	}
+
 	if (check_registry)
 	{
 		reg_reader.OpenRegistry();
 		OverrideDefaultsRegistry();
 		reg_reader.CloseRegistry();
-	}
-
-	if (check_xml)
-	{
-		OverrideDefaultsXml();
 	}
 }
 
