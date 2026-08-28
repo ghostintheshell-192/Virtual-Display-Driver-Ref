@@ -1,8 +1,12 @@
 #pragma once
 #include <string>
+#include <vector>
 
 namespace Refactoring
 {
+const int8_t MAX_LEVEL = 3;
+
+
 template <typename T> static T convert_setting(const std::string &value) = delete;
 
 // specializzazioni:
@@ -24,5 +28,27 @@ template <> static double convert_setting<double>(const std::string &value)
 template <> static std::string convert_setting<std::string>(const std::string &value)
 {
 	return value;
+}
+
+static std::vector<std::string> tokenize(std::string str, char divider)
+{
+
+	std::vector<std::string> tokens;
+	int8_t count = 0;
+	size_t pos = 0;
+
+	while (pos != std::string::npos)
+	{
+		pos = 0;
+		pos = str.find_first_of(&divider, 0, str.size());
+
+		std::string new_str = str.substr(0, pos);
+		str = str.substr(pos + 1, str.size());
+
+		tokens.push_back(new_str);
+		count++;
+	}
+
+	return tokens;
 }
 } // namespace Refactoring

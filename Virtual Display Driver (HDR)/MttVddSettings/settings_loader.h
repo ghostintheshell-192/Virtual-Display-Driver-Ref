@@ -3,6 +3,8 @@
 #include "globals.h"
 #include "registry_reader.h"
 #include "xml_reader.h"
+#include <vector>
+#include <variant>
 
 namespace Refactoring
 {
@@ -27,5 +29,13 @@ namespace Refactoring
 		bool check_xml;
 
 		std::string conf_path;
+
+		struct data
+		{
+			std::string key;
+			std::variant<bool *, int *, double *, std::string *> container_value;
+		};
+
+		std::vector<data> entries;
 	};
 }

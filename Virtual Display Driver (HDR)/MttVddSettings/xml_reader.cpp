@@ -1,4 +1,5 @@
 #include "xml_reader.h"
+#include "utilities.h"
 #include <iostream>
 
 bool Refactoring::XmlReader::OpenFile(std::string path)
@@ -23,4 +24,43 @@ bool Refactoring::XmlReader::CloseFile()
 bool Refactoring::XmlReader::IsFileOpen() const
 {
 	return false;
+}
+
+bool Refactoring::XmlReader::GetSetting(const std::string &value, const std::variant<bool *, int *, double *, std::string *> &result)
+{
+	std::vector<std::string> values = tokenize(value, '.');
+
+	tinyxml2::XMLElement *element = settings_file.RootElement();
+
+	if (!element)
+	{
+		std::cout << "Failed to read nodes in xml file\n";
+		return false;
+	}
+	std::string raw_value;
+
+	tinyxml2::XMLElement *current = settings_file.RootElement();
+	for (const auto &segment : values)
+	{
+		current = current->FirstChildElement(segment.c_str());
+		if (!current)
+		{
+			std::cout << "Node not found in xml: " << segment.c_str() << "\n";
+			return false;
+		}
+	}
+	raw_value = current->GetText();
+
+	if (raw_value.empty())
+		return false;
+
+	std::visit(
+		[&raw_value](auto *ptr) {
+			using T = std::remove_pointer_t<decltype(ptr)>;
+			*ptr = convert_setting<T>(raw_value);
+		},
+		result);
+
+	// result = convert_setting<T>(raw_value);
+	return true;
 }
