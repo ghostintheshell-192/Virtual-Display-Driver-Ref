@@ -1,5 +1,6 @@
 #include "registry_reader.h"
 #include <iostream>
+#include <algorithm>
 
 
 bool Refactoring::RegistryReader::OpenRegistry()
@@ -55,9 +56,9 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 {
 	std::string reg_name = setting;
 
-	std::string sub_str = reg_name.substr(reg_name.find_last_of('.'), reg_name.size());
+	std::string sub_str = reg_name.substr(reg_name.find_last_of('.') + 1, reg_name.size());
 
-	reg_name.replace(reg_name.begin(), reg_name.end(), '.', '_');
+	std::replace(reg_name.begin(), reg_name.end(), '.', '_');
 	CharUpperBuff(reg_name.data(), static_cast<DWORD>(reg_name.size()));
 
 	DWORD type = 0;
