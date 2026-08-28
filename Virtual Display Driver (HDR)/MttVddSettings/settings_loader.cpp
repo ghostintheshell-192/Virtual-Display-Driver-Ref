@@ -1,8 +1,20 @@
 #include "settings_loader.h"
 #include <iostream>
 #include <string>
+//#include <unordered_map>
+#include <variant>
 
 typedef std::vector<std::string> keys;
+
+struct data
+{
+	std::string key;
+	std::variant<bool *, int *, double *, std::string *> container_value;
+
+};
+
+//std::unordered_map<std::string, std::variant<bool*, int*, double*, std::string*>> data;
+std::vector<data> entries;
 
 void Refactoring::SettingsLoader::Init()
 {
@@ -18,6 +30,141 @@ void Refactoring::SettingsLoader::Init()
 	}
 
 	check_xml = xml_reader.OpenFile(conf_path + "\\vdd_settings.xml");
+
+	/*data.insert({
+		{"logging.logging", &settings.logs.enable_standard_logs},
+		{"logging.debuglogging", &settings.logs.enable_debug_logs},
+		{"logging.SendLogsThroughPipe", &settings.logs.send_logs_through_pipe},
+		{"edid.CustomEdid", &settings.edid.custom_edid},
+		{"edid.PreventSpoof", &settings.edid.prevent_manufacturer_spoof},
+		{"edid.EdidCeaOverride", &settings.edid.edid_cea_override},
+		{"colour.HDRPlus", &settings.colours.hdr_plus},
+		{"colour.SDR10bit", &settings.colours.sdr10},
+		{"colour.ColourFormat", &settings.colours.color_format},
+		{"cursor.HardwareCursor", &settings.cursor.hardware_cursor},
+		{"cursor.AlphaCursorSupport", &settings.cursor.alpha_cursor_support},
+		{"cursor.CursorMaxX", &settings.cursor.max_x},
+		{"cursor.CursorMaxY", &settings.cursor.max_y},
+		{"edid_integration.edid_profile_path", &settings.edid_integration.profile_path},
+		{"edid_integration.enabled", &settings.edid_integration.enabled},
+		{"edid_integration.auto_configure_from_edid", &settings.edid_integration.auto_configure},
+		{"edid_integration.override_manual_settings", &settings.edid_integration.override_manual_settings},
+		{"edid_integration.fallback_on_error", &settings.edid_integration.fallback_on_error},
+		{"hdr_advanced.hdr10_static_metadata.enabled", &settings.hdr_advanced.static_metadata_enabled},
+		{"hdr_advanced.hdr10_static_metadata.max_display_mastering_luminance", &settings.hdr_advanced.max_display_mastering_luminance},
+		{"hdr_advanced.hdr10_static_metadata.min_display_mastering_luminance", &settings.hdr_advanced.min_display_mastering_luminance},
+		{"hdr_advanced.hdr10_static_metadata.max_content_light_level", &settings.hdr_advanced.max_content_light_level},
+		{"hdr_advanced.hdr10_static_metadata.max_frame_avg_light_level", &settings.hdr_advanced.max_frame_avg_light_level},
+		{"auto_resolutions.source_priority", &settings.auto_resolutions.source_priority},
+		{"auto_resolutions.enabled", &settings.auto_resolutions.enabled},
+		{"auto_resolutions.edid_mode_filtering.exclude_fractional_rates", &settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates},
+		{"auto_resolutions.edid_mode_filtering.min_refresh_rate", &settings.auto_resolutions.edid_mode_filtering.min_refresh_rate},
+		{"auto_resolutions.edid_mode_filtering.max_refresh_rate", &settings.auto_resolutions.edid_mode_filtering.max_refresh_rate},
+		{"auto_resolutions.edid_mode_filtering.min_resolution_width", &settings.auto_resolutions.edid_mode_filtering.min_resolution_width},
+		{"auto_resolutions.edid_mode_filtering.min_resolution_height", &settings.auto_resolutions.edid_mode_filtering.min_resolution_height},
+		{"auto_resolutions.edid_mode_filtering.max_resolution_width", &settings.auto_resolutions.edid_mode_filtering.max_resolution_width},
+		{"auto_resolutions.edid_mode_filtering.max_resolution_height", &settings.auto_resolutions.edid_mode_filtering.max_resolution_height},
+		{"auto_resolutions.preferred_mode.use_edid_preferred", &settings.auto_resolutions.preferred_mode.preferred},
+		{"auto_resolutions.preferred_mode.fallback_width", &settings.auto_resolutions.preferred_mode.fallback_width},
+		{"auto_resolutions.preferred_mode.fallback_height", &settings.auto_resolutions.preferred_mode.fallback_height},
+		{"auto_resolutions.preferred_mode.fallback_refresh", &settings.auto_resolutions.preferred_mode.fallback_refresh},
+		{"color_advanced.bit_depth_management.force_bit_depth", &settings.color_advanced.bit_depth_management.force_bit_depth},
+		{"color_advanced.bit_depth_management.auto_select_from_color_space", &settings.color_advanced.bit_depth_management.auto_select_from_color_space},
+		{"color_advanced.bit_depth_management.fp16_surface_support", &settings.color_advanced.bit_depth_management.fp16_surface_support},
+		{"hdr_advanced.color_space.primary_color_space", &settings.hdr_advanced.color_space.primary_color_space},
+		{"hdr_advanced.color_space.enabled", &settings.hdr_advanced.color_space.enabled},
+		{"hdr_advanced.color_space.gamma_correction", &settings.hdr_advanced.color_space.gamma_correction},
+		{"hdr_advanced.color_space.enable_matrix_transform", &settings.hdr_advanced.color_space.enable_matrix_transform},
+		{"hdr_advanced.color_primaries.enabled", &settings.hdr_advanced.color_primaries.primaries_enabled},
+		{"hdr_advanced.color_primaries.red_x", &settings.hdr_advanced.color_primaries.redX},
+		{"hdr_advanced.color_primaries.red_y", &settings.hdr_advanced.color_primaries.redY},
+		{"hdr_advanced.color_primaries.green_x", &settings.hdr_advanced.color_primaries.greenX},
+		{"hdr_advanced.color_primaries.green_y", &settings.hdr_advanced.color_primaries.greenY},
+		{"hdr_advanced.color_primaries.blue_x", &settings.hdr_advanced.color_primaries.blueX},
+		{"hdr_advanced.color_primaries.blue_y", &settings.hdr_advanced.color_primaries.blueY},
+		{"hdr_advanced.color_primaries.white_x", &settings.hdr_advanced.color_primaries.whiteX},
+		{"hdr_advanced.color_primaries.white_y", &settings.hdr_advanced.color_primaries.whiteY},
+		{"color_advanced.color_format_extended.sdr_white_level", &settings.color_advanced.color_format_extended.sdr_white_level}});*/
+
+
+	entries.push_back({"logging.logging", &settings.logs.enable_standard_logs});
+	entries.push_back({"logging.debuglogging", &settings.logs.enable_debug_logs});
+	entries.push_back({"logging.SendLogsThroughPipe", &settings.logs.send_logs_through_pipe});
+	entries.push_back({"edid.CustomEdid", &settings.edid.custom_edid});
+	entries.push_back({"edid.PreventSpoof", &settings.edid.prevent_manufacturer_spoof});
+	entries.push_back({"edid.EdidCeaOverride", &settings.edid.edid_cea_override});
+	entries.push_back({"colour.HDRPlus", &settings.colours.hdr_plus});
+	entries.push_back({"colour.SDR10bit", &settings.colours.sdr10});
+	entries.push_back({"colour.ColourFormat", &settings.colours.color_format});
+	entries.push_back({"cursor.HardwareCursor", &settings.cursor.hardware_cursor});
+	entries.push_back({"cursor.AlphaCursorSupport", &settings.cursor.alpha_cursor_support});
+	entries.push_back({"cursor.CursorMaxX", &settings.cursor.max_x});
+	entries.push_back({"cursor.CursorMaxY", &settings.cursor.max_y});
+	entries.push_back({"edid_integration.edid_profile_path", &settings.edid_integration.profile_path});
+	entries.push_back({"edid_integration.enabled", &settings.edid_integration.enabled});
+	entries.push_back({"edid_integration.auto_configure_from_edid", &settings.edid_integration.auto_configure});
+	entries.push_back(
+		{"edid_integration.override_manual_settings", &settings.edid_integration.override_manual_settings});
+	entries.push_back({"edid_integration.fallback_on_error", &settings.edid_integration.fallback_on_error});
+	entries.push_back({"hdr_advanced.hdr10_static_metadata.enabled", &settings.hdr_advanced.static_metadata_enabled});
+	entries.push_back({"hdr_advanced.hdr10_static_metadata.max_display_mastering_luminance",
+						&settings.hdr_advanced.max_display_mastering_luminance});
+	entries.push_back({"hdr_advanced.hdr10_static_metadata.min_display_mastering_luminance",
+						&settings.hdr_advanced.min_display_mastering_luminance});
+	entries.push_back(
+		{"hdr_advanced.hdr10_static_metadata.max_content_light_level", &settings.hdr_advanced.max_content_light_level});
+	entries.push_back({"hdr_advanced.hdr10_static_metadata.max_frame_avg_light_level",
+						&settings.hdr_advanced.max_frame_avg_light_level});
+	entries.push_back({"auto_resolutions.source_priority", &settings.auto_resolutions.source_priority});
+	entries.push_back({"auto_resolutions.enabled", &settings.auto_resolutions.enabled});
+	entries.push_back({"auto_resolutions.edid_mode_filtering.exclude_fractional_rates",
+						&settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates});
+	entries.push_back({"auto_resolutions.edid_mode_filtering.min_refresh_rate",
+						&settings.auto_resolutions.edid_mode_filtering.min_refresh_rate});
+	entries.push_back({"auto_resolutions.edid_mode_filtering.max_refresh_rate",
+						&settings.auto_resolutions.edid_mode_filtering.max_refresh_rate});
+	entries.push_back({"auto_resolutions.edid_mode_filtering.min_resolution_width",
+						&settings.auto_resolutions.edid_mode_filtering.min_resolution_width});
+	entries.push_back({"auto_resolutions.edid_mode_filtering.min_resolution_height",
+						&settings.auto_resolutions.edid_mode_filtering.min_resolution_height});
+	entries.push_back({"auto_resolutions.edid_mode_filtering.max_resolution_width",
+						&settings.auto_resolutions.edid_mode_filtering.max_resolution_width});
+	entries.push_back({"auto_resolutions.edid_mode_filtering.max_resolution_height",
+						&settings.auto_resolutions.edid_mode_filtering.max_resolution_height});
+	entries.push_back(
+		{"auto_resolutions.preferred_mode.use_edid_preferred", &settings.auto_resolutions.preferred_mode.preferred});
+	entries.push_back(
+		{"auto_resolutions.preferred_mode.fallback_width", &settings.auto_resolutions.preferred_mode.fallback_width});
+	entries.push_back(
+		{"auto_resolutions.preferred_mode.fallback_height", &settings.auto_resolutions.preferred_mode.fallback_height});
+	entries.push_back({"auto_resolutions.preferred_mode.fallback_refresh",
+						&settings.auto_resolutions.preferred_mode.fallback_refresh});
+	entries.push_back({"color_advanced.bit_depth_management.force_bit_depth",
+						&settings.color_advanced.bit_depth_management.force_bit_depth});
+	entries.push_back({"color_advanced.bit_depth_management.auto_select_from_color_space",
+						&settings.color_advanced.bit_depth_management.auto_select_from_color_space});
+	entries.push_back({"color_advanced.bit_depth_management.fp16_surface_support",
+						&settings.color_advanced.bit_depth_management.fp16_surface_support});
+	entries.push_back(
+		{"hdr_advanced.color_space.primary_color_space", &settings.hdr_advanced.color_space.primary_color_space});
+	entries.push_back({"hdr_advanced.color_space.enabled", &settings.hdr_advanced.color_space.enabled});
+	entries.push_back(
+		{"hdr_advanced.color_space.gamma_correction", &settings.hdr_advanced.color_space.gamma_correction});
+	entries.push_back({"hdr_advanced.color_space.enable_matrix_transform",
+						&settings.hdr_advanced.color_space.enable_matrix_transform});
+	entries.push_back(
+		{"hdr_advanced.color_primaries.enabled", &settings.hdr_advanced.color_primaries.primaries_enabled});
+	entries.push_back({"hdr_advanced.color_primaries.red_x", &settings.hdr_advanced.color_primaries.redX});
+	entries.push_back({"hdr_advanced.color_primaries.red_y", &settings.hdr_advanced.color_primaries.redY});
+	entries.push_back({"hdr_advanced.color_primaries.green_x", &settings.hdr_advanced.color_primaries.greenX});
+	entries.push_back({"hdr_advanced.color_primaries.green_y", &settings.hdr_advanced.color_primaries.greenY});
+	entries.push_back({"hdr_advanced.color_primaries.blue_x", &settings.hdr_advanced.color_primaries.blueX});
+	entries.push_back({"hdr_advanced.color_primaries.blue_y", &settings.hdr_advanced.color_primaries.blueY});
+	entries.push_back({"hdr_advanced.color_primaries.white_x", &settings.hdr_advanced.color_primaries.whiteX});
+	entries.push_back({"hdr_advanced.color_primaries.white_y", &settings.hdr_advanced.color_primaries.whiteY});
+	entries.push_back({"color_advanced.color_format_extended.sdr_white_level",
+						&settings.color_advanced.color_format_extended.sdr_white_level});
+
 }
 
 void Refactoring::SettingsLoader::LoadSettings()
@@ -37,147 +184,154 @@ void Refactoring::SettingsLoader::LoadSettings()
 
 void Refactoring::SettingsLoader::OverrideDefaultsRegistry()
 {
-	reg_reader.GetSetting<bool>(keys({"logging", "logging"}), settings.logs.enable_standard_logs);
-	reg_reader.GetSetting<bool>(keys({"logging", "debuglogging"}), settings.logs.enable_debug_logs);
-	reg_reader.GetSetting<bool>(keys({"logging", "SendLogsThroughPipe"}), settings.logs.send_logs_through_pipe);
 
-	reg_reader.GetSetting<bool>(keys({"edid", "CustomEdid"}), settings.edid.custom_edid);
-	reg_reader.GetSetting<bool>(keys({"edid", "PreventSpoof"}), settings.edid.prevent_manufacturer_spoof);
-	reg_reader.GetSetting<bool>(keys({"edid", "EdidCeaOverride"}), settings.edid.edid_cea_override);
+	
+	for (const auto &entry : entries)
+	{
+		reg_reader.GetSetting(entry.key, entry.container_value);
+	}
 
-	// colour
-	reg_reader.GetSetting<bool>(keys({"colour", "HDRPlus"}), settings.colours.hdr_plus);
-	reg_reader.GetSetting<bool>(keys({"colour", "SDR10bit"}), settings.colours.sdr10);
-	// g_settings.colors.HDR_COLOR = g_settings.colors.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 :
-	// IDDCX_BITS_PER_COMPONENT_10; g_settings.colors.SDR_COLOR = g_settings.colors.sdr10 ? IDDCX_BITS_PER_COMPONENT_10
-	// : IDDCX_BITS_PER_COMPONENT_8;
-	reg_reader.GetSetting<std::string>(keys({"colour", "ColourFormat"}), settings.colours.color_format);
+	//reg_reader.GetSetting<bool>(keys({"logging", "logging"}), settings.logs.enable_standard_logs);
+	//reg_reader.GetSetting<bool>(keys({"logging", "debuglogging"}), settings.logs.enable_debug_logs);
+	//reg_reader.GetSetting<bool>(keys({"logging", "SendLogsThroughPipe"}), settings.logs.send_logs_through_pipe);
 
-	// Cursor
-	reg_reader.GetSetting<bool>(keys({"cursor", "HardwareCursor"}), settings.cursor.hardware_cursor);
-	reg_reader.GetSetting<bool>(keys({"cursor", "AlphaCursorSupport"}), settings.cursor.alpha_cursor_support);
-	reg_reader.GetSetting<int>(keys({"cursor", "CursorMaxX"}), settings.cursor.max_x);
-	reg_reader.GetSetting<int>(keys({"cursor", "CursorMaxY"}), settings.cursor.max_y);
+	//reg_reader.GetSetting<bool>(keys({"edid", "CustomEdid"}), settings.edid.custom_edid);
+	//reg_reader.GetSetting<bool>(keys({"edid", "PreventSpoof"}), settings.edid.prevent_manufacturer_spoof);
+	//reg_reader.GetSetting<bool>(keys({"edid", "EdidCeaOverride"}), settings.edid.edid_cea_override);
 
-	// int xorCursorSupportLevelInt = GetSetting<int>(hKey, "XorCursorSupportLevel", );
-	// std::string xorCursorSupportLevelName;
+	//// colour
+	//reg_reader.GetSetting<bool>(keys({"colour", "HDRPlus"}), settings.colours.hdr_plus);
+	//reg_reader.GetSetting<bool>(keys({"colour", "SDR10bit"}), settings.colours.sdr10);
+	//// g_settings.colors.HDR_COLOR = g_settings.colors.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 :
+	//// IDDCX_BITS_PER_COMPONENT_10; g_settings.colors.SDR_COLOR = g_settings.colors.sdr10 ? IDDCX_BITS_PER_COMPONENT_10
+	//// : IDDCX_BITS_PER_COMPONENT_8;
+	//reg_reader.GetSetting<std::string>(keys({"colour", "ColourFormat"}), settings.colours.color_format);
 
-	// if (xorCursorSupportLevelInt < 0 || xorCursorSupportLevelInt > 3) {
-	//	vddlog("w", "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
-	//	g_settings.cursor.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
-	// }
-	// else {
-	//	g_settings.cursor.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
-	// }
+	//// Cursor
+	//reg_reader.GetSetting<bool>(keys({"cursor", "HardwareCursor"}), settings.cursor.hardware_cursor);
+	//reg_reader.GetSetting<bool>(keys({"cursor", "AlphaCursorSupport"}), settings.cursor.alpha_cursor_support);
+	//reg_reader.GetSetting<int>(keys({"cursor", "CursorMaxX"}), settings.cursor.max_x);
+	//reg_reader.GetSetting<int>(keys({"cursor", "CursorMaxY"}), settings.cursor.max_y);
 
-	// === LOAD NEW EDID INTEGRATION SETTINGS ===
-	reg_reader.GetSetting<std::string>(keys({"edid_integration", "edid_profile_path"}),
-									   settings.edid_integration.profile_path);
-	reg_reader.GetSetting<bool>(keys({"edid_integration", "enabled"}), settings.edid_integration.enabled);
-	reg_reader.GetSetting<bool>(keys({"edid_integration", "auto_configure_from_edid"}),
-								settings.edid_integration.auto_configure);
-	reg_reader.GetSetting<bool>(keys({"edid_integration", "override_manual_settings"}),
-								settings.edid_integration.override_manual_settings);
-	reg_reader.GetSetting<bool>(keys({"edid_integration", "fallback_on_error"}),
-								settings.edid_integration.fallback_on_error);
+	//// int xorCursorSupportLevelInt = GetSetting<int>(hKey, "XorCursorSupportLevel", );
+	//// std::string xorCursorSupportLevelName;
 
-	// === LOAD HDR ADVANCED SETTINGS ===
-	reg_reader.GetSetting<bool>(keys({"color_space", "enable_matrix_transform"}),
-								settings.hdr_advanced.color_space.enable_matrix_transform);
-	reg_reader.GetSetting<bool>(keys({"hdr10_static_metadata", "enabled"}),
-								settings.hdr_advanced.static_metadata_enabled);
-	reg_reader.GetSetting<double>(keys({"hdr10_static_metadata", "max_display_mastering_luminance"}),
-								  settings.hdr_advanced.max_display_mastering_luminance);
-	reg_reader.GetSetting<double>(keys({"hdr10_static_metadata", "min_display_mastering_luminance"}),
-								  settings.hdr_advanced.min_display_mastering_luminance);
-	reg_reader.GetSetting<int>(keys({"hdr10_static_metadata", "max_content_light_level"}),
-							   settings.hdr_advanced.max_content_light_level);
-	reg_reader.GetSetting<int>(keys({"hdr10_static_metadata", "max_frame_avg_light_level"}),
-							   settings.hdr_advanced.max_frame_avg_light_level);
+	//// if (xorCursorSupportLevelInt < 0 || xorCursorSupportLevelInt > 3) {
+	////	vddlog("w", "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
+	////	g_settings.cursor.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
+	//// }
+	//// else {
+	////	g_settings.cursor.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
+	//// }
 
-	// === LOAD AUTO RESOLUTIONS SETTINGS ===
-	reg_reader.GetSetting<std::string>(keys({"auto_resolutions", "source_priority"}),
-									   settings.auto_resolutions.source_priority);
-	reg_reader.GetSetting<bool>(keys({"auto_resolutions", "enabled"}), settings.auto_resolutions.enabled);
+	//// === LOAD NEW EDID INTEGRATION SETTINGS ===
+	//reg_reader.GetSetting<std::string>(keys({"edid_integration", "edid_profile_path"}),
+	//								   settings.edid_integration.profile_path);
+	//reg_reader.GetSetting<bool>(keys({"edid_integration", "enabled"}), settings.edid_integration.enabled);
+	//reg_reader.GetSetting<bool>(keys({"edid_integration", "auto_configure_from_edid"}),
+	//							settings.edid_integration.auto_configure);
+	//reg_reader.GetSetting<bool>(keys({"edid_integration", "override_manual_settings"}),
+	//							settings.edid_integration.override_manual_settings);
+	//reg_reader.GetSetting<bool>(keys({"edid_integration", "fallback_on_error"}),
+	//							settings.edid_integration.fallback_on_error);
 
-	reg_reader.GetSetting<bool>(keys({"edid_mode_filtering", "exclude_fractional_rates"}),
-								settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates);
-	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_refresh_rate"}),
-							   settings.auto_resolutions.edid_mode_filtering.min_refresh_rate);
-	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_refresh_rate"}),
-							   settings.auto_resolutions.edid_mode_filtering.max_refresh_rate);
-	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_width"}),
-							   settings.auto_resolutions.edid_mode_filtering.min_resolution_width);
-	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_height"}),
-							   settings.auto_resolutions.edid_mode_filtering.min_resolution_height);
-	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_width"}),
-							   settings.auto_resolutions.edid_mode_filtering.max_resolution_width);
-	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_height"}),
-							   settings.auto_resolutions.edid_mode_filtering.max_resolution_height);
+	//// === LOAD HDR ADVANCED SETTINGS ===
+	//reg_reader.GetSetting<bool>(keys({"color_space", "enable_matrix_transform"}),
+	//							settings.hdr_advanced.color_space.enable_matrix_transform);
+	//reg_reader.GetSetting<bool>(keys({"hdr10_static_metadata", "enabled"}),
+	//							settings.hdr_advanced.static_metadata_enabled);
+	//reg_reader.GetSetting<double>(keys({"hdr10_static_metadata", "max_display_mastering_luminance"}),
+	//							  settings.hdr_advanced.max_display_mastering_luminance);
+	//reg_reader.GetSetting<double>(keys({"hdr10_static_metadata", "min_display_mastering_luminance"}),
+	//							  settings.hdr_advanced.min_display_mastering_luminance);
+	//reg_reader.GetSetting<int>(keys({"hdr10_static_metadata", "max_content_light_level"}),
+	//						   settings.hdr_advanced.max_content_light_level);
+	//reg_reader.GetSetting<int>(keys({"hdr10_static_metadata", "max_frame_avg_light_level"}),
+	//						   settings.hdr_advanced.max_frame_avg_light_level);
 
-	reg_reader.GetSetting<bool>(keys({"preferred_mode", "use_edid_preferred"}),
-								settings.auto_resolutions.preferred_mode.preferred);
-	reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_width"}),
-							   settings.auto_resolutions.preferred_mode.fallback_width);
-	reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_height"}),
-							   settings.auto_resolutions.preferred_mode.fallback_height);
-	reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_refresh"}),
-							   settings.auto_resolutions.preferred_mode.fallback_refresh);
+	//// === LOAD AUTO RESOLUTIONS SETTINGS ===
+	//reg_reader.GetSetting<std::string>(keys({"auto_resolutions", "source_priority"}),
+	//								   settings.auto_resolutions.source_priority);
+	//reg_reader.GetSetting<bool>(keys({"auto_resolutions", "enabled"}), settings.auto_resolutions.enabled);
 
-	// === LOAD COLOR ADVANCED SETTINGS ===
-	reg_reader.GetSetting<std::string>(keys({"bit_depth_management", "force_bit_depth"}),
-		settings.color_advanced.bit_depth_management.force_bit_depth); // stanno in color_advanced/bit_depth_management
-	reg_reader.GetSetting<bool>(keys({"bit_depth_management", "auto_select_from_color_space"}),
-								settings.color_advanced.bit_depth_management.auto_select_from_color_space);
-	reg_reader.GetSetting<bool>(keys({"bit_depth_management", "fp16_surface_support"}),
-								settings.color_advanced.bit_depth_management.fp16_surface_support);
-	reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-								settings.color_advanced.color_format_extended.wide_color_gamut);
-	reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-								settings.color_advanced.color_format_extended.hdr_tone_mapping);
+	//reg_reader.GetSetting<bool>(keys({"edid_mode_filtering", "exclude_fractional_rates"}),
+	//							settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates);
+	//reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_refresh_rate"}),
+	//						   settings.auto_resolutions.edid_mode_filtering.min_refresh_rate);
+	//reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_refresh_rate"}),
+	//						   settings.auto_resolutions.edid_mode_filtering.max_refresh_rate);
+	//reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_width"}),
+	//						   settings.auto_resolutions.edid_mode_filtering.min_resolution_width);
+	//reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_height"}),
+	//						   settings.auto_resolutions.edid_mode_filtering.min_resolution_height);
+	//reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_width"}),
+	//						   settings.auto_resolutions.edid_mode_filtering.max_resolution_width);
+	//reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_height"}),
+	//						   settings.auto_resolutions.edid_mode_filtering.max_resolution_height);
 
-	reg_reader.GetSetting<std::string>(keys({"color_space", "primary_color_space"}),
-									   settings.hdr_advanced.color_space.primary_color_space);
-	reg_reader.GetSetting<bool>(keys({"color_space", "enabled"}), settings.hdr_advanced.color_space.enabled);
-	reg_reader.GetSetting<double>(keys({"color_space", "gamma_correction"}),
-								  settings.hdr_advanced.color_space.gamma_correction);
+	//reg_reader.GetSetting<bool>(keys({"preferred_mode", "use_edid_preferred"}),
+	//							settings.auto_resolutions.preferred_mode.preferred);
+	//reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_width"}),
+	//						   settings.auto_resolutions.preferred_mode.fallback_width);
+	//reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_height"}),
+	//						   settings.auto_resolutions.preferred_mode.fallback_height);
+	//reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_refresh"}),
+	//						   settings.auto_resolutions.preferred_mode.fallback_refresh);
 
-	reg_reader.GetSetting<bool>(keys({"color_primaries", "enabled"}),
-								settings.hdr_advanced.color_primaries.primaries_enabled);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "red_x"}), settings.hdr_advanced.color_primaries.redX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "red_y"}), settings.hdr_advanced.color_primaries.redY);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "green_x"}), settings.hdr_advanced.color_primaries.greenX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "green_y"}), settings.hdr_advanced.color_primaries.greenY);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "blue_x"}), settings.hdr_advanced.color_primaries.blueX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "blue_y"}), settings.hdr_advanced.color_primaries.blueY);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "white_x"}), settings.hdr_advanced.color_primaries.whiteX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "white_y"}), settings.hdr_advanced.color_primaries.whiteY);
+	//// === LOAD COLOR ADVANCED SETTINGS ===
+	//reg_reader.GetSetting<std::string>(keys({"bit_depth_management", "force_bit_depth"}),
+	//	settings.color_advanced.bit_depth_management.force_bit_depth); // stanno in color_advanced/bit_depth_management
+	//reg_reader.GetSetting<bool>(keys({"bit_depth_management", "auto_select_from_color_space"}),
+	//							settings.color_advanced.bit_depth_management.auto_select_from_color_space);
+	//reg_reader.GetSetting<bool>(keys({"bit_depth_management", "fp16_surface_support"}),
+	//							settings.color_advanced.bit_depth_management.fp16_surface_support);
+	//reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	//							settings.color_advanced.color_format_extended.wide_color_gamut);
+	//reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	//							settings.color_advanced.color_format_extended.hdr_tone_mapping);
 
-	reg_reader.GetSetting<double>(
-		keys({"color_format_extended", "sdr_white_level"}),
-		settings.color_advanced.color_format_extended.sdr_white_level); // sta in color_advanced/color_format_extended
+	//reg_reader.GetSetting<std::string>(keys({"color_space", "primary_color_space"}),
+	//								   settings.hdr_advanced.color_space.primary_color_space);
+	//reg_reader.GetSetting<bool>(keys({"color_space", "enabled"}), settings.hdr_advanced.color_space.enabled);
+	//reg_reader.GetSetting<double>(keys({"color_space", "gamma_correction"}),
+	//							  settings.hdr_advanced.color_space.gamma_correction);
 
-	// === LOAD MONITOR EMULATION SETTINGS ===
-	//
-	// loaded from defaults but not implemented
-	// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-	//							settings.monitor_emulation.manufacturer_emulation_enabled);
-	// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}), settings.monitor_emulation.enabled);
-	// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-	//							settings.monitor_emulation.emulate_physical_dimensions);
-	// reg_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}),
-	// settings.monitor_emulation.physical_width); reg_reader.GetSetting<int>(keys({"not_implemented",
-	// "not_implemented"}), 						   settings.monitor_emulation.physical_height);
+	//reg_reader.GetSetting<bool>(keys({"color_primaries", "enabled"}),
+	//							settings.hdr_advanced.color_primaries.primaries_enabled);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "red_x"}), settings.hdr_advanced.color_primaries.redX);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "red_y"}), settings.hdr_advanced.color_primaries.redY);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "green_x"}), settings.hdr_advanced.color_primaries.greenX);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "green_y"}), settings.hdr_advanced.color_primaries.greenY);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "blue_x"}), settings.hdr_advanced.color_primaries.blueX);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "blue_y"}), settings.hdr_advanced.color_primaries.blueY);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "white_x"}), settings.hdr_advanced.color_primaries.whiteX);
+	//reg_reader.GetSetting<double>(keys({"color_primaries", "white_y"}), settings.hdr_advanced.color_primaries.whiteY);
 
-	// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
-	//								   settings.monitor_emulation.manufacturer_name);
-	// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
-	//								   settings.monitor_emulation.model_name);
-	// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
-	//								   settings.monitor_emulation.serial_number);
+	//reg_reader.GetSetting<double>(
+	//	keys({"color_format_extended", "sdr_white_level"}),
+	//	settings.color_advanced.color_format_extended.sdr_white_level); // sta in color_advanced/color_format_extended
 
-	// xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
-	// vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
+	//// === LOAD MONITOR EMULATION SETTINGS ===
+	////
+	//// loaded from defaults but not implemented
+	//// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	////							settings.monitor_emulation.manufacturer_emulation_enabled);
+	//// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}), settings.monitor_emulation.enabled);
+	//// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	////							settings.monitor_emulation.emulate_physical_dimensions);
+	//// reg_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}),
+	//// settings.monitor_emulation.physical_width); reg_reader.GetSetting<int>(keys({"not_implemented",
+	//// "not_implemented"}), 						   settings.monitor_emulation.physical_height);
+
+	//// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
+	////								   settings.monitor_emulation.manufacturer_name);
+	//// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
+	////								   settings.monitor_emulation.model_name);
+	//// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
+	////								   settings.monitor_emulation.serial_number);
+
+	//// xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
+	//// vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 }
 
 void Refactoring::SettingsLoader::OverrideDefaultsXml()

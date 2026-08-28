@@ -51,18 +51,20 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 	std::cout << "Config Path remains at default value.";
 }
 
-std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const std::vector<std::string> &setting)
+std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const std::string &setting)
 {
-	std::string reg_name = setting[0];
-	CharUpperBuff(&reg_name[0], static_cast<DWORD>(reg_name.size()));
+	std::string reg_name = setting;
 
-	std::string key = setting[1];
-	CharUpperBuff(&key[0], static_cast<DWORD>(key.size()));
+	std::string sub_str = reg_name.substr(reg_name.find_last_of('.'), reg_name.size());
+
+	reg_name.replace(reg_name.begin(), reg_name.end(), '.', '_');
+	CharUpperBuff(reg_name.data(), static_cast<DWORD>(reg_name.size()));
 
 	DWORD type = 0;
 	DWORD buffer_size = 0;
 
-	LONG lResult = RegGetValue(hKey, reg_name.c_str(), key.c_str(), 0, &type, NULL, &buffer_size);
+	//ho un dubbio su lpValue e lpSubKey - devo spezzare la stringa per inserire entrambi i due parametri?
+	LONG lResult = RegGetValue(hKey, reg_name.c_str(), sub_str.c_str(), 0, &type, NULL, &buffer_size);
 	if (lResult != ERROR_SUCCESS)
 		return "";
 
@@ -70,13 +72,13 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 	{
 		DWORD value = 0;
 		buffer_size = sizeof(value);
-		RegGetValue(hKey, reg_name.c_str(), key.c_str(), 0, NULL, (LPBYTE)&value, &buffer_size);
+		RegGetValue(hKey, reg_name.c_str(), sub_str.c_str(), 0, NULL, (LPBYTE)&value, &buffer_size);
 		return std::to_string(value); // 1 → L"1", 0 → L"0"
 	}
 	else if (type == REG_SZ)
 	{
 		std::string value(buffer_size / sizeof(char), L'\0');
-		RegGetValue(hKey, reg_name.c_str(), key.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
+		RegGetValue(hKey, reg_name.c_str(), sub_str.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
 		return value;
 	}
 

@@ -1,7 +1,8 @@
 #pragma once
 #include <Windows.h>
 #include <string>
-#include <vector>
+//#include <vector>
+#include <variant>
 #include "utilities.h"
 // #include <iostream>
 
@@ -19,21 +20,25 @@ class RegistryReader
 
 	void InitializePath(std::string &path) const;
 
-	template <typename T> bool GetSetting(const std::vector<std::string> &values, T &result)
+	bool GetSetting(std::string value_key, const std::variant<bool *, int *, double *, std::string *> &result)
 	{
-		//values are always 2: parent and settingname
-		std::string raw_reg_value = GetRawRegistryValue(reg_handle_key, values);
+		std::string raw_reg_value = GetRawRegistryValue(reg_handle_key, value_key);
 
 		if (raw_reg_value.empty())
 			return false;
 
-		result = convert_setting<T>(raw_reg_value);
+		std::visit(
+			[&raw_reg_value](auto *ptr) {
+				using T = std::remove_pointer_t<decltype(ptr)>;
+				*ptr = convert_setting<T>(raw_reg_value);
+			},
+			result);
 		return true;
 	}
 
   protected:
   private:
-	std::string GetRawRegistryValue(HKEY hKey, const std::vector<std::string> &setting_name);
+	std::string GetRawRegistryValue(HKEY hKey, const std::string &setting_name);
 	HKEY reg_handle_key;
 };
 } // namespace Refactoring
