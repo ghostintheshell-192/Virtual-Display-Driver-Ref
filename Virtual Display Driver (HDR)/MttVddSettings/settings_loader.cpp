@@ -100,32 +100,32 @@ void Refactoring::SettingsLoader::OverrideDefaultsRegistry()
 									   settings.auto_resolutions.source_priority);
 	reg_reader.GetSetting<bool>(keys({"auto_resolutions", "enabled"}), settings.auto_resolutions.enabled);
 
-	reg_reader.GetSetting<bool>(keys({"auto_resolutions", "edid_mode_filtering", "exclude_fractional_rates"}),
+	reg_reader.GetSetting<bool>(keys({"edid_mode_filtering", "exclude_fractional_rates"}),
 								settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "min_refresh_rate"}),
+	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_refresh_rate"}),
 							   settings.auto_resolutions.edid_mode_filtering.min_refresh_rate);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "max_refresh_rate"}),
+	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_refresh_rate"}),
 							   settings.auto_resolutions.edid_mode_filtering.max_refresh_rate);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "min_resolution_width"}),
+	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_width"}),
 							   settings.auto_resolutions.edid_mode_filtering.min_resolution_width);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "min_resolution_height"}),
+	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_height"}),
 							   settings.auto_resolutions.edid_mode_filtering.min_resolution_height);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "max_resolution_width"}),
-		settings.auto_resolutions.edid_mode_filtering.max_resolution_width);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "max_resolution_height"}),
+	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_width"}),
+							   settings.auto_resolutions.edid_mode_filtering.max_resolution_width);
+	reg_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_height"}),
 							   settings.auto_resolutions.edid_mode_filtering.max_resolution_height);
 
-	reg_reader.GetSetting<bool>(keys({"auto_resolutions", "preferred_mode", "use_edid_preferred"}),
+	reg_reader.GetSetting<bool>(keys({"preferred_mode", "use_edid_preferred"}),
 								settings.auto_resolutions.preferred_mode.preferred);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "preferred_mode", "fallback_width"}),
+	reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_width"}),
 							   settings.auto_resolutions.preferred_mode.fallback_width);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "preferred_mode", "fallback_height"}),
+	reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_height"}),
 							   settings.auto_resolutions.preferred_mode.fallback_height);
-	reg_reader.GetSetting<int>(keys({"auto_resolutions", "preferred_mode", "fallback_refresh"}),
+	reg_reader.GetSetting<int>(keys({"preferred_mode", "fallback_refresh"}),
 							   settings.auto_resolutions.preferred_mode.fallback_refresh);
 
 	// === LOAD COLOR ADVANCED SETTINGS ===
-	reg_reader.GetSetting<std::string>(keys({"color_advanced", "bit_depth_management", "force_bit_depth"}),
+	reg_reader.GetSetting<std::string>(keys({"bit_depth_management", "force_bit_depth"}),
 		settings.color_advanced.bit_depth_management.force_bit_depth); // stanno in color_advanced/bit_depth_management
 	reg_reader.GetSetting<bool>(keys({"bit_depth_management", "auto_select_from_color_space"}),
 								settings.color_advanced.bit_depth_management.auto_select_from_color_space);
@@ -144,14 +144,14 @@ void Refactoring::SettingsLoader::OverrideDefaultsRegistry()
 
 	reg_reader.GetSetting<bool>(keys({"color_primaries", "enabled"}),
 								settings.hdr_advanced.color_primaries.primaries_enabled);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "RedX"}), settings.hdr_advanced.color_primaries.redX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "RedY"}), settings.hdr_advanced.color_primaries.redY);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "GreenX"}), settings.hdr_advanced.color_primaries.greenX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "GreenY"}), settings.hdr_advanced.color_primaries.greenY);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "BlueX"}), settings.hdr_advanced.color_primaries.blueX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "BlueY"}), settings.hdr_advanced.color_primaries.blueY);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "WhiteX"}), settings.hdr_advanced.color_primaries.whiteX);
-	reg_reader.GetSetting<double>(keys({"color_primaries", "WhiteY"}), settings.hdr_advanced.color_primaries.whiteY);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "red_x"}), settings.hdr_advanced.color_primaries.redX);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "red_y"}), settings.hdr_advanced.color_primaries.redY);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "green_x"}), settings.hdr_advanced.color_primaries.greenX);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "green_y"}), settings.hdr_advanced.color_primaries.greenY);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "blue_x"}), settings.hdr_advanced.color_primaries.blueX);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "blue_y"}), settings.hdr_advanced.color_primaries.blueY);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "white_x"}), settings.hdr_advanced.color_primaries.whiteX);
+	reg_reader.GetSetting<double>(keys({"color_primaries", "white_y"}), settings.hdr_advanced.color_primaries.whiteY);
 
 	reg_reader.GetSetting<double>(
 		keys({"color_format_extended", "sdr_white_level"}),
@@ -160,21 +160,21 @@ void Refactoring::SettingsLoader::OverrideDefaultsRegistry()
 	// === LOAD MONITOR EMULATION SETTINGS ===
 	//
 	// loaded from defaults but not implemented
-	reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-								settings.monitor_emulation.manufacturer_emulation_enabled);
-	reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}), settings.monitor_emulation.enabled);
-	reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-								settings.monitor_emulation.emulate_physical_dimensions);
-	reg_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}), settings.monitor_emulation.physical_width);
-	reg_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}),
-							   settings.monitor_emulation.physical_height);
+	// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	//							settings.monitor_emulation.manufacturer_emulation_enabled);
+	// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}), settings.monitor_emulation.enabled);
+	// reg_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	//							settings.monitor_emulation.emulate_physical_dimensions);
+	// reg_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}),
+	// settings.monitor_emulation.physical_width); reg_reader.GetSetting<int>(keys({"not_implemented",
+	// "not_implemented"}), 						   settings.monitor_emulation.physical_height);
 
-	reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
-									   settings.monitor_emulation.manufacturer_name);
-	reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
-									   settings.monitor_emulation.model_name);
-	reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
-									   settings.monitor_emulation.serial_number);
+	// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
+	//								   settings.monitor_emulation.manufacturer_name);
+	// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
+	//								   settings.monitor_emulation.model_name);
+	// reg_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
+	//								   settings.monitor_emulation.serial_number);
 
 	// xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
 	// vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
@@ -243,43 +243,43 @@ void Refactoring::SettingsLoader::OverrideDefaultsXml()
 									   settings.auto_resolutions.source_priority);
 	xml_reader.GetSetting<bool>(keys({"auto_resolutions", "enabled"}), settings.auto_resolutions.enabled);
 
-	xml_reader.GetSetting<bool>(keys({"edid_mode_filtering", "exclude_fractional_rates"}),
+	xml_reader.GetSetting<bool>(keys({"auto_resolutions", "edid_mode_filtering", "exclude_fractional_rates"}),
 								settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates);
-	xml_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_refresh_rate"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "min_refresh_rate"}),
 							   settings.auto_resolutions.edid_mode_filtering.min_refresh_rate);
-	xml_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_refresh_rate"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "max_refresh_rate"}),
 							   settings.auto_resolutions.edid_mode_filtering.max_refresh_rate);
-	xml_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_width"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "min_resolution_width"}),
 							   settings.auto_resolutions.edid_mode_filtering.min_resolution_width);
-	xml_reader.GetSetting<int>(keys({"edid_mode_filtering", "min_resolution_height"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "min_resolution_height"}),
 							   settings.auto_resolutions.edid_mode_filtering.min_resolution_height);
-	xml_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_width"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "max_resolution_width"}),
 							   settings.auto_resolutions.edid_mode_filtering.max_resolution_width);
-	xml_reader.GetSetting<int>(keys({"edid_mode_filtering", "max_resolution_height"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "edid_mode_filtering", "max_resolution_height"}),
 							   settings.auto_resolutions.edid_mode_filtering.max_resolution_height);
 
-	xml_reader.GetSetting<bool>(keys({"preferred_mode", "use_edid_preferred"}),
+	xml_reader.GetSetting<bool>(keys({"auto_resolutions", "preferred_mode", "use_edid_preferred"}),
 								settings.auto_resolutions.preferred_mode.preferred);
 	xml_reader.GetSetting<int>(keys({"auto_resolutions", "preferred_mode", "fallback_width"}),
 							   settings.auto_resolutions.preferred_mode.fallback_width);
-	xml_reader.GetSetting<int>(keys({"preferred_mode", "fallback_height"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "preferred_mode", "fallback_height"}),
 							   settings.auto_resolutions.preferred_mode.fallback_height);
-	xml_reader.GetSetting<int>(keys({"preferred_mode", "fallback_refresh"}),
+	xml_reader.GetSetting<int>(keys({"auto_resolutions", "preferred_mode", "fallback_refresh"}),
 							   settings.auto_resolutions.preferred_mode.fallback_refresh);
 	// manca use_edid_preferred di auto_res - errore dell'xml? (c'è anche in un altro nodo)
 
 	// === LOAD COLOR ADVANCED SETTINGS ===
 	xml_reader.GetSetting<std::string>(
-		keys({"bit_depth_management", "force_bit_depth"}),
+		keys({"color_advanced", "bit_depth_management", "force_bit_depth"}),
 		settings.color_advanced.bit_depth_management.force_bit_depth); // stanno in color_advanced/bit_depth_management
-	xml_reader.GetSetting<bool>(keys({"bit_depth_management", "auto_select_from_color_space"}),
+	xml_reader.GetSetting<bool>(keys({"color_advanced", "bit_depth_management", "auto_select_from_color_space"}),
 								settings.color_advanced.bit_depth_management.auto_select_from_color_space);
-	xml_reader.GetSetting<bool>(keys({"bit_depth_management", "fp16_surface_support"}),
+	xml_reader.GetSetting<bool>(keys({"color_advanced", "bit_depth_management", "fp16_surface_support"}),
 								settings.color_advanced.bit_depth_management.fp16_surface_support);
-	xml_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-								settings.color_advanced.color_format_extended.wide_color_gamut); // not implemented
-	xml_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
-								settings.color_advanced.color_format_extended.hdr_tone_mapping);
+	// xml_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	//							settings.color_advanced.color_format_extended.wide_color_gamut); // not implemented
+	// xml_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
+	//							settings.color_advanced.color_format_extended.hdr_tone_mapping);
 
 	xml_reader.GetSetting<std::string>(keys({"hdr_advanced", "color_space", "primary_color_space"}),
 									   settings.hdr_advanced.color_space.primary_color_space);
@@ -292,25 +292,25 @@ void Refactoring::SettingsLoader::OverrideDefaultsXml()
 
 	xml_reader.GetSetting<bool>(keys({"hdr_advanced", "color_primaries", "enabled"}),
 								settings.hdr_advanced.color_primaries.primaries_enabled);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "RedX"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "red_x"}),
 								  settings.hdr_advanced.color_primaries.redX);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "RedY"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "red_y"}),
 								  settings.hdr_advanced.color_primaries.redY);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "GreenX"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "green_x"}),
 								  settings.hdr_advanced.color_primaries.greenX);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "GreenY"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "green_y"}),
 								  settings.hdr_advanced.color_primaries.greenY);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "BlueX"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "blue_x"}),
 								  settings.hdr_advanced.color_primaries.blueX);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "BlueY"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "blue_y"}),
 								  settings.hdr_advanced.color_primaries.blueY);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "WhiteX"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "white_x"}),
 								  settings.hdr_advanced.color_primaries.whiteX);
-	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "WhiteY"}),
+	xml_reader.GetSetting<double>(keys({"hdr_advanced", "color_primaries", "white_y"}),
 								  settings.hdr_advanced.color_primaries.whiteY);
 
 	xml_reader.GetSetting<double>(
-		keys({"color_format_extended", "sdr_white_level"}),
+		keys({"color_advanced", "color_format_extended", "sdr_white_level"}),
 		settings.color_advanced.color_format_extended.sdr_white_level); // sta in color_advanced/color_format_extended
 
 	// === LOAD MONITOR EMULATION SETTINGS ===
@@ -322,8 +322,8 @@ void Refactoring::SettingsLoader::OverrideDefaultsXml()
 	// xml_reader.GetSetting<bool>(keys({"not_implemented", "not_implemented"}),
 	//							settings.monitor_emulation.emulate_physical_dimensions);
 	// xml_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}),
-	// settings.monitor_emulation.physical_width); 
-	// xml_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}), 
+	// settings.monitor_emulation.physical_width);
+	// xml_reader.GetSetting<int>(keys({"not_implemented", "not_implemented"}),
 	//						   settings.monitor_emulation.physical_height);
 
 	// xml_reader.GetSetting<std::string>(keys({"not_implemented", "not_implemented"}),
