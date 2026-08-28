@@ -51,31 +51,34 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 	std::cout << "Config Path remains at default value.";
 }
 
-std::wstring Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const std::wstring &setting_name)
+std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const std::vector<std::string> &setting)
 {
-	std::wstring reg_name = setting_name;
-	CharUpperBuffW(&reg_name[0], static_cast<DWORD>(reg_name.length()));
+	std::string reg_name = setting[0];
+	CharUpperBuff(&reg_name[0], static_cast<DWORD>(reg_name.size()));
+
+	std::string key = setting[1];
+	CharUpperBuff(&key[0], static_cast<DWORD>(key.size()));
 
 	DWORD type = 0;
 	DWORD buffer_size = 0;
 
-	LONG lResult = RegQueryValueExW(hKey, setting_name.c_str(), NULL, &type, NULL, &buffer_size);
+	LONG lResult = RegGetValue(hKey, reg_name.c_str(), key.c_str(), 0, &type, NULL, &buffer_size);
 	if (lResult != ERROR_SUCCESS)
-		return L"";
+		return "";
 
 	if (type == REG_DWORD)
 	{
 		DWORD value = 0;
 		buffer_size = sizeof(value);
-		RegQueryValueExW(hKey, reg_name.c_str(), NULL, NULL, (LPBYTE)&value, &buffer_size);
-		return std::to_wstring(value); // 1 → L"1", 0 → L"0"
+		RegGetValue(hKey, reg_name.c_str(), key.c_str(), 0, NULL, (LPBYTE)&value, &buffer_size);
+		return std::to_string(value); // 1 → L"1", 0 → L"0"
 	}
 	else if (type == REG_SZ)
 	{
-		std::wstring value(buffer_size / sizeof(wchar_t), L'\0');
-		RegQueryValueExW(hKey, reg_name.c_str(), NULL, NULL, (LPBYTE)&value[0], &buffer_size);
+		std::string value(buffer_size / sizeof(char), L'\0');
+		RegGetValue(hKey, reg_name.c_str(), key.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
 		return value;
 	}
 
-	return L"";
+	return "";
 }

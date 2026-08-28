@@ -43,7 +43,7 @@ struct EdidSettings
 
 struct EdidIntegrationSettings
 {
-	std::wstring profile_path = L"EDID/monitor_profile.xml";
+	std::string profile_path = "EDID/monitor_profile.xm";
 	bool override_manual_settings = false;
 	bool fallback_on_error = true;
 	bool enabled = false;
@@ -54,7 +54,7 @@ struct ColourSettings
 {
 	bool hdr_plus = false;
 	bool sdr10 = false;
-	std::wstring color_format = L"RGB";
+	std::string color_format = "RGB";
 
 	// IDDCX_BITS_PER_COMPONENT SDR_COLOR = IDDCX_BITS_PER_COMPONENT_8;
 	// IDDCX_BITS_PER_COMPONENT HDR_COLOR = IDDCX_BITS_PER_COMPONENT_10;
@@ -65,7 +65,7 @@ struct BitDepthManagementSettings
 	bool auto_select_from_color_space = false;
 	bool fp16_surface_support = true;
 
-	std::wstring force_bit_depth = L"auto";
+	std::string force_bit_depth = "auto";
 };
 
 struct ColorFormatExtendedSettings
@@ -100,7 +100,7 @@ struct ColorSpaceSettings
 	bool enable_matrix_transform = false;
 	double gamma_correction = 2.4;
 
-	std::wstring primary_color_space = L"sRGB";
+	std::string primary_color_space = "sRGB";
 };
 
 struct HdrAdvancedSettings
@@ -141,7 +141,7 @@ struct PreferredModeSettings
 
 struct AutoResolutionSettings
 {
-	std::wstring source_priority = L"manual";
+	std::string source_priority = "manual";
 	bool enabled = false;
 	EdidModeFilteringSettings edid_mode_filtering;
 	PreferredModeSettings preferred_mode;
@@ -149,9 +149,9 @@ struct AutoResolutionSettings
 
 struct MonitorEmulationSettings
 {
-	std::wstring manufacturer_name = L"Generic";
-	std::wstring model_name = L"Virtual Display";
-	std::wstring serial_number = L"VDD001";
+	std::string manufacturer_name = "Generic";
+	std::string model_name = "Virtual Display";
+	std::string serial_number = "VDD001";
 
 	bool enabled = false;
 	bool emulate_physical_dimensions = false;

@@ -19,11 +19,10 @@ class RegistryReader
 
 	void InitializePath(std::string &path) const;
 
-	template <typename T> bool GetSetting(const std::vector<std::wstring> &values, T &result)
+	template <typename T> bool GetSetting(const std::vector<std::string> &values, T &result)
 	{
 		//values are always 2: parent and settingname
-		std::wstring complete_reg_name = values[0] + L"_" + values[1];
-		std::wstring raw_reg_value = GetRawRegistryValue(reg_handle_key, complete_reg_name);
+		std::string raw_reg_value = GetRawRegistryValue(reg_handle_key, values);
 
 		if (raw_reg_value.empty())
 			return false;
@@ -34,7 +33,7 @@ class RegistryReader
 
   protected:
   private:
-	std::wstring GetRawRegistryValue(HKEY hKey, const std::wstring &setting_name);
+	std::string GetRawRegistryValue(HKEY hKey, const std::vector<std::string> &setting_name);
 	HKEY reg_handle_key;
 };
 } // namespace Refactoring
