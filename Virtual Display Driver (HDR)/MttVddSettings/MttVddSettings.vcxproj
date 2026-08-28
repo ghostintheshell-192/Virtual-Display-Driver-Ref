@@ -42,8 +42,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -111,11 +111,13 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\data\repos\Sandbox\Virtual-Display-Driver-Ref\Virtual Display Driver %28HDR%29\MttVDD;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\redist\tinyxml2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(SolutionDir)redist\tinyxml2\windows\static\$(PlatformToolset)\$(Platform)\$(Configuration)\lib;C:\data\repos\Sandbox\Virtual-Display-Driver-Ref\Virtual Display Driver (HDR)\redist\tinyxml2\windows\static\v142\x64\Debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>tinyxml2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -143,12 +145,14 @@
     <ClCompile Include="registry_reader.cpp" />
     <ClCompile Include="settings_loader.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="xml_reader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="globals.h" />
     <ClInclude Include="registry_reader.h" />
     <ClInclude Include="settings_loader.h" />
     <ClInclude Include="utilities.h" />
+    <ClInclude Include="xml_reader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

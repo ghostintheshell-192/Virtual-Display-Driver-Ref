@@ -1,5 +1,10 @@
+#include "settings_loader.h"
 int main()
 {
-	//override_defaults();
+	Refactoring::SettingsLoader ss;
+
+	ss.Init();
+	ss.LoadSettings();
+
 	return 0;
 }
