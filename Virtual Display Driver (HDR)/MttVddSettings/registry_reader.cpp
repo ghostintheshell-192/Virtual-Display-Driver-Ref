@@ -74,8 +74,6 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 {
 	std::string reg_name = setting;
 
-	std::string sub_str = reg_name.substr(reg_name.find_last_of('.') + 1, reg_name.size());
-
 	std::replace(reg_name.begin(), reg_name.end(), '.', '_');
 	CharUpperBuff(reg_name.data(), static_cast<DWORD>(reg_name.size()));
 
@@ -83,7 +81,7 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 	DWORD buffer_size = 0;
 
 	//ho un dubbio su lpValue e lpSubKey - devo spezzare la stringa per inserire entrambi i due parametri?
-	LONG lResult = RegGetValue(hKey, reg_name.c_str(), sub_str.c_str(), 0, &type, NULL, &buffer_size);
+	LONG lResult = RegGetValue(hKey, "", reg_name.c_str(), 0, &type, NULL, &buffer_size);
 	if (lResult != ERROR_SUCCESS)
 		return "";
 
@@ -91,13 +89,13 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 	{
 		DWORD value = 0;
 		buffer_size = sizeof(value);
-		RegGetValue(hKey, reg_name.c_str(), sub_str.c_str(), 0, NULL, (LPBYTE)&value, &buffer_size);
+		RegGetValue(hKey, "", reg_name.c_str(), 0, NULL, (LPBYTE)&value, &buffer_size);
 		return std::to_string(value); // 1 → L"1", 0 → L"0"
 	}
 	else if (type == REG_SZ)
 	{
 		std::string value(buffer_size / sizeof(char), L'\0');
-		RegGetValue(hKey, reg_name.c_str(), sub_str.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
+		RegGetValue(hKey, "", reg_name.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
 		return value;
 	}
 
