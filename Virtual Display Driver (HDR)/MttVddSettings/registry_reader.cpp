@@ -41,13 +41,23 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 	DWORD dwBufferSize = 0;
 	LONG lResult;
 
-	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", 0, NULL, NULL, &dwBufferSize);
 
+
+	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", RRF_RT_REG_SZ, NULL, NULL, &dwBufferSize);
+
+	if (lResult != ERROR_SUCCESS)
+	{
+		std::cout << "Failed to open registry key for vdd path override. Error code: " << lResult;
+		std::cout << "Config Path remains at default value.";
+		return;
+	}
 	if (dwBufferSize == 0)
 	{
 		std::cout << "Config Path was not updated. VDDPATH present in registry, but value is empty.";
 		return;
 	}
+
+	path.resize(dwBufferSize);
 
 	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", 0, NULL, (LPBYTE)&path[0], &dwBufferSize);
 	if (lResult == ERROR_SUCCESS)
@@ -56,8 +66,8 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 		return;
 	}
 
-	std::cout << "Failed to open registry key for vdd path override. Error code: " << lResult;
-	std::cout << "Config Path remains at default value.";
+	//std::cout << "Failed to open registry key for vdd path override. Error code: " << lResult;
+	//std::cout << "Config Path remains at default value.";
 }
 
 std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const std::string &setting)
@@ -94,7 +104,6 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 	return "";
 }
 
-	
 bool Refactoring::RegistryReader::GetSetting(std::string value_key, const SettingValuePtr &result)
 {
 	std::string raw_reg_value = GetRawRegistryValue(reg_handle_key, value_key);
