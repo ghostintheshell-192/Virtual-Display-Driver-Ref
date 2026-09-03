@@ -38,10 +38,18 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 	if (!IsRegistryOpen())
 		return;
 
-	DWORD dwBufferSize = sizeof(path);
+	DWORD dwBufferSize = 0;
 	LONG lResult;
 
-	lResult = RegQueryValueExW(reg_handle_key, L"VDDPATH", NULL, NULL, (LPBYTE)&path[0], &dwBufferSize);
+	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", 0, NULL, NULL, &dwBufferSize);
+
+	if (dwBufferSize == 0)
+	{
+		std::cout << "Config Path was not updated. VDDPATH present in registry, but value is empty.";
+		return;
+	}
+
+	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", 0, NULL, (LPBYTE)&path[0], &dwBufferSize);
 	if (lResult == ERROR_SUCCESS)
 	{
 		std::cout << "Config Path updated: " + path;
