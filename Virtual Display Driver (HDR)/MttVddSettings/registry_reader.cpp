@@ -57,7 +57,7 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 
 	path.resize(dwBufferSize - 1);
 
-	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", 0, NULL, (LPBYTE)&path[0], &dwBufferSize);
+	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", RRF_RT_REG_SZ, NULL, (LPBYTE)&path[0], &dwBufferSize);
 	if (lResult == ERROR_SUCCESS)
 	{
 		std::cout << "Config Path updated: " + path;
