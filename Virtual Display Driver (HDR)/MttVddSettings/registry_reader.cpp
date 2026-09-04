@@ -83,13 +83,18 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 	{
 		DWORD value = 0;
 		buffer_size = sizeof(value);
-		RegGetValue(hKey, "", reg_name.c_str(), 0, NULL, (LPBYTE)&value, &buffer_size);
+		lResult = RegGetValue(hKey, "", reg_name.c_str(), 0, NULL, (LPBYTE)&value, &buffer_size);
+		if (lResult != ERROR_SUCCESS)
+			return "";
+
 		return std::to_string(value); // 1 → L"1", 0 → L"0"
 	}
 	else if (type == REG_SZ)
 	{
 		std::string value(buffer_size - 1, '\0');
-		RegGetValue(hKey, "", reg_name.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
+		lResult = RegGetValue(hKey, "", reg_name.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
+		if (lResult != ERROR_SUCCESS)
+			return "";
 		return value;
 	}
 
