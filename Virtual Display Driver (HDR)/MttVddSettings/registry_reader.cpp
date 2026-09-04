@@ -7,7 +7,7 @@ bool Refactoring::RegistryReader::OpenRegistry()
 {
 	reg_handle_key = nullptr;
 	LONG lResult =
-		RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &reg_handle_key);
+		RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &reg_handle_key);
 
 	if (lResult == ERROR_SUCCESS)
 	{
