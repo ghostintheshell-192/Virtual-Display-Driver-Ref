@@ -41,8 +41,6 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 	DWORD dwBufferSize = 0;
 	LONG lResult;
 
-
-
 	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", RRF_RT_REG_SZ, NULL, NULL, &dwBufferSize);
 
 	if (lResult != ERROR_SUCCESS)
@@ -57,7 +55,7 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 		return;
 	}
 
-	path.resize(dwBufferSize);
+	path.resize(dwBufferSize - 1);
 
 	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", 0, NULL, (LPBYTE)&path[0], &dwBufferSize);
 	if (lResult == ERROR_SUCCESS)
@@ -65,9 +63,6 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 		std::cout << "Config Path updated: " + path;
 		return;
 	}
-
-	//std::cout << "Failed to open registry key for vdd path override. Error code: " << lResult;
-	//std::cout << "Config Path remains at default value.";
 }
 
 std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const std::string &setting)
@@ -80,7 +75,6 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 	DWORD type = 0;
 	DWORD buffer_size = 0;
 
-	//ho un dubbio su lpValue e lpSubKey - devo spezzare la stringa per inserire entrambi i due parametri?
 	LONG lResult = RegGetValue(hKey, "", reg_name.c_str(), 0, &type, NULL, &buffer_size);
 	if (lResult != ERROR_SUCCESS)
 		return "";
@@ -94,7 +88,7 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 	}
 	else if (type == REG_SZ)
 	{
-		std::string value(buffer_size / sizeof(char), L'\0');
+		std::string value(buffer_size - 1, '\0');
 		RegGetValue(hKey, "", reg_name.c_str(), 0, NULL, (LPBYTE)&value[0], &buffer_size);
 		return value;
 	}
