@@ -87,7 +87,7 @@ std::string Refactoring::RegistryReader::GetRawRegistryValue(HKEY hKey, const st
 		if (lResult != ERROR_SUCCESS)
 			return "";
 
-		return std::to_string(value); // 1 → L"1", 0 → L"0"
+		return std::to_string(value); // 1 → "1", 0 → "0"
 	}
 	else if (type == REG_SZ)
 	{
