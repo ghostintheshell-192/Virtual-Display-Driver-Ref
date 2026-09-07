@@ -99,7 +99,7 @@ void Refactoring::SettingsLoader::Init()
 void Refactoring::SettingsLoader::LoadSettings()
 {
 	if (check_registry)
-		reg_reader.OpenRegistry();
+		check_registry = reg_reader.OpenRegistry();
 
 	for (const auto &entry : entries)
 	{
