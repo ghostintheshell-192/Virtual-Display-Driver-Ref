@@ -23,6 +23,10 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 	std::string raw_value;
 
 	tinyxml2::XMLElement *current = settings_file.RootElement();
+
+	if (!current)
+		return false;
+
 	for (const auto &segment : values)
 	{
 		current = current->FirstChildElement(segment.c_str());
@@ -32,7 +36,13 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 			return false;
 		}
 	}
-	raw_value = current->GetText();
+
+	const char * text = current->GetText();
+
+	if (!text)
+		return false;
+
+	raw_value = text;
 
 	if (raw_value.empty())
 		return false;
