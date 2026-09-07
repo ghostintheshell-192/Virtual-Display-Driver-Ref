@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31129.286
+# Visual Studio Version 18
+VisualStudioVersion = 18.9.12112.369 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MttVDD", "MttVDD\MttVDD.vcxproj", "{2D54CB75-8B17-4F11-97DC-847B0244CD46}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MttVddSettings", "MttVddSettings\MttVddSettings.vcxproj", "{706DF441-A824-4E00-8284-D2C21C530088}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,6 +43,22 @@ Global
 		{2D54CB75-8B17-4F11-97DC-847B0244CD46}.Release|x86.ActiveCfg = Release|Win32
 		{2D54CB75-8B17-4F11-97DC-847B0244CD46}.Release|x86.Build.0 = Release|Win32
 		{2D54CB75-8B17-4F11-97DC-847B0244CD46}.Release|x86.Deploy.0 = Release|Win32
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|ARM.ActiveCfg = Debug|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|ARM.Build.0 = Debug|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|ARM64.ActiveCfg = Debug|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|ARM64.Build.0 = Debug|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|x64.ActiveCfg = Debug|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|x64.Build.0 = Debug|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|x86.ActiveCfg = Debug|Win32
+		{706DF441-A824-4E00-8284-D2C21C530088}.Debug|x86.Build.0 = Debug|Win32
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|ARM.ActiveCfg = Release|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|ARM.Build.0 = Release|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|ARM64.ActiveCfg = Release|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|ARM64.Build.0 = Release|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|x64.ActiveCfg = Release|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|x64.Build.0 = Release|x64
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|x86.ActiveCfg = Release|Win32
+		{706DF441-A824-4E00-8284-D2C21C530088}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
