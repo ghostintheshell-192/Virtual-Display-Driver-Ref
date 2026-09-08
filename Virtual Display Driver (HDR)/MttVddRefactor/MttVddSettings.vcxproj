@@ -24,6 +24,7 @@
     <ProjectGuid>{706df441-a824-4e00-8284-d2c21c530088}</ProjectGuid>
     <RootNamespace>MttVddSettings</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>MttVddRefactor</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
