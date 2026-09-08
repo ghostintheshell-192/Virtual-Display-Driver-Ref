@@ -1,5 +1,4 @@
 #include "logger.h"
-#include "utilities.h"
 
 #include <windows.h>
 #include <iostream>
@@ -15,13 +14,12 @@ Refactoring::Logger::Logger(std::string base_dir, bool enable_std_logs, bool ena
 	debug_logs = enable_debug_logs;
 	piped_logs = send_logs_through_pipe;
 
-
 }
 
 Refactoring::Logger::~Logger()
 {
 	m_pipe_handle = nullptr;
-	m_log_file = nullptr;
+	this->CloseLogFile();
 }
 
 void Refactoring::Logger::Init(HANDLE * ext_pipe)
@@ -54,7 +52,7 @@ void Refactoring::Logger::OpenLogFile()
 		return;
 	}
 
-	errno_t err = fopen_s(&m_log_file, base_logpath.c_str(), "a");
+	errno_t err = fopen_s(&m_log_file, filepath.c_str(), "a");
 
 	if (err != 0)
 	{
@@ -68,7 +66,10 @@ void Refactoring::Logger::OpenLogFile()
 void Refactoring::Logger::CloseLogFile()
 {
 	if (m_log_file)
+	{
 		fclose(m_log_file);
+		m_log_file = nullptr;
+	}
 }
 
 void Refactoring::Logger::ToggleStandardLogs(bool enable)
@@ -154,7 +155,7 @@ void Refactoring::Logger::Message(LogType type, std::string msg)
 			ss << " [TESTING] ";
 			break;
 		case LogType::Companion: //'c'
-			ss << " [COMPANION ";
+			ss << " [COMPANION] ";
 			break;
 		default:
 			ss << " [UNKNOWN] ";
@@ -165,7 +166,7 @@ void Refactoring::Logger::Message(LogType type, std::string msg)
 
 		fprintf(m_log_file, " %s\n", ss.str().c_str());
 
-		if (piped_logs && m_pipe_handle != INVALID_HANDLE_VALUE)
+		if (piped_logs && m_pipe_handle && *m_pipe_handle != INVALID_HANDLE_VALUE)
 		{
 			this->SendToPipe(ss.str());
 		}
@@ -176,5 +177,5 @@ void Refactoring::Logger::SendToPipe(const std::string &logMessage)
 {
 	DWORD bytesWritten;
 	DWORD logMessageSize = static_cast<DWORD>(logMessage.size());
-	WriteFile(m_pipe_handle, logMessage.c_str(), logMessageSize, &bytesWritten, NULL);
+	WriteFile(*m_pipe_handle, logMessage.c_str(), logMessageSize, &bytesWritten, NULL);
 }
