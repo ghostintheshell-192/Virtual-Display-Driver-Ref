@@ -10,6 +10,7 @@ Refactoring::Logger::Logger(std::string base_dir, bool enable_std_logs, bool ena
 
 	m_pipe_handle = nullptr;
 	m_log_file = nullptr;
+	m_tz = nullptr;
 
 	standard_logs = enable_std_logs;
 	debug_logs = enable_debug_logs;
@@ -20,6 +21,7 @@ Refactoring::Logger::Logger(std::string base_dir, bool enable_std_logs, bool ena
 Refactoring::Logger::~Logger()
 {
 	m_pipe_handle = nullptr;
+	m_tz = nullptr;
 	this->CloseLogFile();
 }
 
@@ -84,12 +86,12 @@ void Refactoring::Logger::ToggleStandardLogs(bool enable)
 		this->CloseLogFile();
 }
 
-
 void Refactoring::Logger::ChangeDate()
 {
 	std::chrono::time_point now{std::chrono::system_clock::now()};
 
 	today = std::chrono::floor<std::chrono::days>(now);
+	m_tz = std::chrono::current_zone();
 }
 
 bool Refactoring::Logger::HasDateChanged() const
@@ -132,10 +134,13 @@ void Refactoring::Logger::Message(LogType type, std::string msg)
 		this->OpenLogFile();
 	}
 
-	//construct message
+	//construct actual message
 	{
 		auto now = std::chrono::system_clock::now();
-		auto timestamp = std::format("{:%Y-%m-%d %X}", now);
+
+		auto zt = std::chrono::zoned_time {m_tz, now};
+
+		auto timestamp = std::format("{:%Y-%m-%d %X}", zt);
 
 		std::stringstream ss;
 

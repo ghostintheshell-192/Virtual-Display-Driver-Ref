@@ -43,6 +43,7 @@ class Logger
 	bool HasDateChanged() const;
 
 	std::chrono::year_month_day today;
+	const std::chrono::time_zone * m_tz;
 	std::string base_logpath;
 
 	bool standard_logs;
