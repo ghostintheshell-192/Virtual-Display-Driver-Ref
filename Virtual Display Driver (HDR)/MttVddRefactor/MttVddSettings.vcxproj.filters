@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\settings">
+      <UniqueIdentifier>{cee832b0-a61a-4c5a-814e-2797869a3fc3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\settings">
+      <UniqueIdentifier>{c36ce922-5130-417d-b92a-3853f0fd3567}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="globals.h">
@@ -22,27 +28,27 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="settings_loader.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\settings</Filter>
     </ClInclude>
     <ClInclude Include="registry_reader.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\settings</Filter>
     </ClInclude>
     <ClInclude Include="xml_reader.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\settings</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="settings_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="registry_reader.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\settings</Filter>
+    </ClCompile>
+    <ClCompile Include="settings_loader.cpp">
+      <Filter>Source Files\settings</Filter>
     </ClCompile>
     <ClCompile Include="xml_reader.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\settings</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
