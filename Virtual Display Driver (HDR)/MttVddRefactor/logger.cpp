@@ -76,6 +76,12 @@ void Refactoring::Logger::CloseLogFile()
 void Refactoring::Logger::ToggleStandardLogs(bool enable)
 {
 	standard_logs = enable;
+
+	if (standard_logs && !m_log_file)
+		this->OpenLogFile();
+
+	if (!standard_logs && m_log_file)
+		this->CloseLogFile();
 }
 
 
@@ -126,6 +132,7 @@ void Refactoring::Logger::Message(LogType type, std::string msg)
 		this->OpenLogFile();
 	}
 
+	//construct message
 	{
 		auto now = std::chrono::system_clock::now();
 		auto timestamp = std::format("{:%Y-%m-%d %X}", now);
