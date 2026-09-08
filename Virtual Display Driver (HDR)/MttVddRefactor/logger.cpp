@@ -5,12 +5,13 @@
 
 Refactoring::Logger::Logger(std::string base_dir, bool enable_std_logs, bool enable_debug_logs, bool send_logs_through_pipe)
 {
-	this->ChangeDate();
 	this->base_logpath = base_dir;
 
 	m_pipe_handle = nullptr;
 	m_log_file = nullptr;
 	m_tz = nullptr;
+
+	this->ChangeDate();
 
 	standard_logs = enable_std_logs;
 	debug_logs = enable_debug_logs;
