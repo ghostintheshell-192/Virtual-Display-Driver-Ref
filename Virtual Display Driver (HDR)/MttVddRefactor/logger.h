@@ -24,8 +24,6 @@ class Logger
 	Logger(std::string base_dir, bool enable_std_logs, bool enable_debug_logs, bool send_logs_through_pipe);
 	~Logger();
 
-	void SendToPipe(const std::string &logMessage);
-
 	void Init(HANDLE *ext_pipe);
 
 	void Message(LogType type, std::string msg);
@@ -39,6 +37,7 @@ class Logger
 	void OpenLogFile();
 	void CloseLogFile();
 	void ChangeDate();
+	void SendToPipe(const std::string &logMessage);
 
 	bool HasDateChanged();
 	std::chrono::year_month_day GetDate();
