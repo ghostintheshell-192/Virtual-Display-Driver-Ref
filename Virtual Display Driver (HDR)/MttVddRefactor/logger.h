@@ -40,7 +40,8 @@ class Logger
 	void CloseLogFile();
 	void ChangeDate();
 
-	bool HasDateChanged() const;
+	bool HasDateChanged();
+	std::chrono::year_month_day GetDate();
 
 	std::chrono::year_month_day today;
 	const std::chrono::time_zone * m_tz;

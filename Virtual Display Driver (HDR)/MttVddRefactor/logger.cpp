@@ -37,8 +37,8 @@ void Refactoring::Logger::Init(HANDLE * ext_pipe)
 }
 
 /* possible cases :
-* standard_logs è falso fin dall'inizio. OpenLogFile non viene mai chiamato. siamo sicuri di questo?
-* standard_logs è vero fin dall'inizio. OpenLogFile viene chiamato.
+ * standard_logs è falso fin dall'inizio. OpenLogFile non viene mai chiamato. siamo sicuri di questo?
+ * standard_logs è vero fin dall'inizio. OpenLogFile viene chiamato.
 	*/
 void Refactoring::Logger::OpenLogFile()
 {
@@ -89,17 +89,21 @@ void Refactoring::Logger::ToggleStandardLogs(bool enable)
 
 void Refactoring::Logger::ChangeDate()
 {
-	std::chrono::time_point now{std::chrono::system_clock::now()};
-
-	today = std::chrono::floor<std::chrono::days>(now);
 	m_tz = std::chrono::current_zone();
+	today = GetDate();
 }
 
-bool Refactoring::Logger::HasDateChanged() const
+std::chrono::year_month_day Refactoring::Logger::GetDate()
 {
 	std::chrono::time_point now{std::chrono::system_clock::now()};
+	auto zt = std::chrono::zoned_time{m_tz, now};
+	return
+		std::chrono::year_month_day{std::chrono::floor<std::chrono::days>(zt.get_local_time())};
+}
 
-	std::chrono::year_month_day new_day = std::chrono::floor<std::chrono::days>(now);
+bool Refactoring::Logger::HasDateChanged()
+{
+	std::chrono::year_month_day new_day = this->GetDate();
 
 	if (new_day != today)
 		return true;
