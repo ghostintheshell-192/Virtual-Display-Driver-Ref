@@ -9,6 +9,7 @@ Refactoring::Logger::Logger(std::string base_dir, bool enable_std_logs, bool ena
 	this->base_logpath = base_dir;
 
 	m_pipe_handle = nullptr;
+	m_log_file = nullptr;
 
 	standard_logs = enable_std_logs;
 	debug_logs = enable_debug_logs;
@@ -127,7 +128,6 @@ void Refactoring::Logger::Message(LogType type, std::string msg)
 
 	{
 		auto now = std::chrono::system_clock::now();
-		auto date = std::format("{:%Y-%m-%d}", now);
 		auto timestamp = std::format("{:%Y-%m-%d %X}", now);
 
 		std::stringstream ss;
