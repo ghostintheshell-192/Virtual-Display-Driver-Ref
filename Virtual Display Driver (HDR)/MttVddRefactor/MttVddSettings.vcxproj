@@ -143,6 +143,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="logger.cpp" />
     <ClCompile Include="registry_reader.cpp" />
     <ClCompile Include="settings_loader.cpp" />
     <ClCompile Include="main.cpp" />
@@ -150,6 +151,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="globals.h" />
+    <ClInclude Include="logger.h" />
     <ClInclude Include="registry_reader.h" />
     <ClInclude Include="settings_loader.h" />
     <ClInclude Include="utilities.h" />

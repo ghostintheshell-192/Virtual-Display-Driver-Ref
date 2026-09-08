@@ -19,6 +19,12 @@
     <Filter Include="Header Files\settings">
       <UniqueIdentifier>{c36ce922-5130-417d-b92a-3853f0fd3567}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\logging">
+      <UniqueIdentifier>{2960937d-8600-464f-adb8-02ba1cfaebd0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\logging">
+      <UniqueIdentifier>{ccf9b762-4f38-4a23-ad2f-26ad66ac6342}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="globals.h">
@@ -36,6 +42,9 @@
     <ClInclude Include="xml_reader.h">
       <Filter>Header Files\settings</Filter>
     </ClInclude>
+    <ClInclude Include="logger.h">
+      <Filter>Header Files\logging</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -49,6 +58,9 @@
     </ClCompile>
     <ClCompile Include="xml_reader.cpp">
       <Filter>Source Files\settings</Filter>
+    </ClCompile>
+    <ClCompile Include="logger.cpp">
+      <Filter>Source Files\logging</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
