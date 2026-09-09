@@ -5,7 +5,7 @@ VisualStudioVersion = 18.9.12112.369
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MttVDD", "MttVDD\MttVDD.vcxproj", "{2D54CB75-8B17-4F11-97DC-847B0244CD46}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MttVddRefactor", "MttVddRefactor\MttVddSettings.vcxproj", "{706DF441-A824-4E00-8284-D2C21C530088}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MttVddRefactor", "MttVddRefactor\MttVddRefactor.vcxproj", "{706DF441-A824-4E00-8284-D2C21C530088}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
