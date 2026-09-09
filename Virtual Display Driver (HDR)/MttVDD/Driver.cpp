@@ -241,16 +241,6 @@ struct IndirectDeviceContextWrapper
 		pContext = nullptr;
 	}
 };
-void LogQueries(const char* severity, const std::wstring& xmlName) {
-	if (xmlName.find(L"logging") == std::wstring::npos) { 
-		int size_needed = WideCharToMultiByte(CP_UTF8, 0, xmlName.c_str(), (int)xmlName.size(), NULL, 0, NULL, NULL);
-		if (size_needed > 0) {
-			std::string strMessage(size_needed, 0);
-			WideCharToMultiByte(CP_UTF8, 0, xmlName.c_str(), (int)xmlName.size(), &strMessage[0], size_needed, NULL, NULL);
-			vddlog(severity, strMessage.c_str());
-		}
-	}
-}
 
 // === EDID PROFILE LOADING FUNCTION ===
 struct EdidProfileData {
