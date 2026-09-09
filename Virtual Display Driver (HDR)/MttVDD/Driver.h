@@ -25,7 +25,6 @@
 
 // Utility function declarations
 std::vector<std::string> split(std::string& input, char delimiter);
-std::string WStringToString(const std::wstring& wstr);
 
 // Phase 5: Final Integration function declarations
 NTSTATUS ValidateEdidIntegration();

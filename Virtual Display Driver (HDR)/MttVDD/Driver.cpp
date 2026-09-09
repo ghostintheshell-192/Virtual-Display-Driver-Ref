@@ -247,15 +247,6 @@ void LogQueries(const char* severity, const std::wstring& xmlName) {
 	}
 }
 
-string WStringToString(const wstring& wstr) { //basically just a function for converting strings since codecvt is depricated in c++ 17
-	if (wstr.empty()) return "";
-
-	int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), NULL, 0, NULL, NULL);
-	string str(size_needed, 0);
-	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &str[0], size_needed, NULL, NULL);
-	return str;
-}
-
 bool EnabledQuery(const std::wstring& settingKey) {
 	auto it = SettingsQueryMap.find(settingKey);
 	if (it == SettingsQueryMap.end()) {
@@ -1115,7 +1106,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 	
 	// Check if file exists
 	if (!PathFileExistsW(fullPath.c_str())) {
-		vddlog("w", ("EDID profile not found: " + WStringToString(fullPath)).c_str());
+		vddlog("w", ("EDID profile not found: " + Refactoring::WStringToString(fullPath)).c_str());
 		return false;
 	}
 
@@ -1461,7 +1452,7 @@ void vddlog(const char* type, const char* message) {
 		// Best effort only.
 	}
 
-	string narrow_logPath = WStringToString(logPath);
+	string narrow_logPath = Refactoring::WStringToString(logPath);
 	const char* mode = "a";
 	errno_t err = fopen_s(&logFile, narrow_logPath.c_str(), mode);
 	if (err == 0 && logFile != nullptr) {
@@ -1573,7 +1564,7 @@ void InitializeD3DDeviceAndLogGPU() {
 	wstring wdesc(desc.Description);
 	string utf8_desc;
 	try {
-		utf8_desc = WStringToString(wdesc);
+		utf8_desc = Refactoring::WStringToString(wdesc);
 	}
 	catch (const exception& e) {
 		vddlog("e", ("Retrieving D3D Device GPU: Conversion error: " + string(e.what())).c_str());
@@ -1956,7 +1947,7 @@ void GetGpuInfo()
 	}
 
 	try {
-		string utf8_desc = WStringToString(adapterOption.target_name);
+		string utf8_desc = Refactoring::WStringToString(adapterOption.target_name);
 		LUID luid = getSetAdapterLuid();
 		string logtext = "ASSIGNED GPU: " + utf8_desc +
 			" (LUID: " + std::to_string(luid.LowPart) + "-" + std::to_string(luid.HighPart) + ")";
@@ -2180,7 +2171,7 @@ void HandleClient(HANDLE hPipe) {
 			swscanf_s(buffer + 15, L"%d", &newDisplayCount);
 
 			std::wstring displayLog = L"Setting display count  to " + std::to_wstring(newDisplayCount);
-			vddlog("c", WStringToString(displayLog).c_str());
+			vddlog("c", Refactoring::WStringToString(displayLog).c_str());
 
 			if (UpdateXmlDisplayCountSetting(newDisplayCount)){
 				vddlog("c", "Display Count Changed, Restarting Driver");
@@ -2473,7 +2464,7 @@ extern "C" NTSTATUS DriverEntry(
 
 
 	vddlog("i", "Driver Starting");
-	string utf8_confpath = WStringToString(confpath);
+	string utf8_confpath = Refactoring::WStringToString(confpath);
 	string logtext = "VDD Path: " + utf8_confpath;
 	vddlog("i", logtext.c_str());
 	LogIddCxVersion();
@@ -3519,7 +3510,7 @@ vector<BYTE> loadEdid(const string& filePath) {
 }
 
 int maincalc() {
-	vector<BYTE> edid = loadEdid(WStringToString(confpath) + "\\user_edid.bin");
+	vector<BYTE> edid = loadEdid(Refactoring::WStringToString(confpath) + "\\user_edid.bin");
 
 	if (!g_settings.edid.prevent_manufacturer_spoof) modifyEdid(edid);
 	BYTE checksum = calculateChecksum(edid);
@@ -3737,7 +3728,7 @@ void IndirectDeviceContext::FinishInit()
 
 void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 	wstring logMessage = L"Creating Monitor: " + to_wstring(index + 1);
-	string narrowLogMessage = WStringToString(logMessage);
+	string narrowLogMessage = Refactoring::WStringToString(logMessage);
 	vddlog("i", narrowLogMessage.c_str());
 
 	// ==============================
@@ -4660,7 +4651,7 @@ NTSTATUS ValidateEdidIntegration()
 	logStream << "EDID Configuration Status:"
 		<< "\n  Integration Enabled: " << (edidEnabled ? "Yes" : "No")
 		<< "\n  Auto Configuration: " << (autoConfig ? "Yes" : "No")
-		<< "\n  Profile Path: " << WStringToString(profilePath);
+		<< "\n  Profile Path: " << Refactoring::WStringToString(profilePath);
 	vddlog("d", logStream.str().c_str());
 
 	if (!edidEnabled) {
@@ -4690,7 +4681,7 @@ NTSTATUS ValidateEdidIntegration()
 	logStream.str("");
 	logStream << "Mode Management Status:"
 		<< "\n  Auto Resolutions: " << (autoResEnabled ? "Enabled" : "Disabled")
-		<< "\n  Source Priority: " << WStringToString(localSourcePriority);
+		<< "\n  Source Priority: " << Refactoring::WStringToString(localSourcePriority);
 	vddlog("d", logStream.str().c_str());
 
 	// Update integration status
