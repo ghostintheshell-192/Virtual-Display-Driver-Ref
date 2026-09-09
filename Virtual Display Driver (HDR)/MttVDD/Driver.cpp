@@ -252,101 +252,6 @@ void LogQueries(const char* severity, const std::wstring& xmlName) {
 	}
 }
 
-bool EnabledQuery(const std::wstring& settingKey) {
-	auto it = SettingsQueryMap.find(settingKey);
-	if (it == SettingsQueryMap.end()) {
-		vddlog("e", "requested data not found in xml, consider updating xml!");
-		return false;
-	}
-
-	std::wstring regName = it->second.first;
-	std::wstring xmlName = it->second.second;
-
-	std::wstring settingsname = confpath + L"\\vdd_settings.xml";
-	HKEY hKey;
-	DWORD dwValue;
-	DWORD dwBufferSize = sizeof(dwValue);
-	LONG lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
-
-	if (lResult == ERROR_SUCCESS) {
-		lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)&dwValue, &dwBufferSize);
-		if (lResult == ERROR_SUCCESS) {
-			RegCloseKey(hKey);
-			if (dwValue == 1) {
-				LogQueries("d", xmlName + L" - is enabled (value = 1).");
-				return true;
-			}
-			else if (dwValue == 0) {
-				goto check_xml;
-			}
-		}
-		else {
-			LogQueries("d", xmlName + L" - Failed to retrieve value from registry. Attempting to read as string.");
-			wchar_t path[MAX_PATH];
-			dwBufferSize = sizeof(path);
-			lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)path, &dwBufferSize);
-			if (lResult == ERROR_SUCCESS) {
-				std::wstring logValue(path);
-				RegCloseKey(hKey);
-				if (logValue == L"true" || logValue == L"1") {
-					LogQueries("d", xmlName + L" - is enabled (string value).");
-					return true;
-				}
-				else if (logValue == L"false" || logValue == L"0") {
-					goto check_xml;
-				}
-			}
-			RegCloseKey(hKey);
-			LogQueries("d", xmlName + L" - Failed to retrieve string value from registry.");
-		}
-	}
-
-check_xml:
-	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to create file stream for XML settings.");
-		return false;
-	}
-
-	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to create XML reader.");
-		return false;
-	}
-
-	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to set input for XML reader.");
-		return false;
-	}
-
-	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
-	bool xmlLoggingValue = false;
-
-	while (S_OK == pReader->Read(&nodeType)) {
-		if (nodeType == XmlNodeType_Element) {
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0) {
-				pReader->Read(&nodeType);
-				if (nodeType == XmlNodeType_Text) {
-					const wchar_t* pwszValue;
-					pReader->GetValue(&pwszValue, nullptr);
-					if (pwszValue) {
-						xmlLoggingValue = (wcscmp(pwszValue, L"true") == 0);
-					}
-					LogQueries("i", xmlName + (xmlLoggingValue ? L" is enabled." : L" is disabled."));
-					break;
-				}
-			}
-		}
-	}
-
-	return xmlLoggingValue;
-}
-
 int GetIntegerSetting(const std::wstring& settingKey) {
 	auto it = SettingsQueryMap.find(settingKey);
 	if (it == SettingsQueryMap.end()) {
@@ -2188,8 +2093,8 @@ void HandleClient(HANDLE hPipe) {
 		}
 		else if (wcsncmp(buffer, L"GETSETTINGS", 11) == 0) {
 			//query and return settings
-			bool debugEnabled = EnabledQuery(L"DebugLoggingEnabled");
-			bool loggingEnabled = EnabledQuery(L"LoggingEnabled");
+			bool debugEnabled = g_settings.logs.enable_debug_logs;
+			bool loggingEnabled = g_settings.logs.enable_standard_logs;
 
 			wstring settingsResponse = L"SETTINGS ";
 			settingsResponse += debugEnabled ? L"DEBUG=true " : L"DEBUG=false ";
@@ -2308,7 +2213,6 @@ void StopNamedPipeServer() {
 	}
 }
 
-
 extern "C" EVT_WDF_DRIVER_UNLOAD EvtDriverUnload;
 
 VOID
@@ -2336,18 +2240,12 @@ extern "C" NTSTATUS DriverEntry(
 	WDF_DRIVER_CONFIG_INIT(&Config, VirtualDisplayDriverDeviceAdd);
 
 	Config.EvtDriverUnload = EvtDriverUnload;
-	g_settings.logs.enable_standard_logs = EnabledQuery(L"LoggingEnabled");
-	g_settings.logs.enable_debug_logs = EnabledQuery(L"DebugLoggingEnabled");
 
 	g_settings_manager.Init();
-	g_settings.edid.prevent_manufacturer_spoof = EnabledQuery(L"PreventMonitorSpoof");
+	g_settings_manager.LoadSettings();
 
-	//colour
-	g_settings.colours.hdr_plus = EnabledQuery(L"HDRPlusEnabled");
-	g_settings.colours.sdr10 = EnabledQuery(L"SDR10Enabled");
 	g_colours_iddcx.HDR_COLOR = g_settings.colours.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 : IDDCX_BITS_PER_COMPONENT_10;
 	g_colours_iddcx.SDR_COLOR = g_settings.colours.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8;
-	g_settings.colours.color_format = Refactoring::WStringToString(GetStringSetting(L"ColourFormat"));
 
 	int xorCursorSupportLevelInt = GetIntegerSetting(L"XorCursorSupportLevel");
 	std::string xorCursorSupportLevelName;
@@ -2360,73 +2258,9 @@ extern "C" NTSTATUS DriverEntry(
 		g_cursor_iddcx.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
 	}
 
-	// === LOAD NEW EDID INTEGRATION SETTINGS ===
-	g_settings.edid_integration.enabled = EnabledQuery(L"EdidIntegrationEnabled");
-	g_settings.edid_integration.auto_configure = EnabledQuery(L"AutoConfigureFromEdid");
-	g_settings.edid_integration.profile_path = Refactoring::WStringToString(GetStringSetting(L"EdidProfilePath"));
-	g_settings.edid_integration.override_manual_settings = EnabledQuery(L"OverrideManualSettings");
-	g_settings.edid_integration.fallback_on_error = EnabledQuery(L"FallbackOnError");
-	g_settings.auto_resolutions.preferred_mode.preferred = EnabledQuery(L"UseEdidPreferred");
-
-	// === LOAD HDR ADVANCED SETTINGS ===
-	g_settings.hdr_advanced.static_metadata_enabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
-	g_settings.hdr_advanced.max_display_mastering_luminance = GetDoubleSetting(L"MaxDisplayMasteringLuminance");
-	g_settings.hdr_advanced.min_display_mastering_luminance = GetDoubleSetting(L"MinDisplayMasteringLuminance");
-	g_settings.hdr_advanced.max_content_light_level = GetIntegerSetting(L"MaxContentLightLevel");
-	g_settings.hdr_advanced.max_frame_avg_light_level = GetIntegerSetting(L"MaxFrameAvgLightLevel");
-	g_settings.hdr_advanced.color_space.enable_matrix_transform = EnabledQuery(L"EnableMatrixTransform");
-
-	g_settings.hdr_advanced.color_primaries.primaries_enabled = EnabledQuery(L"ColorPrimariesEnabled");
-	g_settings.hdr_advanced.color_primaries.redX = GetDoubleSetting(L"RedX");
-	g_settings.hdr_advanced.color_primaries.redY = GetDoubleSetting(L"RedY");
-	g_settings.hdr_advanced.color_primaries.greenX = GetDoubleSetting(L"GreenX");
-	g_settings.hdr_advanced.color_primaries.greenY = GetDoubleSetting(L"GreenY");
-	g_settings.hdr_advanced.color_primaries.blueX = GetDoubleSetting(L"BlueX");
-	g_settings.hdr_advanced.color_primaries.blueY = GetDoubleSetting(L"BlueY");
-	g_settings.hdr_advanced.color_primaries.whiteX = GetDoubleSetting(L"WhiteX");
-	g_settings.hdr_advanced.color_primaries.whiteY = GetDoubleSetting(L"WhiteY");
-
-	g_settings.hdr_advanced.color_space.enabled = EnabledQuery(L"ColorSpaceEnabled");
-	g_settings.hdr_advanced.color_space.gamma_correction = GetDoubleSetting(L"GammaCorrection");
-	g_settings.hdr_advanced.color_space.primary_color_space = Refactoring::WStringToString(GetStringSetting(L"PrimaryColorSpace"));
-
-	// === LOAD AUTO RESOLUTIONS SETTINGS ===
-	g_settings.auto_resolutions.enabled = EnabledQuery(L"AutoResolutionsEnabled");
-	g_settings.auto_resolutions.source_priority = Refactoring::WStringToString(GetStringSetting(L"SourcePriority"));
-	g_settings.auto_resolutions.edid_mode_filtering.min_refresh_rate = GetIntegerSetting(L"MinRefreshRate");
-	g_settings.auto_resolutions.edid_mode_filtering.max_refresh_rate = GetIntegerSetting(L"MaxRefreshRate");
-	g_settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates = EnabledQuery(L"ExcludeFractionalRates");
-	g_settings.auto_resolutions.edid_mode_filtering.min_resolution_width = GetIntegerSetting(L"MinResolutionWidth");
-	g_settings.auto_resolutions.edid_mode_filtering.min_resolution_height = GetIntegerSetting(L"MinResolutionHeight");
-	g_settings.auto_resolutions.edid_mode_filtering.max_resolution_width = GetIntegerSetting(L"MaxResolutionWidth");
-	g_settings.auto_resolutions.edid_mode_filtering.max_resolution_height = GetIntegerSetting(L"MaxResolutionHeight");
-	g_settings.auto_resolutions.preferred_mode.fallback_width = GetIntegerSetting(L"FallbackWidth");
-	g_settings.auto_resolutions.preferred_mode.fallback_height = GetIntegerSetting(L"FallbackHeight");
-	g_settings.auto_resolutions.preferred_mode.fallback_refresh = GetIntegerSetting(L"FallbackRefresh");
-
-	// === LOAD COLOR ADVANCED SETTINGS ===
-	g_settings.color_advanced.bit_depth_management.auto_select_from_color_space = EnabledQuery(L"AutoSelectFromColorSpace");
-	g_settings.color_advanced.bit_depth_management.force_bit_depth = Refactoring::WStringToString(GetStringSetting(L"ForceBitDepth"));
-	g_settings.color_advanced.bit_depth_management.fp16_surface_support = EnabledQuery(L"Fp16SurfaceSupport");
-	g_settings.color_advanced.color_format_extended.wide_color_gamut = EnabledQuery(L"WideColorGamut");
-	g_settings.color_advanced.color_format_extended.hdr_tone_mapping = EnabledQuery(L"HdrToneMapping");
-	g_settings.color_advanced.color_format_extended.sdr_white_level = GetDoubleSetting(L"SdrWhiteLevel");
-
-	// === LOAD MONITOR EMULATION SETTINGS ===
-	g_settings.monitor_emulation.enabled = EnabledQuery(L"MonitorEmulationEnabled");
-	g_settings.monitor_emulation.emulate_physical_dimensions = EnabledQuery(L"EmulatePhysicalDimensions");
-	g_settings.monitor_emulation.physical_width = GetIntegerSetting(L"PhysicalWidthMm");
-	g_settings.monitor_emulation.physical_height = GetIntegerSetting(L"PhysicalHeightMm");
-	g_settings.monitor_emulation.manufacturer_emulation_enabled = EnabledQuery(L"ManufacturerEmulationEnabled");
-	g_settings.monitor_emulation.manufacturer_name = Refactoring::WStringToString(GetStringSetting(L"ManufacturerName"));
-	g_settings.monitor_emulation.model_name = Refactoring::WStringToString(GetStringSetting(L"ModelName"));
-	g_settings.monitor_emulation.serial_number = Refactoring::WStringToString(GetStringSetting(L"SerialNumber"));
-
 	xorCursorSupportLevelName = XorCursorSupportLevelToString(g_cursor_iddcx.xor_cursor_support_level);
 
 	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
-
-
 
 	vddlog("i", "Driver Starting");
 	string utf8_confpath = Refactoring::WStringToString(confpath);
@@ -4608,15 +4442,15 @@ NTSTATUS ValidateEdidIntegration()
 	DWORD issues = 0;
 
 	// Check EDID integration settings
-	bool edidEnabled = EnabledQuery(L"EdidIntegrationEnabled");
-	bool autoConfig = EnabledQuery(L"AutoConfigureFromEdid");
-	wstring profilePath = GetStringSetting(L"EdidProfilePath");
+	bool edidEnabled = g_settings.edid_integration.enabled;
+	bool autoConfig = g_settings.edid_integration.auto_configure;
+	std::string profilePath = g_settings.edid_integration.profile_path;
 
 	logStream.str("");
 	logStream << "EDID Configuration Status:"
 		<< "\n  Integration Enabled: " << (edidEnabled ? "Yes" : "No")
 		<< "\n  Auto Configuration: " << (autoConfig ? "Yes" : "No")
-		<< "\n  Profile Path: " << Refactoring::WStringToString(profilePath);
+		<< "\n  Profile Path: " << profilePath;
 	vddlog("d", logStream.str().c_str());
 
 	if (!edidEnabled) {
@@ -4624,14 +4458,14 @@ NTSTATUS ValidateEdidIntegration()
 		issues++;
 	}
 
-	if (profilePath.empty() || profilePath == L"EDID/monitor_profile.xml") {
+	if (profilePath.empty() || profilePath == "EDID/monitor_profile.xml") {
 		vddlog("w", "EDID profile path not configured or using default path");
 		issues++;
 	}
 
 	// Validate HDR configuration
-	bool hdrEnabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
-	bool colorEnabled = EnabledQuery(L"ColorPrimariesEnabled");
+	bool hdrEnabled = g_settings.hdr_advanced.static_metadata_enabled;
+	bool colorEnabled = g_settings.hdr_advanced.color_primaries.primaries_enabled;
 	
 	logStream.str("");
 	logStream << "HDR Configuration Status:"
@@ -4640,7 +4474,7 @@ NTSTATUS ValidateEdidIntegration()
 	vddlog("d", logStream.str().c_str());
 
 	// Validate mode management
-	bool autoResEnabled = EnabledQuery(L"AutoResolutionsEnabled");
+	bool autoResEnabled = g_settings.auto_resolutions.enabled;
 	wstring localSourcePriority = GetStringSetting(L"SourcePriority");
 	
 	logStream.str("");
@@ -4837,8 +4671,8 @@ NTSTATUS ValidateAndSanitizeConfiguration()
 	DWORD sanitizedSettings = 0;
 
 	// Validate refresh rate settings  
-	double minRefresh = GetDoubleSetting(L"MinRefreshRate");
-	double maxRefresh = GetDoubleSetting(L"MaxRefreshRate");
+	double minRefresh = g_settings.auto_resolutions.edid_mode_filtering.min_refresh_rate;
+	double maxRefresh = g_settings.auto_resolutions.edid_mode_filtering.max_refresh_rate;
 	
 	if (minRefresh <= 0 || minRefresh > 300) {
 		vddlog("w", "Invalid min refresh rate detected, setting to safe default (24Hz)");
@@ -4853,10 +4687,10 @@ NTSTATUS ValidateAndSanitizeConfiguration()
 	}
 
 	// Validate resolution settings
-	int minWidth = GetIntegerSetting(L"MinResolutionWidth");
-	int minHeight = GetIntegerSetting(L"MinResolutionHeight");
-	int maxWidth = GetIntegerSetting(L"MaxResolutionWidth");
-	int maxHeight = GetIntegerSetting(L"MaxResolutionHeight");
+	int minWidth = g_settings.auto_resolutions.edid_mode_filtering.min_resolution_width;
+	int minHeight = g_settings.auto_resolutions.edid_mode_filtering.min_resolution_height;
+	int maxWidth = g_settings.auto_resolutions.edid_mode_filtering.max_resolution_width;
+	int maxHeight = g_settings.auto_resolutions.edid_mode_filtering.max_resolution_height;
 
 	if (minWidth < 640 || minWidth > 7680) {
 		vddlog("w", "Invalid min width detected, setting to 640");
@@ -4883,8 +4717,8 @@ NTSTATUS ValidateAndSanitizeConfiguration()
 	}
 
 	// Validate HDR luminance values
-	double maxLuminance = GetDoubleSetting(L"MaxDisplayMasteringLuminance");
-	double minLuminance = GetDoubleSetting(L"MinDisplayMasteringLuminance");
+	double maxLuminance = g_settings.hdr_advanced.max_display_mastering_luminance;
+	double minLuminance = g_settings.hdr_advanced.min_display_mastering_luminance;
 	
 	if (maxLuminance <= 0 || maxLuminance > 10000) {
 		vddlog("w", "Invalid max luminance detected, setting to 1000 nits");
@@ -4899,8 +4733,9 @@ NTSTATUS ValidateAndSanitizeConfiguration()
 	}
 
 	// Validate color primaries
-	double localRedX = GetDoubleSetting(L"RedX");
-	double localRedY = GetDoubleSetting(L"RedY");
+	double localRedX = g_settings.hdr_advanced.color_primaries.redX;
+	double localRedY = g_settings.hdr_advanced.color_primaries.redY;
+
 	double localGreenX = GetDoubleSetting(L"GreenX");
 	double localGreenY = GetDoubleSetting(L"GreenY");
 	double localBlueX = GetDoubleSetting(L"BlueX");

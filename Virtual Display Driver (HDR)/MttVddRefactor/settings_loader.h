@@ -10,7 +10,7 @@ namespace Refactoring
 	class SettingsLoader
 	{
 	  public:
-		SettingsLoader(Logger *log);
+		SettingsLoader(Logger *log, DriverSettings *ext_settings);
 		~SettingsLoader() = default;
 
 		void Init();
@@ -21,7 +21,7 @@ namespace Refactoring
 		Logger * m_log;
 		RegistryReader reg_reader;
 		XmlReader xml_reader;
-		DriverSettings settings;
+		DriverSettings *settings;
 
 		bool check_registry;
 		bool check_xml;
