@@ -1,5 +1,5 @@
 #include "registry_reader.h"
-#include <iostream>
+#include "utilities.h"
 #include <algorithm>
 
 
@@ -45,13 +45,14 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 
 	if (lResult != ERROR_SUCCESS)
 	{
-		std::cout << "Failed to open registry key for vdd path override. Error code: " << lResult;
-		std::cout << "Config Path remains at default value.";
+		m_log->Message(LogType::Error, "[RegistryReader] Failed to open registry key for vdd path override. Error code: " + lResult);
+		m_log->Message(LogType::Warning, "[RegistryReader] Config Path remains at default value.");
 		return;
 	}
 	if (dwBufferSize == 0)
 	{
-		std::cout << "Config Path was not updated. VDDPATH present in registry, but value is empty.";
+		m_log->Message(LogType::Warning,
+					   "[RegistryReader] Config Path was not updated. VDDPATH present in registry, but value is empty.");
 		return;
 	}
 
@@ -60,7 +61,7 @@ void Refactoring::RegistryReader::InitializePath(std::string &path) const
 	lResult = RegGetValue(reg_handle_key, "", "VDDPATH", RRF_RT_REG_SZ, NULL, (LPBYTE)&path[0], &dwBufferSize);
 	if (lResult == ERROR_SUCCESS)
 	{
-		std::cout << "Config Path updated: " + path;
+		m_log->Message(LogType::Info, "[RegistryReader] Config Path updated: " + path);
 		return;
 	}
 }
@@ -109,9 +110,13 @@ bool Refactoring::RegistryReader::GetSetting(std::string value_key, const Settin
 		return false;
 
 	std::visit(
-		[&raw_reg_value](auto *ptr) {
+		[&raw_reg_value, &value_key, this](auto *ptr) {
 			using T = std::remove_pointer_t<decltype(ptr)>;
+
+			T old_val = *ptr;
 			*ptr = convert_setting<T>(raw_reg_value);
+			if (old_val != *ptr)
+				m_log->Message(LogType::Debug, value_key + " now has value = " + raw_reg_value);
 		},
 		result);
 	return true;

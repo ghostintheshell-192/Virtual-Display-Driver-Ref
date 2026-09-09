@@ -1,6 +1,7 @@
 #pragma once
-#include "utilities.h"
 #include "globals.h"
+#include "logger.h"
+
 #include <Windows.h>
 #include <string>
 
@@ -9,7 +10,7 @@ namespace Refactoring
 class RegistryReader
 {
   public:
-	RegistryReader() : reg_handle_key(nullptr) {};
+	RegistryReader(Logger * log) : reg_handle_key(nullptr), m_log(log) {};
 	~RegistryReader() = default;
 
 	bool OpenRegistry();
@@ -24,5 +25,6 @@ class RegistryReader
   private:
 	std::string GetRawRegistryValue(HKEY hKey, const std::string &setting_name);
 	HKEY reg_handle_key;
+	Logger *m_log;
 };
 } // namespace Refactoring

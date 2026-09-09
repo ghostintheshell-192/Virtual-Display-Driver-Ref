@@ -1,11 +1,15 @@
 #include "settings_loader.h"
-#include <iostream>
 #include <string>
+
+Refactoring::SettingsLoader::SettingsLoader(Logger *log)
+	: m_log(log), reg_reader(log), xml_reader(log), settings(), check_registry(false), check_xml(false), conf_path()
+{
+}
 
 void Refactoring::SettingsLoader::Init()
 {
 	conf_path = "C:\\data\\repos\\Sandbox\\Virtual-Display-Driver-Ref\\Virtual Display Driver (HDR)";
-	std::cout << "Config Path is at default value: " + conf_path + "\n";
+	m_log->Message(LogType::Info, "[SettingsLoader] Config Path is at default value: " + conf_path + "\n");
 
 	check_registry = reg_reader.OpenRegistry();
 

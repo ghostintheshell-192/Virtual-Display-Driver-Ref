@@ -1,7 +1,6 @@
 #include "xml_reader.h"
 #include "utilities.h"
 #include "globals.h"
-#include <iostream>
 
 bool Refactoring::XmlReader::OpenFile(std::string path)
 {
@@ -9,11 +8,11 @@ bool Refactoring::XmlReader::OpenFile(std::string path)
 
 	if (err == tinyxml2::XML_SUCCESS)
 	{
-		std::cout << "File open at path : " + path + "\n";
+		m_log->Message(LogType::Info, "[XmlReader] File open at path : " + path + "\n");
 		return true;
 	}
 
-	std::cout << "Failed to open file at path : " + path + "\n";
+	m_log->Message(LogType::Error, "[XmlReader] Failed to open file at path : " + path + "\n");
 	return false;
 }
 
@@ -32,7 +31,7 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 		current = current->FirstChildElement(segment.c_str());
 		if (!current)
 		{
-			std::cout << "Node not found in xml: " << segment.c_str() << "\n";
+			m_log->Message(LogType::Error, "[XmlReader] Node not found in xml: " + segment + "\n");
 			return false;
 		}
 	}
@@ -48,9 +47,13 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 		return false;
 
 	std::visit(
-		[&raw_value](auto *ptr) {
+		[&raw_value, &value, this](auto *ptr) {
 			using T = std::remove_pointer_t<decltype(ptr)>;
+
+			T old_val = *ptr;
 			*ptr = convert_setting<T>(raw_value);
+			if (old_val != *ptr)
+				m_log->Message(LogType::Debug, value + " now has value = " + raw_value);
 		},
 		result);
 
