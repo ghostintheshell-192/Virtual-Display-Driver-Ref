@@ -1,5 +1,6 @@
 #include "logger.h"
 #include "settings_loader.h"
+
 int main()
 {
 	HANDLE hPipe;
