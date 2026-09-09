@@ -2,6 +2,11 @@
 #include <iostream>
 #include <string>
 
+Refactoring::SettingsLoader::SettingsLoader(Logger *log)
+	: m_log(log), xml_reader(log), reg_reader(log), settings(), check_registry(false), check_xml(false)
+{
+}
+
 void Refactoring::SettingsLoader::Init()
 {
 	conf_path = "C:\\data\\repos\\Sandbox\\Virtual-Display-Driver-Ref\\Virtual Display Driver (HDR)";

@@ -1,5 +1,6 @@
 #pragma once
 #include "globals.h"
+#include "logger.h"
 #include "registry_reader.h"
 #include "xml_reader.h"
 #include <vector>
@@ -9,7 +10,7 @@ namespace Refactoring
 	class SettingsLoader
 	{
 	  public:
-		SettingsLoader() : check_registry(false), check_xml(false){}
+		SettingsLoader(Logger *log);
 		~SettingsLoader() = default;
 
 		void Init();
@@ -17,9 +18,10 @@ namespace Refactoring
 
 	  protected:
 	  private:
-		DriverSettings settings;
+		Logger * m_log;
 		RegistryReader reg_reader;
 		XmlReader xml_reader;
+		DriverSettings settings;
 
 		bool check_registry;
 		bool check_xml;
