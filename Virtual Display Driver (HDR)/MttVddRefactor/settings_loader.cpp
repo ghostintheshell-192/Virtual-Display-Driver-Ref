@@ -3,7 +3,7 @@
 #include <string>
 
 Refactoring::SettingsLoader::SettingsLoader(Logger *log)
-	: m_log(log), xml_reader(log), reg_reader(log), settings(), check_registry(false), check_xml(false)
+	: m_log(log), reg_reader(log), xml_reader(log), settings(), check_registry(false), check_xml(false), conf_path()
 {
 }
 
