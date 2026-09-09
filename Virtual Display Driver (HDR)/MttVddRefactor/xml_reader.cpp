@@ -47,9 +47,13 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 		return false;
 
 	std::visit(
-		[&raw_value](auto *ptr) {
+		[&raw_value, &value, this](auto *ptr) {
 			using T = std::remove_pointer_t<decltype(ptr)>;
+
+			T old_val = *ptr;
 			*ptr = convert_setting<T>(raw_value);
+			if (old_val != *ptr)
+				m_log->Message(LogType::Debug, value + " now has value = " + raw_value);
 		},
 		result);
 
