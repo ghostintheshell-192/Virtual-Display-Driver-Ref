@@ -1,5 +1,4 @@
 #pragma once
-//#include <IddCx.h>
 #include <string>
 #include <variant>
 
@@ -33,8 +32,6 @@ struct CursorSettings
 
 	int max_x = 128;
 	int max_y = 128;
-
-	 //IDDCX_XOR_CURSOR_SUPPORT xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 };
 
 struct EdidSettings
@@ -58,9 +55,6 @@ struct ColourSettings
 	bool hdr_plus = false;
 	bool sdr10 = false;
 	std::string color_format = "RGB";
-
-	 //IDDCX_BITS_PER_COMPONENT SDR_COLOR = IDDCX_BITS_PER_COMPONENT_8;
-	 //IDDCX_BITS_PER_COMPONENT HDR_COLOR = IDDCX_BITS_PER_COMPONENT_10;
 };
 
 struct BitDepthManagementSettings
