@@ -17,6 +17,18 @@
       <UniqueIdentifier>{8E41214B-6785-4CFE-B992-037D68949A14}</UniqueIdentifier>
       <Extensions>inf;inv;inx;mof;mc;</Extensions>
     </Filter>
+    <Filter Include="Header Files\logging">
+      <UniqueIdentifier>{8cfb825d-f7f1-477e-98f1-8a7b1ac0ebbb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\settings">
+      <UniqueIdentifier>{957aac07-015f-4362-a777-4891ed94e570}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\settings">
+      <UniqueIdentifier>{cc9aab22-f87f-4842-9c62-c8a78bce215f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\logging">
+      <UniqueIdentifier>{780bcea0-c78f-49b8-9060-8166efb33486}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="MttVDD.inf">
@@ -24,19 +36,49 @@
     </Inf>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Driver.h">
+    <ClInclude Include="driver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Trace.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="logger.h">
+      <Filter>Header Files\logging</Filter>
+    </ClInclude>
+    <ClInclude Include="registry_reader.h">
+      <Filter>Header Files\settings</Filter>
+    </ClInclude>
+    <ClInclude Include="settings_loader.h">
+      <Filter>Header Files\settings</Filter>
+    </ClInclude>
+    <ClInclude Include="xml_reader.h">
+      <Filter>Header Files\settings</Filter>
+    </ClInclude>
+    <ClInclude Include="utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="globals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="globals_new.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Driver.cpp">
+    <ClCompile Include="driver.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="logger.cpp">
+      <Filter>Source Files\logging</Filter>
+    </ClCompile>
+    <ClCompile Include="registry_reader.cpp">
+      <Filter>Source Files\settings</Filter>
+    </ClCompile>
+    <ClCompile Include="settings_loader.cpp">
+      <Filter>Source Files\settings</Filter>
+    </ClCompile>
+    <ClCompile Include="xml_reader.cpp">
+      <Filter>Source Files\settings</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
