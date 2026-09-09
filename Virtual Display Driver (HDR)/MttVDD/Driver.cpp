@@ -252,80 +252,6 @@ void LogQueries(const char* severity, const std::wstring& xmlName) {
 	}
 }
 
-std::wstring GetStringSetting(const std::wstring& settingKey) {
-	auto it = SettingsQueryMap.find(settingKey);
-	if (it == SettingsQueryMap.end()) {
-		vddlog("e", "requested data not found in xml, consider updating xml!");
-		return L""; 
-	}
-
-	std::wstring regName = it->second.first;
-	std::wstring xmlName = it->second.second;
-
-	std::wstring settingsname = confpath + L"\\vdd_settings.xml";
-	HKEY hKey;
-	DWORD dwBufferSize = MAX_PATH;
-	wchar_t buffer[MAX_PATH];
-
-	LONG lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
-	if (lResult == ERROR_SUCCESS) {
-		lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)buffer, &dwBufferSize);
-		RegCloseKey(hKey);
-
-		if (lResult == ERROR_SUCCESS) {
-			LogQueries("d", xmlName + L" - Retrieved string value from registry: " + buffer);
-			return std::wstring(buffer);  
-		}
-		else {
-			LogQueries("d", xmlName + L" - Failed to retrieve string value from registry. Attempting to read as XML.");
-		}
-	}
-
-	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to create file stream for XML settings.");
-		return L""; 
-	}
-
-	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to create XML reader.");
-		return L""; 
-	}
-
-	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to set input for XML reader.");
-		return L"";  
-	}
-
-	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
-	std::wstring xmlLoggingValue = L"";  
-
-	while (S_OK == pReader->Read(&nodeType)) {
-		if (nodeType == XmlNodeType_Element) {
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0) {
-				pReader->Read(&nodeType);
-				if (nodeType == XmlNodeType_Text) {
-					const wchar_t* pwszValue;
-					pReader->GetValue(&pwszValue, nullptr);
-					if (pwszValue) {
-						xmlLoggingValue = pwszValue;
-					}
-					LogQueries("i", xmlName + L" - Retrieved from XML: " + xmlLoggingValue);
-					break;
-				}
-			}
-		}
-	}
-
-	return xmlLoggingValue;  
-}
-
 // === EDID PROFILE LOADING FUNCTION ===
 struct EdidProfileData {
 	vector<tuple<int, int, int, int>> modes;
@@ -4298,12 +4224,12 @@ NTSTATUS ValidateEdidIntegration()
 
 	// Validate mode management
 	bool autoResEnabled = g_settings.auto_resolutions.enabled;
-	wstring localSourcePriority = GetStringSetting(L"SourcePriority");
+	std::string localSourcePriority = g_settings.auto_resolutions.source_priority;
 	
 	logStream.str("");
 	logStream << "Mode Management Status:"
 		<< "\n  Auto Resolutions: " << (autoResEnabled ? "Enabled" : "Disabled")
-		<< "\n  Source Priority: " << Refactoring::WStringToString(localSourcePriority);
+		<< "\n  Source Priority: " << localSourcePriority;
 	vddlog("d", logStream.str().c_str());
 
 	// Update integration status
