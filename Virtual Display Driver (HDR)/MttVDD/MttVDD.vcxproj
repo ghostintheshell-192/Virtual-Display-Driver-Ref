@@ -44,7 +44,7 @@
   <ItemGroup>
     <ClInclude Include="driver.h" />
     <ClInclude Include="globals.h" />
-    <ClInclude Include="globals_new.h" />
+    <ClInclude Include="globals_iddcx.h" />
     <ClInclude Include="logger.h" />
     <ClInclude Include="registry_reader.h" />
     <ClInclude Include="settings_loader.h" />

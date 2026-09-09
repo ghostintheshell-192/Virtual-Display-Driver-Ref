@@ -13,7 +13,7 @@ Environment:
 --*/
 
 #include "driver.h"
-#include "globals.h"
+#include "utilities.h"
 //#include "Driver.tmh"
 #include<fstream>
 #include<sstream>
@@ -81,7 +81,9 @@ EVT_IDD_CX_ADAPTER_COMMIT_MODES2 VirtualDisplayDriverEvtIddCxAdapterCommitModes2
 
 EVT_IDD_CX_MONITOR_SET_GAMMA_RAMP VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp;
 
-DriverSettings g_settings;
+Refactoring::DriverSettings g_settings;
+Refactoring::ColourSettingsIDDCX g_colours_iddcx;
+Refactoring::CursorSettingsIDDCX g_cursor_iddcx;
 
 struct
 {
@@ -607,7 +609,7 @@ struct EdidProfileData {
 	bool hdr10PlusSupported = false;
 	double maxLuminance = 0.0;
 	double minLuminance = 0.0;
-	wstring primaryColorSpace = L"sRGB";
+	std::string primaryColorSpace = "sRGB";
 	double gamma = 2.2;
 	double redX = 0.64, redY = 0.33;
 	double greenX = 0.30, greenY = 0.60;
@@ -626,7 +628,7 @@ struct VddColorMatrix {
 
 struct VddGammaRamp {
     FLOAT gamma = 2.2f;
-    wstring colorSpace;
+    std::string colorSpace;
     VddColorMatrix matrix = {};
     bool useMatrix = false;
     bool isValid = false;
@@ -638,7 +640,7 @@ std::map<IDDCX_MONITOR, VddGammaRamp> g_GammaRampStore;
 // === COLOR SPACE AND GAMMA CONVERSION FUNCTIONS ===
 
 // Convert gamma value to 3x4 color space transformation matrix
-VddColorMatrix ConvertGammaToMatrix(double gamma, const wstring& colorSpace) {
+VddColorMatrix ConvertGammaToMatrix(double gamma, const string& colorSpace) {
     VddColorMatrix matrix = {};
     
     // Identity matrix as base
@@ -651,13 +653,13 @@ VddColorMatrix ConvertGammaToMatrix(double gamma, const wstring& colorSpace) {
     // Apply gamma correction to diagonal elements
     float gammaValue = static_cast<float>(gamma);
     
-    if (colorSpace == L"sRGB") {
+    if (colorSpace == "sRGB") {
         // sRGB gamma correction (2.2)
         matrix.matrix[0][0] = gammaValue / 2.2f;  // Red
         matrix.matrix[1][1] = gammaValue / 2.2f;  // Green
         matrix.matrix[2][2] = gammaValue / 2.2f;  // Blue
     }
-    else if (colorSpace == L"DCI-P3") {
+    else if (colorSpace == "DCI-P3") {
         // DCI-P3 color space transformation with gamma
         // P3 to sRGB matrix with gamma correction
         matrix.matrix[0][0] = 1.2249f * (gammaValue / 2.4f);
@@ -670,7 +672,7 @@ VddColorMatrix ConvertGammaToMatrix(double gamma, const wstring& colorSpace) {
         matrix.matrix[2][1] = -0.0786f;
         matrix.matrix[2][2] = 1.0982f * (gammaValue / 2.4f);
     }
-    else if (colorSpace == L"Rec.2020") {
+    else if (colorSpace == "Rec.2020") {
         // Rec.2020 to sRGB matrix with gamma correction
         matrix.matrix[0][0] = 1.7347f * (gammaValue / 2.4f);
         matrix.matrix[0][1] = -0.7347f;
@@ -682,7 +684,7 @@ VddColorMatrix ConvertGammaToMatrix(double gamma, const wstring& colorSpace) {
         matrix.matrix[2][1] = -0.1289f;
         matrix.matrix[2][2] = 1.1530f * (gammaValue / 2.4f);
     }
-    else if (colorSpace == L"Adobe_RGB") {
+    else if (colorSpace == "Adobe_RGB") {
         // Adobe RGB with gamma correction
         matrix.matrix[0][0] = 1.0f * (gammaValue / 2.2f);
         matrix.matrix[1][1] = 1.0f * (gammaValue / 2.2f);
@@ -707,13 +709,13 @@ VddGammaRamp ConvertEdidToGammaRamp(const EdidProfileData& profile) {
     gammaRamp.colorSpace = profile.primaryColorSpace;
     
     // Generate matrix if matrix transforms are enabled
-	if (g_settings.hdr.matrix_transform_enabled)
+	if (g_settings.hdr_advanced.color_space.enable_matrix_transform)
 	{
         gammaRamp.matrix = ConvertGammaToMatrix(profile.gamma, profile.primaryColorSpace);
         gammaRamp.useMatrix = gammaRamp.matrix.isValid;
     }
     
-    gammaRamp.isValid = g_settings.colors.color_space_enabled;
+    gammaRamp.isValid = g_settings.hdr_advanced.color_space.enabled;
     
     return gammaRamp;
 }
@@ -722,29 +724,30 @@ VddGammaRamp ConvertEdidToGammaRamp(const EdidProfileData& profile) {
 VddGammaRamp ConvertManualToGammaRamp() {
     VddGammaRamp gammaRamp = {};
     
-    gammaRamp.gamma = static_cast<FLOAT>(g_settings.colors.gamma_correction);
-    gammaRamp.colorSpace = g_settings.colors.primary_color_space;
+    gammaRamp.gamma = static_cast<FLOAT>(g_settings.hdr_advanced.color_space.gamma_correction);
+	gammaRamp.colorSpace = g_settings.hdr_advanced.color_space.primary_color_space;
     
     // Generate matrix if matrix transforms are enabled
-	if (g_settings.hdr.matrix_transform_enabled)
+	if (g_settings.hdr_advanced.color_space.enable_matrix_transform)
 	{
-        gammaRamp.matrix = ConvertGammaToMatrix(g_settings.colors.gamma_correction, g_settings.colors.primary_color_space);
+		gammaRamp.matrix = ConvertGammaToMatrix(g_settings.hdr_advanced.color_space.gamma_correction,
+												g_settings.hdr_advanced.color_space.primary_color_space);
         gammaRamp.useMatrix = gammaRamp.matrix.isValid;
     }
     
-    gammaRamp.isValid = g_settings.colors.color_space_enabled;
+    gammaRamp.isValid = g_settings.hdr_advanced.color_space.enabled;
     
     return gammaRamp;
 }
 
 // Enhanced color format selection based on color space
-IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const wstring& colorSpace) {
-    if (g_settings.colors.auto_select_from_color_space) {
-        if (colorSpace == L"Rec.2020") {
+IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const string& colorSpace) {
+    if (g_settings.color_advanced.bit_depth_management.auto_select_from_color_space) {
+        if (colorSpace == "Rec.2020") {
             return IDDCX_BITS_PER_COMPONENT_10;  // HDR10 - 10-bit for wide color gamut
-        } else if (colorSpace == L"DCI-P3") {
+        } else if (colorSpace == "DCI-P3") {
             return IDDCX_BITS_PER_COMPONENT_10;  // Wide color gamut - 10-bit
-        } else if (colorSpace == L"Adobe_RGB") {
+        } else if (colorSpace == "Adobe_RGB") {
             return IDDCX_BITS_PER_COMPONENT_10;  // Professional - 10-bit
         } else {
             return IDDCX_BITS_PER_COMPONENT_8;   // sRGB - 8-bit
@@ -752,17 +755,24 @@ IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const wstring& colorSpace)
     }
     
     // Manual bit depth override
-    if (g_settings.colors.force_bit_depth == L"8") {
+	if (g_settings.color_advanced.bit_depth_management.force_bit_depth == "8")
+	{
         return IDDCX_BITS_PER_COMPONENT_8;
-    } else if (g_settings.colors.force_bit_depth == L"10") {
+	}
+	else if (g_settings.color_advanced.bit_depth_management.force_bit_depth == "10")
+	{
         return IDDCX_BITS_PER_COMPONENT_10;
-    } else if (g_settings.colors.force_bit_depth == L"12") {
+	}
+	else if (g_settings.color_advanced.bit_depth_management.force_bit_depth == "12")
+	{
         return IDDCX_BITS_PER_COMPONENT_12;
     }
     
     // Default to existing color depth logic
-    return g_settings.colors.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 : 
-           (g_settings.colors.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8);
+	return g_settings.colours.hdr_plus
+			   ? IDDCX_BITS_PER_COMPONENT_12
+			   : 
+           (g_settings.colours.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8);
 }
 
 // === SMPTE ST.2086 HDR METADATA STRUCTURE ===
@@ -829,11 +839,11 @@ VddHdrMetadata ConvertEdidToSmpteMetadata(const EdidProfileData& profile) {
     metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(profile.minLuminance);
     
     // Use configured content light levels (from vdd_settings.xml)
-	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr.max_content_light_level);
-	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr.max_frame_avg_light_level);
+	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_content_light_level);
+	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_frame_avg_light_level);
     
     // Mark as valid if we have HDR10 support
-    metadata.isValid = profile.hdr10Supported && g_settings.hdr.static_metadata_enabled;
+    metadata.isValid = profile.hdr10Supported && g_settings.hdr_advanced.static_metadata_enabled;
     
     return metadata;
 }
@@ -843,27 +853,27 @@ VddHdrMetadata ConvertManualToSmpteMetadata() {
     VddHdrMetadata metadata = {};
     
     // Convert manual chromaticity coordinates
-    metadata.display_primaries_x[0] = ConvertChromaticityToSmpte(g_settings.colors.defaults.redX);     // Red
-    metadata.display_primaries_y[0] = ConvertChromaticityToSmpte(g_settings.colors.defaults.redY);
-    metadata.display_primaries_x[1] = ConvertChromaticityToSmpte(g_settings.colors.defaults.greenX);   // Green  
-    metadata.display_primaries_y[1] = ConvertChromaticityToSmpte(g_settings.colors.defaults.greenY);
-    metadata.display_primaries_x[2] = ConvertChromaticityToSmpte(g_settings.colors.defaults.blueX);    // Blue
-    metadata.display_primaries_y[2] = ConvertChromaticityToSmpte(g_settings.colors.defaults.blueY);
+    metadata.display_primaries_x[0] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.redX);     // Red
+    metadata.display_primaries_y[0] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.redY);
+    metadata.display_primaries_x[1] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.greenX);   // Green  
+    metadata.display_primaries_y[1] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.greenY);
+    metadata.display_primaries_x[2] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.blueX);    // Blue
+    metadata.display_primaries_y[2] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.blueY);
     
     // Convert manual white point
-    metadata.white_point_x = ConvertChromaticityToSmpte(g_settings.colors.defaults.whiteX);
-    metadata.white_point_y = ConvertChromaticityToSmpte(g_settings.colors.defaults.whiteY);
+    metadata.white_point_x = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.whiteX);
+    metadata.white_point_y = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.whiteY);
     
     // Convert manual luminance values
-    metadata.max_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr.max_display_mastering_luminance);
-    metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr.min_display_mastering_luminance);
+    metadata.max_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr_advanced.max_display_mastering_luminance);
+    metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr_advanced.min_display_mastering_luminance);
     
     // Use configured content light levels
-	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr.max_content_light_level);
-	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr.max_frame_avg_light_level);
+	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_content_light_level);
+	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_frame_avg_light_level);
     
     // Mark as valid if HDR10 metadata is enabled and color primaries are enabled
-    metadata.isValid = g_settings.hdr.static_metadata_enabled && g_settings.colors.primaries_enabled;
+    metadata.isValid = g_settings.hdr_advanced.static_metadata_enabled && g_settings.hdr_advanced.color_primaries.primaries_enabled;
     
     return metadata;
 }
@@ -874,7 +884,7 @@ VddHdrMetadata ConvertManualToSmpteMetadata() {
 vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& profile) {
     vector<tuple<int, int, int, int>> generatedModes;
     
-    if (!g_settings.auto_res.enabled) {
+    if (!g_settings.auto_resolutions.enabled) {
         vddlog("i", "Auto resolutions disabled, skipping EDID mode generation");
         return generatedModes;
     }
@@ -889,18 +899,24 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
         bool passesFilter = true;
         
         // Resolution range filtering
-        if (width < g_settings.auto_res.min_resolution_width || width > g_settings.auto_res.max_resolution_width ||
-            height < g_settings.auto_res.min_resolution_height || height > g_settings.auto_res.max_resolution_height) {
+		if (width < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_width ||
+			width > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_width ||
+			height < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_height ||
+			height > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_height)
+		{
             passesFilter = false;
         }
         
         // Refresh rate filtering
-        if (nominalRefreshRate < g_settings.auto_res.min_refresh_rate || nominalRefreshRate > g_settings.auto_res.max_refresh_rate) {
+		if (nominalRefreshRate < g_settings.auto_resolutions.edid_mode_filtering.min_refresh_rate ||
+			nominalRefreshRate > g_settings.auto_resolutions.edid_mode_filtering.max_refresh_rate)
+		{
             passesFilter = false;
         }
         
         // Fractional rate filtering
-        if (g_settings.auto_res.exclude_fractional_rates && refreshRateMultiplier != 1000) {
+		if (g_settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates && refreshRateMultiplier != 1000)
+		{
             passesFilter = false;
         }
         
@@ -949,10 +965,13 @@ tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profi
                                                    const vector<tuple<int, int, int, int>>& availableModes) {
     // Default fallback mode
 	tuple<int, int, int, int> preferredMode =
-		make_tuple(g_settings.auto_res.fallback_width, g_settings.auto_res.fallback_height, 1000,
-				   g_settings.auto_res.fallback_refresh);
+		make_tuple(g_settings.auto_resolutions.preferred_mode.fallback_width,
+				   g_settings.auto_resolutions.preferred_mode.fallback_height,
+				   1000,
+				   g_settings.auto_resolutions.preferred_mode.fallback_refresh);
     
-    if (!g_settings.edid.preferred) {
+    if (!g_settings.auto_resolutions.preferred_mode.preferred)
+	{
         vddlog("i", "EDID preferred mode disabled, using fallback");
         return preferredMode;
     }
@@ -980,15 +999,18 @@ vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, 
                                                         const vector<tuple<int, int, int, int>>& edidModes) {
     vector<tuple<int, int, int, int>> mergedModes;
     
-    if (g_settings.auto_res.source_priority == L"edid") {
+    if (g_settings.auto_resolutions.source_priority == "edid")
+	{
         mergedModes = edidModes;
         vddlog("i", "Using EDID-only mode list");
     }
-    else if (g_settings.auto_res.source_priority == L"manual") {
+	else if (g_settings.auto_resolutions.source_priority == "manual")
+	{
         mergedModes = manualModes;
         vddlog("i", "Using manual-only mode list");
     }
-    else if (g_settings.auto_res.source_priority == L"combined") {
+	else if (g_settings.auto_resolutions.source_priority == "combined")
+	{
         // Start with manual modes
         mergedModes = manualModes;
         
@@ -1122,8 +1144,8 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 	const WCHAR* pwszValue;
 	UINT cwchLocalName;
 	UINT cwchValue;
-	wstring currentElement;
-	wstring currentSection;
+	std::wstring currentElement;
+	std::wstring currentSection;
 	
 	// Temporary mode data
 	int tempWidth = 0, tempHeight = 0, tempRefreshRateMultiplier = 1000, tempNominalRefreshRate = 60;
@@ -1133,7 +1155,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 		case XmlNodeType_Element:
 			hr = pReader->GetLocalName(&pwszLocalName, &cwchLocalName);
 			if (FAILED(hr)) return false;
-			currentElement = wstring(pwszLocalName, cwchLocalName);
+			currentElement = std::wstring(pwszLocalName, cwchLocalName);
 			
 			// Track sections for context
 			if (currentElement == L"MonitorModes" || currentElement == L"HDRCapabilities" || 
@@ -1191,7 +1213,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 			// Parse color profile
 			else if (currentSection == L"ColorProfile") {
 				if (currentElement == L"PrimaryColorSpace") {
-					profile.primaryColorSpace = value;
+					Refactoring::StringToWstring(profile.primaryColorSpace) = value;
 				}
 				else if (currentElement == L"Gamma") {
 					profile.gamma = stod(value);
@@ -1239,19 +1261,19 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 
 	stringstream ss;
 	ss << "EDID Profile loaded: " << profile.modes.size() << " modes, HDR10: " << (profile.hdr10Supported ? "Yes" : "No") 
-	   << ", Color space: " << WStringToString(profile.primaryColorSpace);
+	   << ", Color space: " << profile.primaryColorSpace;
 	vddlog("i", ss.str().c_str());
 	
 	return true;
 }
 
 bool ApplyEdidProfile(const EdidProfileData& profile) {
-	if (!g_settings.edid.enabled) {
+	if (!g_settings.edid_integration.enabled) {
 		return false;
 	}
 
 	// === ENHANCED MODE MANAGEMENT ===
-	if (g_settings.auto_res.enabled) {
+	if (g_settings.auto_resolutions.enabled) {
 		// Store original manual modes
 		vector<tuple<int, int, int, int>> originalModes = monitorModes;
 		
@@ -1279,7 +1301,7 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 			   << "  Final optimized modes: " << finalModes.size() << "\n"
 			   << "  Preferred mode: " << get<0>(preferredMode) << "x" << get<1>(preferredMode) 
 			   << "@" << get<3>(preferredMode) << "Hz\n"
-			   << "  Source priority: " << WStringToString(g_settings.auto_res.source_priority);
+			   << "  Source priority: " << g_settings.auto_resolutions.source_priority;
 			vddlog("i", ss.str().c_str());
 		} else {
 			vddlog("e", "Mode list validation failed, keeping original modes");
@@ -1287,37 +1309,43 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 	}
 
 	// Apply HDR settings if configured
-	if (g_settings.hdr.static_metadata_enabled && profile.hdr10Supported) {
-		if (g_settings.edid.override_manual_settings || g_settings.hdr.max_display_mastering_luminance == 1000.0)
+	if (g_settings.hdr_advanced.static_metadata_enabled && profile.hdr10Supported) {
+		if (g_settings.edid_integration.override_manual_settings || g_settings.hdr_advanced.max_display_mastering_luminance == 1000.0)
 		{ // Default value
-			g_settings.hdr.max_display_mastering_luminance = profile.maxLuminance;
+			g_settings.hdr_advanced.max_display_mastering_luminance = profile.maxLuminance;
 		}
-		if (g_settings.edid.override_manual_settings || g_settings.hdr.min_display_mastering_luminance == 0.05)
+		if (g_settings.edid_integration.override_manual_settings ||
+			g_settings.hdr_advanced.min_display_mastering_luminance == 0.05)
 		{ // Default value
-			g_settings.hdr.min_display_mastering_luminance = profile.minLuminance;
+			g_settings.hdr_advanced.min_display_mastering_luminance = profile.minLuminance;
 		}
 	}
 
 	// Apply color primaries if configured
-	if (g_settings.colors.primaries_enabled && (g_settings.edid.override_manual_settings || g_settings.colors.defaults.redX == 0.708)) { // Default Rec.2020 values
-		g_settings.colors.defaults.redX = profile.redX;
-		g_settings.colors.defaults.redY = profile.redY;
-		g_settings.colors.defaults.greenX = profile.greenX;
-		g_settings.colors.defaults.greenY = profile.greenY;
-		g_settings.colors.defaults.blueX = profile.blueX;
-		g_settings.colors.defaults.blueY = profile.blueY;
-		g_settings.colors.defaults.whiteX = profile.whiteX;
-		g_settings.colors.defaults.whiteY = profile.whiteY;
+	if (g_settings.hdr_advanced.color_primaries.primaries_enabled &&
+		(g_settings.edid_integration.override_manual_settings || g_settings.hdr_advanced.color_primaries.redX == 0.708))
+	{ // Default Rec.2020 values
+		g_settings.hdr_advanced.color_primaries.redX = profile.redX;
+		g_settings.hdr_advanced.color_primaries.redY = profile.redY;
+		g_settings.hdr_advanced.color_primaries.greenX = profile.greenX;
+		g_settings.hdr_advanced.color_primaries.greenY = profile.greenY;
+		g_settings.hdr_advanced.color_primaries.blueX = profile.blueX;
+		g_settings.hdr_advanced.color_primaries.blueY = profile.blueY;
+		g_settings.hdr_advanced.color_primaries.whiteX = profile.whiteX;
+		g_settings.hdr_advanced.color_primaries.whiteY = profile.whiteY;
 	}
 
 	// Apply color space settings
-	if (g_settings.colors.color_space_enabled && (g_settings.edid.override_manual_settings || g_settings.colors.primary_color_space == L"sRGB")) { // Default value
-		g_settings.colors.primary_color_space = profile.primaryColorSpace;
-		g_settings.colors.gamma_correction = profile.gamma;
+	if (g_settings.hdr_advanced.color_space.enabled &&
+		(g_settings.edid_integration.override_manual_settings ||
+		 g_settings.hdr_advanced.color_space.primary_color_space == "sRGB"))
+	{ // Default value
+		g_settings.hdr_advanced.color_space.primary_color_space = profile.primaryColorSpace;
+		g_settings.hdr_advanced.color_space.gamma_correction = profile.gamma;
 	}
 
 	// Generate and store HDR metadata for all monitors if HDR is enabled
-	if (g_settings.hdr.static_metadata_enabled && profile.hdr10Supported) {
+	if (g_settings.hdr_advanced.static_metadata_enabled && profile.hdr10Supported) {
 		VddHdrMetadata hdrMetadata = ConvertEdidToSmpteMetadata(profile);
 		
 		if (hdrMetadata.isValid) {
@@ -1350,7 +1378,7 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 	}
 
 	// Generate and store gamma ramp for color space processing if enabled
-	if (g_settings.colors.color_space_enabled) {
+	if (g_settings.hdr_advanced.color_space.enabled) {
 		VddGammaRamp gammaRamp = ConvertEdidToGammaRamp(profile);
 		
 		if (gammaRamp.isValid) {
@@ -1358,7 +1386,7 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 			stringstream ss;
 			ss << "Generated Gamma Ramp from EDID profile:\n"
 			   << "  Gamma: " << gammaRamp.gamma << " (from " << profile.gamma << ")\n"
-			   << "  Color Space: " << WStringToString(gammaRamp.colorSpace) << "\n"
+			   << "  Color Space: " << gammaRamp.colorSpace << "\n"
 			   << "  Matrix Transform: " << (gammaRamp.useMatrix ? "Enabled" : "Disabled");
 			
 			if (gammaRamp.useMatrix) {
@@ -2353,11 +2381,11 @@ extern "C" NTSTATUS DriverEntry(
 
 
 	//colour
-	g_settings.colors.hdr_plus = EnabledQuery(L"HDRPlusEnabled");
-	g_settings.colors.sdr10 = EnabledQuery(L"SDR10Enabled");
-	g_settings.colors.HDR_COLOR = g_settings.colors.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 : IDDCX_BITS_PER_COMPONENT_10;
-	g_settings.colors.SDR_COLOR = g_settings.colors.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8;
-	g_settings.colors.color_format = GetStringSetting(L"ColourFormat");
+	g_settings.colours.hdr_plus = EnabledQuery(L"HDRPlusEnabled");
+	g_settings.colours.sdr10 = EnabledQuery(L"SDR10Enabled");
+	g_colours_iddcx.HDR_COLOR = g_settings.colours.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 : IDDCX_BITS_PER_COMPONENT_10;
+	g_colours_iddcx.SDR_COLOR = g_settings.colours.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8;
+	g_settings.colours.color_format = Refactoring::WStringToString(GetStringSetting(L"ColourFormat"));
 
 	//Cursor
 	g_settings.cursor.hardware_cursor = EnabledQuery(L"HardwareCursorEnabled");
@@ -2370,75 +2398,75 @@ extern "C" NTSTATUS DriverEntry(
 
 	if (xorCursorSupportLevelInt < 0 || xorCursorSupportLevelInt > 3) {
 		vddlog("w", "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
-		g_settings.cursor.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
+		g_cursor_iddcx.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 	}
 	else {
-		g_settings.cursor.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
+		g_cursor_iddcx.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
 	}
 
 	// === LOAD NEW EDID INTEGRATION SETTINGS ===
-	g_settings.edid.enabled = EnabledQuery(L"EdidIntegrationEnabled");
-	g_settings.edid.auto_configure = EnabledQuery(L"AutoConfigureFromEdid");
-	g_settings.edid.profile_path = GetStringSetting(L"EdidProfilePath");
-	g_settings.edid.override_manual_settings = EnabledQuery(L"OverrideManualSettings");
-	g_settings.edid.fallback_on_error = EnabledQuery(L"FallbackOnError");
-	g_settings.edid.preferred = EnabledQuery(L"UseEdidPreferred");
+	g_settings.edid_integration.enabled = EnabledQuery(L"EdidIntegrationEnabled");
+	g_settings.edid_integration.auto_configure = EnabledQuery(L"AutoConfigureFromEdid");
+	g_settings.edid_integration.profile_path = Refactoring::WStringToString(GetStringSetting(L"EdidProfilePath"));
+	g_settings.edid_integration.override_manual_settings = EnabledQuery(L"OverrideManualSettings");
+	g_settings.edid_integration.fallback_on_error = EnabledQuery(L"FallbackOnError");
+	g_settings.auto_resolutions.preferred_mode.preferred = EnabledQuery(L"UseEdidPreferred");
 
 	// === LOAD HDR ADVANCED SETTINGS ===
-	g_settings.hdr.static_metadata_enabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
-	g_settings.hdr.max_display_mastering_luminance = GetDoubleSetting(L"MaxDisplayMasteringLuminance");
-	g_settings.hdr.min_display_mastering_luminance = GetDoubleSetting(L"MinDisplayMasteringLuminance");
-	g_settings.hdr.max_content_light_level = GetIntegerSetting(L"MaxContentLightLevel");
-	g_settings.hdr.max_frame_avg_light_level = GetIntegerSetting(L"MaxFrameAvgLightLevel");
-	g_settings.hdr.matrix_transform_enabled = EnabledQuery(L"EnableMatrixTransform");
+	g_settings.hdr_advanced.static_metadata_enabled = EnabledQuery(L"Hdr10StaticMetadataEnabled");
+	g_settings.hdr_advanced.max_display_mastering_luminance = GetDoubleSetting(L"MaxDisplayMasteringLuminance");
+	g_settings.hdr_advanced.min_display_mastering_luminance = GetDoubleSetting(L"MinDisplayMasteringLuminance");
+	g_settings.hdr_advanced.max_content_light_level = GetIntegerSetting(L"MaxContentLightLevel");
+	g_settings.hdr_advanced.max_frame_avg_light_level = GetIntegerSetting(L"MaxFrameAvgLightLevel");
+	g_settings.hdr_advanced.color_space.enable_matrix_transform = EnabledQuery(L"EnableMatrixTransform");
 
-	g_settings.colors.primaries_enabled = EnabledQuery(L"ColorPrimariesEnabled");
-	g_settings.colors.defaults.redX = GetDoubleSetting(L"RedX");
-	g_settings.colors.defaults.redY = GetDoubleSetting(L"RedY");
-	g_settings.colors.defaults.greenX = GetDoubleSetting(L"GreenX");
-	g_settings.colors.defaults.greenY = GetDoubleSetting(L"GreenY");
-	g_settings.colors.defaults.blueX = GetDoubleSetting(L"BlueX");
-	g_settings.colors.defaults.blueY = GetDoubleSetting(L"BlueY");
-	g_settings.colors.defaults.whiteX = GetDoubleSetting(L"WhiteX");
-	g_settings.colors.defaults.whiteY = GetDoubleSetting(L"WhiteY");
+	g_settings.hdr_advanced.color_primaries.primaries_enabled = EnabledQuery(L"ColorPrimariesEnabled");
+	g_settings.hdr_advanced.color_primaries.redX = GetDoubleSetting(L"RedX");
+	g_settings.hdr_advanced.color_primaries.redY = GetDoubleSetting(L"RedY");
+	g_settings.hdr_advanced.color_primaries.greenX = GetDoubleSetting(L"GreenX");
+	g_settings.hdr_advanced.color_primaries.greenY = GetDoubleSetting(L"GreenY");
+	g_settings.hdr_advanced.color_primaries.blueX = GetDoubleSetting(L"BlueX");
+	g_settings.hdr_advanced.color_primaries.blueY = GetDoubleSetting(L"BlueY");
+	g_settings.hdr_advanced.color_primaries.whiteX = GetDoubleSetting(L"WhiteX");
+	g_settings.hdr_advanced.color_primaries.whiteY = GetDoubleSetting(L"WhiteY");
 
-	g_settings.colors.color_space_enabled = EnabledQuery(L"ColorSpaceEnabled");
-	g_settings.colors.gamma_correction = GetDoubleSetting(L"GammaCorrection");
-	g_settings.colors.primary_color_space = GetStringSetting(L"PrimaryColorSpace");
+	g_settings.hdr_advanced.color_space.enabled = EnabledQuery(L"ColorSpaceEnabled");
+	g_settings.hdr_advanced.color_space.gamma_correction = GetDoubleSetting(L"GammaCorrection");
+	g_settings.hdr_advanced.color_space.primary_color_space = Refactoring::WStringToString(GetStringSetting(L"PrimaryColorSpace"));
 
 	// === LOAD AUTO RESOLUTIONS SETTINGS ===
-	g_settings.auto_res.enabled = EnabledQuery(L"AutoResolutionsEnabled");
-	g_settings.auto_res.source_priority = GetStringSetting(L"SourcePriority");
-	g_settings.auto_res.min_refresh_rate = GetIntegerSetting(L"MinRefreshRate");
-	g_settings.auto_res.max_refresh_rate = GetIntegerSetting(L"MaxRefreshRate");
-	g_settings.auto_res.exclude_fractional_rates = EnabledQuery(L"ExcludeFractionalRates");
-	g_settings.auto_res.min_resolution_width = GetIntegerSetting(L"MinResolutionWidth");
-	g_settings.auto_res.min_resolution_height = GetIntegerSetting(L"MinResolutionHeight");
-	g_settings.auto_res.max_resolution_width = GetIntegerSetting(L"MaxResolutionWidth");
-	g_settings.auto_res.max_resolution_height = GetIntegerSetting(L"MaxResolutionHeight");
-	g_settings.auto_res.fallback_width = GetIntegerSetting(L"FallbackWidth");
-	g_settings.auto_res.fallback_height = GetIntegerSetting(L"FallbackHeight");
-	g_settings.auto_res.fallback_refresh = GetIntegerSetting(L"FallbackRefresh");
+	g_settings.auto_resolutions.enabled = EnabledQuery(L"AutoResolutionsEnabled");
+	g_settings.auto_resolutions.source_priority = Refactoring::WStringToString(GetStringSetting(L"SourcePriority"));
+	g_settings.auto_resolutions.edid_mode_filtering.min_refresh_rate = GetIntegerSetting(L"MinRefreshRate");
+	g_settings.auto_resolutions.edid_mode_filtering.max_refresh_rate = GetIntegerSetting(L"MaxRefreshRate");
+	g_settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates = EnabledQuery(L"ExcludeFractionalRates");
+	g_settings.auto_resolutions.edid_mode_filtering.min_resolution_width = GetIntegerSetting(L"MinResolutionWidth");
+	g_settings.auto_resolutions.edid_mode_filtering.min_resolution_height = GetIntegerSetting(L"MinResolutionHeight");
+	g_settings.auto_resolutions.edid_mode_filtering.max_resolution_width = GetIntegerSetting(L"MaxResolutionWidth");
+	g_settings.auto_resolutions.edid_mode_filtering.max_resolution_height = GetIntegerSetting(L"MaxResolutionHeight");
+	g_settings.auto_resolutions.preferred_mode.fallback_width = GetIntegerSetting(L"FallbackWidth");
+	g_settings.auto_resolutions.preferred_mode.fallback_height = GetIntegerSetting(L"FallbackHeight");
+	g_settings.auto_resolutions.preferred_mode.fallback_refresh = GetIntegerSetting(L"FallbackRefresh");
 
 	// === LOAD COLOR ADVANCED SETTINGS ===
-	g_settings.colors.auto_select_from_color_space = EnabledQuery(L"AutoSelectFromColorSpace");
-	g_settings.colors.force_bit_depth = GetStringSetting(L"ForceBitDepth");
-	g_settings.colors.fp16_surface_support = EnabledQuery(L"Fp16SurfaceSupport");
-	g_settings.colors.wide_color_gamut = EnabledQuery(L"WideColorGamut");
-	g_settings.colors.hdr_tone_mapping = EnabledQuery(L"HdrToneMapping");
-	g_settings.colors.sdr_white_level = GetDoubleSetting(L"SdrWhiteLevel");
+	g_settings.color_advanced.bit_depth_management.auto_select_from_color_space = EnabledQuery(L"AutoSelectFromColorSpace");
+	g_settings.color_advanced.bit_depth_management.force_bit_depth = Refactoring::WStringToString(GetStringSetting(L"ForceBitDepth"));
+	g_settings.color_advanced.bit_depth_management.fp16_surface_support = EnabledQuery(L"Fp16SurfaceSupport");
+	g_settings.color_advanced.color_format_extended.wide_color_gamut = EnabledQuery(L"WideColorGamut");
+	g_settings.color_advanced.color_format_extended.hdr_tone_mapping = EnabledQuery(L"HdrToneMapping");
+	g_settings.color_advanced.color_format_extended.sdr_white_level = GetDoubleSetting(L"SdrWhiteLevel");
 
 	// === LOAD MONITOR EMULATION SETTINGS ===
-	g_settings.mon_emul.enabled = EnabledQuery(L"MonitorEmulationEnabled");
-	g_settings.mon_emul.emulate_physical_dimensions = EnabledQuery(L"EmulatePhysicalDimensions");
-	g_settings.mon_emul.physical_width = GetIntegerSetting(L"PhysicalWidthMm");
-	g_settings.mon_emul.physical_height = GetIntegerSetting(L"PhysicalHeightMm");
-	g_settings.mon_emul.manufacturer_emulation_enabled = EnabledQuery(L"ManufacturerEmulationEnabled");
-	g_settings.mon_emul.manufacturer_name = GetStringSetting(L"ManufacturerName");
-	g_settings.mon_emul.model_name = GetStringSetting(L"ModelName");
-	g_settings.mon_emul.serial_number = GetStringSetting(L"SerialNumber");
+	g_settings.monitor_emulation.enabled = EnabledQuery(L"MonitorEmulationEnabled");
+	g_settings.monitor_emulation.emulate_physical_dimensions = EnabledQuery(L"EmulatePhysicalDimensions");
+	g_settings.monitor_emulation.physical_width = GetIntegerSetting(L"PhysicalWidthMm");
+	g_settings.monitor_emulation.physical_height = GetIntegerSetting(L"PhysicalHeightMm");
+	g_settings.monitor_emulation.manufacturer_emulation_enabled = EnabledQuery(L"ManufacturerEmulationEnabled");
+	g_settings.monitor_emulation.manufacturer_name = Refactoring::WStringToString(GetStringSetting(L"ManufacturerName"));
+	g_settings.monitor_emulation.model_name = Refactoring::WStringToString(GetStringSetting(L"ModelName"));
+	g_settings.monitor_emulation.serial_number = Refactoring::WStringToString(GetStringSetting(L"SerialNumber"));
 
-	xorCursorSupportLevelName = XorCursorSupportLevelToString(g_settings.cursor.xor_cursor_support_level);
+	xorCursorSupportLevelName = XorCursorSupportLevelToString(g_cursor_iddcx.xor_cursor_support_level);
 
 	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 
@@ -2615,16 +2643,16 @@ void loadSettings() {
 		RebuildKnownMonitorModesCache();
 		
 		// === APPLY EDID INTEGRATION ===
-		if (g_settings.edid.enabled && g_settings.edid.auto_configure) {
+		if (g_settings.edid_integration.enabled && g_settings.edid_integration.auto_configure) {
 			EdidProfileData edidProfile;
-			if (LoadEdidProfile(g_settings.edid.profile_path, edidProfile)) {
+			if (LoadEdidProfile(Refactoring::StringToWstring(g_settings.edid_integration.profile_path), edidProfile)) {
 				if (ApplyEdidProfile(edidProfile)) {
 					vddlog("i", "EDID profile applied successfully");
 				} else {
 					vddlog("w", "EDID profile loaded but not applied (integration disabled)");
 				}
 			} else {
-				if (g_settings.edid.fallback_on_error) {
+				if (g_settings.edid_integration.fallback_on_error) {
 					vddlog("w", "EDID profile loading failed, using manual settings");
 				} else {
 					vddlog("e", "EDID profile loading failed and fallback disabled");
@@ -4067,27 +4095,27 @@ void CreateTargetMode2(IDDCX_TARGET_MODE2& Mode, UINT Width, UINT Height, UINT V
 	Mode.Size = sizeof(Mode);
 
 
-	if (g_settings.colors.color_format == L"RGB")
+	if (g_settings.colours.color_format == "RGB")
 	{
-		Mode.BitsPerComponent.Rgb = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 	}
-	else if (g_settings.colors.color_format == L"YCbCr444") {
-		Mode.BitsPerComponent.YCbCr444 = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+	else if (g_settings.colours.color_format == "YCbCr444") {
+		Mode.BitsPerComponent.YCbCr444 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 	}
-	else if (g_settings.colors.color_format == L"YCbCr422") {
-		Mode.BitsPerComponent.YCbCr422 = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR; 
+	else if (g_settings.colours.color_format == "YCbCr422") {
+		Mode.BitsPerComponent.YCbCr422 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; 
 	}
-	else if (g_settings.colors.color_format == L"YCbCr420") {
-		Mode.BitsPerComponent.YCbCr420 = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR; 
+	else if (g_settings.colours.color_format == "YCbCr420") {
+		Mode.BitsPerComponent.YCbCr420 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; 
 	}
 	else {
-		Mode.BitsPerComponent.Rgb = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR; // Default to RGB
+		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 	}
 	
 
 	logStream.str(""); 
 	logStream << "IDDCX_TARGET_MODE2 configured with Size: " << Mode.Size << " and colour format "
-			  << WStringToString(g_settings.colors.color_format);
+			  << g_settings.colours.color_format;
 	vddlog("d", logStream.str().c_str());
 
 
@@ -4184,29 +4212,29 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterQueryTargetInfo(
 
 	pOutArgs->TargetCaps = IDDCX_TARGET_CAPS_HIGH_COLOR_SPACE | IDDCX_TARGET_CAPS_WIDE_COLOR_SPACE;
 
-	if (g_settings.colors.color_format == L"RGB")
+	if (g_settings.colours.color_format == "RGB")
 	{
-		pOutArgs->DitheringSupport.Rgb = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+		pOutArgs->DitheringSupport.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 	}
-	else if (g_settings.colors.color_format == L"YCbCr444")
+	else if (g_settings.colours.color_format == "YCbCr444")
 	{
-		pOutArgs->DitheringSupport.YCbCr444 = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+		pOutArgs->DitheringSupport.YCbCr444 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 	}
-	else if (g_settings.colors.color_format == L"YCbCr422")
+	else if (g_settings.colours.color_format == "YCbCr422")
 	{
-		pOutArgs->DitheringSupport.YCbCr422 = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR; 
+		pOutArgs->DitheringSupport.YCbCr422 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; 
 	}
-	else if (g_settings.colors.color_format == L"YCbCr420")
+	else if (g_settings.colours.color_format == "YCbCr420")
 	{
-		pOutArgs->DitheringSupport.YCbCr420 = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR; 
+		pOutArgs->DitheringSupport.YCbCr420 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; 
 	}
 	else {
-		pOutArgs->DitheringSupport.Rgb = g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR; // Default to RGB
+		pOutArgs->DitheringSupport.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 	}
 
 	logStream.str("");
 	logStream << "Target capabilities set to: " << pOutArgs->TargetCaps
-			  << "\nDithering support colour format set to: " << WStringToString(g_settings.colors.color_format);
+			  << "\nDithering support colour format set to: " << g_settings.colours.color_format;
 	vddlog("d", logStream.str().c_str());
 
 	return STATUS_SUCCESS;
@@ -4226,12 +4254,12 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	
 	logStream.str("");
 	logStream << "Monitor Object: " << MonitorObject 
-			  << ", HDR10 Metadata Enabled: " << (g_settings.hdr.static_metadata_enabled ? "Yes" : "No")
-			  << ", Color Primaries Enabled: " << (g_settings.colors.primaries_enabled ? "Yes" : "No");
+			  << ", HDR10 Metadata Enabled: " << (g_settings.hdr_advanced.static_metadata_enabled ? "Yes" : "No")
+			  << ", Color Primaries Enabled: " << (g_settings.hdr_advanced.color_primaries.primaries_enabled ? "Yes" : "No");
 	vddlog("d", logStream.str().c_str());
 
 	// Check if HDR metadata processing is enabled
-	if (!g_settings.hdr.static_metadata_enabled) {
+	if (!g_settings.hdr_advanced.static_metadata_enabled) {
 		vddlog("i", "HDR10 static metadata is disabled, skipping metadata configuration");
 		return STATUS_SUCCESS;
 	}
@@ -4240,7 +4268,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	bool hasValidMetadata = false;
 
 	// Priority 1: Use EDID-derived metadata if available
-	if (g_settings.edid.enabled && g_settings.edid.auto_configure) {
+	if (g_settings.edid_integration.enabled && g_settings.edid_integration.auto_configure) {
 		// First check for monitor-specific metadata
 		auto storeIt = g_HdrMetadataStore.find(MonitorObject);
 		if (storeIt != g_HdrMetadataStore.end() && storeIt->second.isValid) {
@@ -4262,8 +4290,8 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	}
 
 	// Priority 2: Use manual configuration if no EDID data or manual override
-	if (!hasValidMetadata || g_settings.edid.override_manual_settings) {
-		if (g_settings.colors.primaries_enabled) {
+	if (!hasValidMetadata || g_settings.edid_integration.override_manual_settings) {
+		if (g_settings.hdr_advanced.color_primaries.primaries_enabled) {
 			metadata = ConvertManualToSmpteMetadata();
 			hasValidMetadata = metadata.isValid;
 			vddlog("i", "Using manually configured HDR metadata");
@@ -4359,30 +4387,30 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 			pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo = s_KnownMonitorModes2[ModeIndex];
 
 
-			if (g_settings.colors.color_format == L"RGB")
+			if (g_settings.colours.color_format == "RGB")
 			{
 				pInArgs->pMonitorModes[ModeIndex].BitsPerComponent.Rgb =
-					g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+					g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 				
 			}
-			else if (g_settings.colors.color_format == L"YCbCr444")
+			else if (g_settings.colours.color_format == "YCbCr444")
 			{
 				pInArgs->pMonitorModes[ModeIndex].BitsPerComponent.YCbCr444 =
-					g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+					g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 			}
-			else if (g_settings.colors.color_format == L"YCbCr422")
+			else if (g_settings.colours.color_format == "YCbCr422")
 			{
 				pInArgs->pMonitorModes[ModeIndex].BitsPerComponent.YCbCr422 =
-					g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+					g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 			}
-			else if (g_settings.colors.color_format == L"YCbCr420")
+			else if (g_settings.colours.color_format == "YCbCr420")
 			{
 				pInArgs->pMonitorModes[ModeIndex].BitsPerComponent.YCbCr420 =
-					g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR;
+					g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 			}
 			else {
 				pInArgs->pMonitorModes[ModeIndex].BitsPerComponent.Rgb =
-					g_settings.colors.SDR_COLOR | g_settings.colors.HDR_COLOR; // Default to RGB
+					g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 			}
 
 
@@ -4390,7 +4418,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 			logStream << "\n  ModeIndex: " << ModeIndex
 				<< "\n    Size: " << pInArgs->pMonitorModes[ModeIndex].Size
 				<< "\n    Origin: " << pInArgs->pMonitorModes[ModeIndex].Origin
-					  << "\n    Colour Format: " << WStringToString(g_settings.colors.color_format);
+					  << "\n    Colour Format: " << g_settings.colours.color_format;
 		}
 
 		vddlog("d", logStream.str().c_str());
@@ -4451,7 +4479,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 		{
 			logStream << "\n  TargetModeIndex: " << i
 				<< "\n    Size: " << TargetModes[i].Size
-					  << "\n    ColourFormat: " << WStringToString(g_settings.colors.color_format);
+					  << "\n    ColourFormat: " << g_settings.colours.color_format;
 		}
 		vddlog("d", logStream.str().c_str());
 	}
@@ -4487,12 +4515,12 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	
 	logStream.str("");
 	logStream << "Monitor Object: " << MonitorObject 
-			  << ", Color Space Enabled: " << (g_settings.colors.color_space_enabled ? "Yes" : "No")
-			  << ", Matrix Transform Enabled: " << (g_settings.hdr.matrix_transform_enabled ? "Yes" : "No");
+			  << ", Color Space Enabled: " << (g_settings.hdr_advanced.color_space.enabled ? "Yes" : "No")
+			  << ", Matrix Transform Enabled: " << (g_settings.hdr_advanced.color_space.enable_matrix_transform ? "Yes" : "No");
 	vddlog("d", logStream.str().c_str());
 
 	// Check if color space processing is enabled
-	if (!g_settings.colors.color_space_enabled)
+	if (!g_settings.hdr_advanced.color_space.enabled)
 	{
 		vddlog("i", "Color space processing is disabled, skipping gamma ramp configuration");
 		return STATUS_SUCCESS;
@@ -4502,7 +4530,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	bool hasValidGammaRamp = false;
 
 	// Priority 1: Use EDID-derived gamma settings if available
-	if (g_settings.edid.enabled && g_settings.edid.auto_configure) {
+	if (g_settings.edid_integration.enabled && g_settings.edid_integration.auto_configure) {
 		// First check for monitor-specific gamma ramp
 		auto storeIt = g_GammaRampStore.find(MonitorObject);
 		if (storeIt != g_GammaRampStore.end() && storeIt->second.isValid) {
@@ -4524,7 +4552,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	}
 
 	// Priority 2: Use manual configuration if no EDID data or manual override
-	if (!hasValidGammaRamp || g_settings.edid.override_manual_settings) {
+	if (!hasValidGammaRamp || g_settings.edid_integration.override_manual_settings) {
 		gammaRamp = ConvertManualToGammaRamp();
 		hasValidGammaRamp = gammaRamp.isValid;
 		vddlog("i", "Using manually configured gamma ramp");
@@ -4540,7 +4568,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	logStream.str("");
 	logStream << "=== APPLYING GAMMA RAMP AND COLOR SPACE TRANSFORM ===\n"
 			  << "Gamma Value: " << gammaRamp.gamma << "\n"
-			  << "Color Space: " << WStringToString(gammaRamp.colorSpace) << "\n"
+			  << "Color Space: " << gammaRamp.colorSpace << "\n"
 			  << "Use Matrix Transform: " << (gammaRamp.useMatrix ? "Yes" : "No");
 	vddlog("i", logStream.str().c_str());
 

@@ -58,4 +58,19 @@ static std::string WStringToString(const std::wstring &wstr)
 	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &str[0], size_needed, NULL, NULL);
 	return str;
 }
+
+static std::wstring StringToWstring(const std::string &str)
+{
+	if (str.empty())
+		return std::wstring();
+
+	// Calcola la dimensione necessaria per la stringa di destinazione
+	int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+
+	std::wstring wstrTo(size_needed, 0);
+	// Esegue la conversione effettiva
+	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+
+	return wstrTo;
+}
 } // namespace Refactoring

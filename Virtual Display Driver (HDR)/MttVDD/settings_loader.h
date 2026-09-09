@@ -1,5 +1,5 @@
 #pragma once
-#include "globals_new.h"
+#include "globals.h"
 #include "logger.h"
 #include "registry_reader.h"
 #include "xml_reader.h"

@@ -2,7 +2,7 @@
 #include "tinyxml2.h"
 #include "logger.h"
 #include <string>
-#include "globals_new.h"
+#include "globals.h"
 
 namespace Refactoring
 {

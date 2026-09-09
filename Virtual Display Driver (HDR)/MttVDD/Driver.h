@@ -6,6 +6,8 @@
 #include <wudfwdm.h>
 #include <wdf.h>
 #include <IddCx.h>
+#include "globals.h"
+#include "globals_iddcx.h"
 
 #include <dxgi1_5.h>
 #include <d3d11_2.h>
