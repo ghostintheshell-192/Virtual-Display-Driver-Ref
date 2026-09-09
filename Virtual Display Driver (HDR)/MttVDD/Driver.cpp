@@ -252,98 +252,6 @@ void LogQueries(const char* severity, const std::wstring& xmlName) {
 	}
 }
 
-int GetIntegerSetting(const std::wstring& settingKey) {
-	auto it = SettingsQueryMap.find(settingKey);
-	if (it == SettingsQueryMap.end()) {
-		vddlog("e", "requested data not found in xml, consider updating xml!");
-		return -1;
-	}
-
-	std::wstring regName = it->second.first;
-	std::wstring xmlName = it->second.second;
-
-	std::wstring settingsname = confpath + L"\\vdd_settings.xml";
-	HKEY hKey;
-	DWORD dwValue;
-	DWORD dwBufferSize = sizeof(dwValue);
-	LONG lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
-
-	if (lResult == ERROR_SUCCESS) {
-		lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)&dwValue, &dwBufferSize);
-		if (lResult == ERROR_SUCCESS) {
-			RegCloseKey(hKey);
-			LogQueries("d", xmlName + L" - Retrieved integer value: " + std::to_wstring(dwValue));
-			return static_cast<int>(dwValue);
-		}
-		else {
-			LogQueries("d", xmlName + L" - Failed to retrieve integer value from registry. Attempting to read as string.");
-			wchar_t path[MAX_PATH];
-			dwBufferSize = sizeof(path);
-			lResult = RegQueryValueExW(hKey, regName.c_str(), NULL, NULL, (LPBYTE)path, &dwBufferSize);
-			RegCloseKey(hKey);
-			if (lResult == ERROR_SUCCESS) {
-				try {
-					int logValue = std::stoi(path);
-					LogQueries("d", xmlName + L" - Retrieved string value: " + std::to_wstring(logValue));
-					return logValue;
-				}
-				catch (const std::exception&) {
-					LogQueries("d", xmlName + L" - Failed to convert registry string value to integer.");
-				}
-			}
-		}
-	}
-
-	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to create file stream for XML settings.");
-		return -1;
-	}
-
-	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to create XML reader.");
-		return -1;
-	}
-
-	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
-		LogQueries("d", xmlName + L" - Failed to set input for XML reader.");
-		return -1;
-	}
-
-	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
-	int xmlLoggingValue = -1;
-
-	while (S_OK == pReader->Read(&nodeType)) {
-		if (nodeType == XmlNodeType_Element) {
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName && wcscmp(pwszLocalName, xmlName.c_str()) == 0) {
-				pReader->Read(&nodeType);
-				if (nodeType == XmlNodeType_Text) {
-					const wchar_t* pwszValue;
-					pReader->GetValue(&pwszValue, nullptr);
-					if (pwszValue) {
-						try {
-							xmlLoggingValue = std::stoi(pwszValue);
-							LogQueries("i", xmlName + L" - Retrieved from XML: " + std::to_wstring(xmlLoggingValue));
-						}
-						catch (const std::exception&) {
-							LogQueries("d", xmlName + L" - Failed to convert XML string value to integer.");
-						}
-					}
-					break;
-				}
-			}
-		}
-	}
-
-	return xmlLoggingValue;
-}
-
 std::wstring GetStringSetting(const std::wstring& settingKey) {
 	auto it = SettingsQueryMap.find(settingKey);
 	if (it == SettingsQueryMap.end()) {
@@ -2247,18 +2155,17 @@ extern "C" NTSTATUS DriverEntry(
 	g_colours_iddcx.HDR_COLOR = g_settings.colours.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 : IDDCX_BITS_PER_COMPONENT_10;
 	g_colours_iddcx.SDR_COLOR = g_settings.colours.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8;
 
-	int xorCursorSupportLevelInt = GetIntegerSetting(L"XorCursorSupportLevel");
-	std::string xorCursorSupportLevelName;
-
-	if (xorCursorSupportLevelInt < 0 || xorCursorSupportLevelInt > 3) {
+	if (g_settings.cursor.xor_cursor_support_level < 0 || g_settings.cursor.xor_cursor_support_level > 3)
+	{
 		vddlog("w", "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
 		g_cursor_iddcx.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 	}
 	else {
-		g_cursor_iddcx.xor_cursor_support_level = static_cast<IDDCX_XOR_CURSOR_SUPPORT>(xorCursorSupportLevelInt);
+		g_cursor_iddcx.xor_cursor_support_level =
+			static_cast<IDDCX_XOR_CURSOR_SUPPORT>(g_settings.cursor.xor_cursor_support_level);
 	}
 
-	xorCursorSupportLevelName = XorCursorSupportLevelToString(g_cursor_iddcx.xor_cursor_support_level);
+	std::string xorCursorSupportLevelName = XorCursorSupportLevelToString(g_cursor_iddcx.xor_cursor_support_level);
 
 	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 
@@ -4736,10 +4643,10 @@ NTSTATUS ValidateAndSanitizeConfiguration()
 	double localRedX = g_settings.hdr_advanced.color_primaries.redX;
 	double localRedY = g_settings.hdr_advanced.color_primaries.redY;
 
-	double localGreenX = GetDoubleSetting(L"GreenX");
-	double localGreenY = GetDoubleSetting(L"GreenY");
-	double localBlueX = GetDoubleSetting(L"BlueX");
-	double localBlueY = GetDoubleSetting(L"BlueY");
+	double localGreenX = g_settings.hdr_advanced.color_primaries.greenX;
+	double localGreenY = g_settings.hdr_advanced.color_primaries.greenY;
+	double localBlueX = g_settings.hdr_advanced.color_primaries.blueX;
+	double localBlueY = g_settings.hdr_advanced.color_primaries.blueY;
 
 	if (localRedX < 0.0 || localRedX > 1.0 || localRedY < 0.0 || localRedY > 1.0) {
 		vddlog("w", "Invalid red primary coordinates, using sRGB defaults");

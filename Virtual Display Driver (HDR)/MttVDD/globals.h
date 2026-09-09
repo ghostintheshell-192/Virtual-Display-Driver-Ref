@@ -32,6 +32,8 @@ struct CursorSettings
 
 	int max_x = 128;
 	int max_y = 128;
+
+	int xor_cursor_support_level = 2; //IDDCX_XOR_CURSOR_SUPPORT_UNINITIALIZED = 0, IDDCX_XOR_CURSOR_SUPPORT_NONE = 1, IDDCX_XOR_CURSOR_SUPPORT_FULL = 2, IDDCX_XOR_CURSOR_SUPPORT_EMULATION = 3 - see IddCx.h
 };
 
 struct EdidSettings

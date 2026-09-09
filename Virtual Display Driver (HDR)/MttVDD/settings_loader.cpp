@@ -34,6 +34,7 @@ void Refactoring::SettingsLoader::Init()
 	entries.push_back({"cursor.AlphaCursorSupport", &(m_settings->cursor.alpha_cursor_support)});
 	entries.push_back({"cursor.CursorMaxX", &(m_settings->cursor.max_x)});
 	entries.push_back({"cursor.CursorMaxY", &(m_settings->cursor.max_y)});
+	entries.push_back({"cursor.XorCursorSupportLevel", &(m_settings->cursor.xor_cursor_support_level)});
 	entries.push_back({"edid_integration.edid_profile_path", &(m_settings->edid_integration.profile_path)});
 	entries.push_back({"edid_integration.enabled", &(m_settings->edid_integration.enabled)});
 	entries.push_back({"edid_integration.auto_configure_from_edid", &(m_settings->edid_integration.auto_configure)});
