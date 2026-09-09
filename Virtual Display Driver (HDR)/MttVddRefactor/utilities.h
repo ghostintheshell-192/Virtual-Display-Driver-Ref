@@ -47,4 +47,15 @@ static std::vector<std::string> tokenize(std::string str, char divider)
 
 	return tokens;
 }
+
+static std::string WStringToString(const std::wstring &wstr)
+{ // basically just a function for converting strings since codecvt is depricated in c++ 17
+	if (wstr.empty())
+		return "";
+
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), NULL, 0, NULL, NULL);
+	std::string str(size_needed, 0);
+	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &str[0], size_needed, NULL, NULL);
+	return str;
+}
 } // namespace Refactoring
