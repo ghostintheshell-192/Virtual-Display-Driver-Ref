@@ -14,6 +14,7 @@ Environment:
 
 #include "driver.h"
 #include "utilities.h"
+#include "settings_loader.h"
 //#include "Driver.tmh"
 #include<fstream>
 #include<sstream>
@@ -84,6 +85,10 @@ EVT_IDD_CX_MONITOR_SET_GAMMA_RAMP VirtualDisplayDriverEvtIddCxMonitorSetGammaRam
 Refactoring::DriverSettings g_settings;
 Refactoring::ColourSettingsIDDCX g_colours_iddcx;
 Refactoring::CursorSettingsIDDCX g_cursor_iddcx;
+
+Refactoring::Logger g_log("C:\\VirtualDisplayDriver", true, false, true);
+
+Refactoring::SettingsLoader g_settings_manager(&g_log, &g_settings);
 
 struct
 {
@@ -2303,36 +2308,6 @@ void StopNamedPipeServer() {
 	}
 }
 
-bool initpath() {
-	HKEY hKey;
-	wchar_t szPath[MAX_PATH];
-	DWORD dwBufferSize = sizeof(szPath);
-	LONG lResult;
-	//vddlog("i", "Reading reg: Computer\\HKEY_LOCAL_MACHINE\\SOFTWARE\\MikeTheTech\\VirtualDisplayDriver");           Remove this due to the fact, if reg key exists, this is called before reading
-	lResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver", 0, KEY_READ, &hKey);
-	if (lResult != ERROR_SUCCESS) {
-		ostringstream oss;
-		oss << "Failed to open registry key for path. Error code: " << lResult;
-		//vddlog("w", oss.str().c_str());  // These are okay to call though since they're only called if the reg doesnt exist
-		return false;
-	}
-
-	lResult = RegQueryValueExW(hKey, L"VDDPATH", NULL, NULL, (LPBYTE)szPath, &dwBufferSize);
-	if (lResult != ERROR_SUCCESS) {
-		ostringstream oss;
-		oss << "Failed to open registry key for path. Error code: " << lResult;
-		//vddlog("w", oss.str().c_str()); Prevent these from being called since no longer checks before logging, only on startup whether it should
-		RegCloseKey(hKey);
-		return false;
-	}
-
-	confpath = szPath;
-
-	RegCloseKey(hKey);
-
-	return true;
-}
-
 
 extern "C" EVT_WDF_DRIVER_UNLOAD EvtDriverUnload;
 
@@ -2361,15 +2336,11 @@ extern "C" NTSTATUS DriverEntry(
 	WDF_DRIVER_CONFIG_INIT(&Config, VirtualDisplayDriverDeviceAdd);
 
 	Config.EvtDriverUnload = EvtDriverUnload;
-	initpath();
 	g_settings.logs.enable_standard_logs = EnabledQuery(L"LoggingEnabled");
 	g_settings.logs.enable_debug_logs = EnabledQuery(L"DebugLoggingEnabled");
 
-	g_settings.edid.custom_edid = EnabledQuery(L"CustomEdidEnabled");
+	g_settings_manager.Init();
 	g_settings.edid.prevent_manufacturer_spoof = EnabledQuery(L"PreventMonitorSpoof");
-	g_settings.edid.edid_cea_override = EnabledQuery(L"EdidCeaOverride");
-	g_settings.logs.send_logs_through_pipe = EnabledQuery(L"SendLogsThroughPipe");
-
 
 	//colour
 	g_settings.colours.hdr_plus = EnabledQuery(L"HDRPlusEnabled");
@@ -2377,12 +2348,6 @@ extern "C" NTSTATUS DriverEntry(
 	g_colours_iddcx.HDR_COLOR = g_settings.colours.hdr_plus ? IDDCX_BITS_PER_COMPONENT_12 : IDDCX_BITS_PER_COMPONENT_10;
 	g_colours_iddcx.SDR_COLOR = g_settings.colours.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8;
 	g_settings.colours.color_format = Refactoring::WStringToString(GetStringSetting(L"ColourFormat"));
-
-	//Cursor
-	g_settings.cursor.hardware_cursor = EnabledQuery(L"HardwareCursorEnabled");
-	g_settings.cursor.alpha_cursor_support = EnabledQuery(L"AlphaCursorSupport");
-	g_settings.cursor.max_x = GetIntegerSetting(L"CursorMaxX");
-	g_settings.cursor.max_y = GetIntegerSetting(L"CursorMaxY");
 
 	int xorCursorSupportLevelInt = GetIntegerSetting(L"XorCursorSupportLevel");
 	std::string xorCursorSupportLevelName;
