@@ -57,8 +57,6 @@ using namespace std;
 using namespace Microsoft::IndirectDisp;
 using namespace Microsoft::WRL;
 
-void vddlog(const char* type, const char* message);
-
 extern "C" DRIVER_INITIALIZE DriverEntry;
 
 EVT_WDF_DRIVER_DEVICE_ADD VirtualDisplayDriverDeviceAdd;
@@ -436,7 +434,7 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
     vector<tuple<int, int, int, int>> generatedModes;
     
     if (!g_settings.auto_resolutions.enabled) {
-        vddlog("i", "Auto resolutions disabled, skipping EDID mode generation");
+        g_log.Message(Refactoring::LogType::Info, "Auto resolutions disabled, skipping EDID mode generation");
         return generatedModes;
     }
     
@@ -485,7 +483,7 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
                 stringstream ss;
                 ss << "Including non-standard aspect ratio mode: " << width << "x" << height 
                    << " (ratio: " << fixed << setprecision(2) << aspectRatio << ")";
-                vddlog("d", ss.str().c_str());
+                g_log.Message(Refactoring::LogType::Debug, ss.str().c_str());
             }
             
             generatedModes.push_back(mode);
@@ -503,7 +501,7 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
              // Secondary sort: refresh rate
              return get<3>(a) > get<3>(b);  // Higher refresh rate first
          });
-	vddlog("i", std::format("Generated {} modes from EDID (filtered from {} total)", generatedModes.size(), profile.modes.size()).c_str());
+	g_log.Message(Refactoring::LogType::Info, std::format("Generated {} modes from EDID (filtered from {} total)", generatedModes.size(), profile.modes.size()).c_str());
     
     return generatedModes;
 }
@@ -520,7 +518,7 @@ tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profi
     
     if (!g_settings.auto_resolutions.preferred_mode.preferred)
 	{
-        vddlog("i", "EDID preferred mode disabled, using fallback");
+        g_log.Message(Refactoring::LogType::Info, "EDID preferred mode disabled, using fallback");
         return preferredMode;
     }
     
@@ -530,7 +528,7 @@ tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profi
             get<1>(mode) == profile.preferredHeight) {
             // Found matching resolution, use it
             preferredMode = mode;
-			vddlog("i",
+			g_log.Message(Refactoring::LogType::Info,
 				   std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferredWidth, profile.preferredHeight, get<3>(mode)).c_str());
             break;
         }
@@ -547,12 +545,12 @@ vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, 
     if (g_settings.auto_resolutions.source_priority == "edid")
 	{
         mergedModes = edidModes;
-        vddlog("i", "Using EDID-only mode list");
+        g_log.Message(Refactoring::LogType::Info, "Using EDID-only mode list");
     }
 	else if (g_settings.auto_resolutions.source_priority == "manual")
 	{
         mergedModes = manualModes;
-        vddlog("i", "Using manual-only mode list");
+        g_log.Message(Refactoring::LogType::Info, "Using manual-only mode list");
     }
 	else if (g_settings.auto_resolutions.source_priority == "combined")
 	{
@@ -574,7 +572,7 @@ vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, 
                 mergedModes.push_back(edidMode);
             }
         }
-		vddlog("i", std::format("Combined modes: {} manual + {} unique EDID = {} total", 
+		g_log.Message(Refactoring::LogType::Info, std::format("Combined modes: {} manual + {} unique EDID = {} total", 
 								manualModes.size(), edidModes.size(), mergedModes.size()).c_str());
     }
     
@@ -613,7 +611,7 @@ vector<tuple<int, int, int, int>> OptimizeModeList(const vector<tuple<int, int, 
     const size_t maxModes = 32;
     if (optimizedModes.size() > maxModes) {
         optimizedModes.resize(maxModes);
-		vddlog("i", std::format("Limited mode list to {} modes for optimal performance", maxModes).c_str());
+		g_log.Message(Refactoring::LogType::Info, std::format("Limited mode list to {} modes for optimal performance", maxModes).c_str());
     }
     
     return optimizedModes;
@@ -622,7 +620,7 @@ vector<tuple<int, int, int, int>> OptimizeModeList(const vector<tuple<int, int, 
 // Enhanced mode validation with detailed reporting
 bool ValidateModeList(const vector<tuple<int, int, int, int>>& modes) {
     if (modes.empty()) {
-        vddlog("e", "Mode list is empty - this will cause display driver failure");
+        g_log.Message(Refactoring::LogType::Error, "Mode list is empty - this will cause display driver failure");
         return false;
     }
     
@@ -645,7 +643,7 @@ bool ValidateModeList(const vector<tuple<int, int, int, int>>& modes) {
     validationReport << "Preferred mode: " << get<0>(modes[0]) << "x" << get<1>(modes[0]) 
                     << "@" << get<3>(modes[0]) << "Hz";
     
-    vddlog("i", validationReport.str().c_str());
+    g_log.Message(Refactoring::LogType::Info, validationReport.str().c_str());
     
     return true;
 }
@@ -655,7 +653,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 	
 	// Check if file exists
 	if (!PathFileExistsW(fullPath.c_str())) {
-		vddlog("w", ("EDID profile not found: " + Refactoring::WStringToString(fullPath)).c_str());
+		g_log.Message(Refactoring::LogType::Warning, ("EDID profile not found: " + Refactoring::WStringToString(fullPath)).c_str());
 		return false;
 	}
 
@@ -663,19 +661,19 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 	CComPtr<IXmlReader> pReader;
 	HRESULT hr = SHCreateStreamOnFileW(fullPath.c_str(), STGM_READ, &pStream);
 	if (FAILED(hr)) {
-		vddlog("e", "LoadEdidProfile: Failed to create file stream.");
+		g_log.Message(Refactoring::LogType::Error, "LoadEdidProfile: Failed to create file stream.");
 		return false;
 	}
 
 	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, NULL);
 	if (FAILED(hr)) {
-		vddlog("e", "LoadEdidProfile: Failed to create XmlReader.");
+		g_log.Message(Refactoring::LogType::Error, "LoadEdidProfile: Failed to create XmlReader.");
 		return false;
 	}
 
 	hr = pReader->SetInput(pStream);
 	if (FAILED(hr)) {
-		vddlog("e", "LoadEdidProfile: Failed to set input stream.");
+		g_log.Message(Refactoring::LogType::Error, "LoadEdidProfile: Failed to set input stream.");
 		return false;
 	}
 
@@ -728,7 +726,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 					{
 						profile.modes.push_back(
 							make_tuple(tWidth, tHeight, tRefreshRateMultiplier, tNominalRefreshRate));
-						vddlog("d", std::format("EDID Mode: {}x{} @{}/{}Hz", tWidth, tHeight, tRefreshRateMultiplier,
+						g_log.Message(Refactoring::LogType::Debug, std::format("EDID Mode: {}x{} @{}/{}Hz", tWidth, tHeight, tRefreshRateMultiplier,
 												tNominalRefreshRate)
 										.c_str());
 					}
@@ -801,7 +799,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 		}
 	}
 
-	vddlog("i", std::format("EDID Profile loaded: {} modes, HDR10: {}, Color space: {}", profile.modes.size(),
+	g_log.Message(Refactoring::LogType::Info, std::format("EDID Profile loaded: {} modes, HDR10: {}, Color space: {}", profile.modes.size(),
 							profile.hdr10Supported ? "Yes" : "No", profile.primaryColorSpace).c_str());
 	
 	return true;
@@ -842,9 +840,9 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 			   << "  Preferred mode: " << get<0>(preferredMode) << "x" << get<1>(preferredMode) 
 			   << "@" << get<3>(preferredMode) << "Hz\n"
 			   << "  Source priority: " << g_settings.auto_resolutions.source_priority;
-			vddlog("i", ss.str().c_str());
+			g_log.Message(Refactoring::LogType::Info, ss.str().c_str());
 		} else {
-			vddlog("e", "Mode list validation failed, keeping original modes");
+			g_log.Message(Refactoring::LogType::Error, "Mode list validation failed, keeping original modes");
 		}
 	}
 
@@ -907,13 +905,13 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 			   << " (" << profile.maxLuminance << " nits)\n"
 			   << "  Min Luminance: " << hdrMetadata.min_display_mastering_luminance 
 			   << " (" << profile.minLuminance << " nits)";
-			vddlog("i", ss.str().c_str());
+			g_log.Message(Refactoring::LogType::Info, ss.str().c_str());
 			
 			// Store as template metadata - will be applied to monitors during HDR metadata events
 			// We use a special key (nullptr converted to uintptr_t) to indicate template metadata
 			g_HdrMetadataStore[reinterpret_cast<IDDCX_MONITOR>(0)] = hdrMetadata;
 		} else {
-			vddlog("w", "Generated HDR metadata is not valid, skipping storage");
+			g_log.Message(Refactoring::LogType::Warning, "Generated HDR metadata is not valid, skipping storage");
 		}
 	}
 
@@ -936,13 +934,13 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 				   << "[" << gammaRamp.matrix.matrix[2][0] << ", " << gammaRamp.matrix.matrix[2][1] << ", " << gammaRamp.matrix.matrix[2][2] << ", " << gammaRamp.matrix.matrix[2][3] << "]";
 			}
 			
-			vddlog("i", ss.str().c_str());
+			g_log.Message(Refactoring::LogType::Info, ss.str().c_str());
 			
 			// Store as template gamma ramp - will be applied to monitors during gamma ramp events
 			// We use a special key (nullptr converted to uintptr_t) to indicate template gamma ramp
 			g_GammaRampStore[reinterpret_cast<IDDCX_MONITOR>(0)] = gammaRamp;
 		} else {
-			vddlog("w", "Generated gamma ramp is not valid, skipping storage");
+			g_log.Message(Refactoring::LogType::Warning, "Generated gamma ramp is not valid, skipping storage");
 		}
 	}
 
@@ -976,78 +974,6 @@ void  SendToPipe(const std::string& logMessage) {
 	}
 }
 
-void vddlog(const char* type, const char* message) {
-	if (!g_settings.logs.enable_standard_logs) {
-		return;
-	}
-
-	if (type != nullptr && type[0] == 'd' && !g_settings.logs.enable_debug_logs) {
-		return;
-	}
-
-	FILE* logFile;
-	wstring logsDir = confpath + L"\\Logs";
-
-	auto now = chrono::system_clock::now();
-	auto in_time_t = chrono::system_clock::to_time_t(now);
-	tm tm_buf;
-	localtime_s(&tm_buf, &in_time_t);
-	wchar_t date_str[11]; 
-	wcsftime(date_str, sizeof(date_str) / sizeof(wchar_t), L"%Y-%m-%d", &tm_buf);
-
-	wstring logPath = logsDir + L"\\log_" + date_str + L".txt";
-
-	if (!CreateDirectoryW(logsDir.c_str(), NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
-		// Best effort only.
-	}
-
-	string narrow_logPath = Refactoring::WStringToString(logPath);
-	const char* mode = "a";
-	errno_t err = fopen_s(&logFile, narrow_logPath.c_str(), mode);
-	if (err == 0 && logFile != nullptr) {
-		stringstream ss;
-		ss << put_time(&tm_buf, "%Y-%m-%d %X");
-
-		const char logTypeCode = (type != nullptr) ? type[0] : '\0';
-		string logType;
-		switch (logTypeCode) {
-		case 'e':
-			logType = "ERROR";
-			break; 
-		case 'i':
-			logType = "INFO";
-			break;
-		case 'p':
-			logType = "PIPE";
-			break;
-		case 'd':
-			logType = "DEBUG";
-			break;
-		case 'w':
-			logType = "WARNING";
-			break;
-		case 't':
-			logType = "TESTING";
-			break;
-		case 'c':
-			logType = "COMPANION";
-			break;
-		default:
-			logType = "UNKNOWN";
-			break;
-		}
-
-		fprintf(logFile, "[%s] [%s] %s\n", ss.str().c_str(), logType.c_str(), message);
-
-		fclose(logFile);
-
-		if (g_settings.logs.send_logs_through_pipe && g_pipeHandle != INVALID_HANDLE_VALUE) {
-			string logMessage = ss.str() + " [" + logType + "] " + message + "\n";
-			SendToPipe(logMessage);
-		}
-	}
-}
-
 void LogIddCxVersion() {
 	IDARG_OUT_GETVERSION outArgs;
 	NTSTATUS status = IddCxGetVersion(&outArgs);
@@ -1055,12 +981,12 @@ void LogIddCxVersion() {
 	if (NT_SUCCESS(status)) {
 		//char versionStr[16];
 		//sprintf_s(versionStr, "0x%lx", outArgs.IddCxVersion);
-		vddlog("i", std::format("IDDCX Version: {:#x}", outArgs.IddCxVersion).c_str());
+		g_log.Message(Refactoring::LogType::Info, std::format("IDDCX Version: {:#x}", outArgs.IddCxVersion).c_str());
 	}
 	else {
-		vddlog("i", "Failed to get IDDCX version");
+		g_log.Message(Refactoring::LogType::Info, "Failed to get IDDCX version");
 	}
-	vddlog("d", "Testing Debug Log");
+	g_log.Message(Refactoring::LogType::Debug, "Testing Debug Log");
 }
 
 void InitializeD3DDeviceAndLogGPU() {
@@ -1079,28 +1005,28 @@ void InitializeD3DDeviceAndLogGPU() {
 		&d3dContext);
 
 	if (FAILED(hr)) {
-		vddlog("e", "Retrieving D3D Device GPU: Failed to create D3D11 device");
+		g_log.Message(Refactoring::LogType::Error, "Retrieving D3D Device GPU: Failed to create D3D11 device");
 		return;
 	}
 
 	ComPtr<IDXGIDevice> dxgiDevice;
 	hr = d3dDevice.As(&dxgiDevice);
 	if (FAILED(hr)) {
-		vddlog("e", "Retrieving D3D Device GPU: Failed to get DXGI device");
+		g_log.Message(Refactoring::LogType::Error, "Retrieving D3D Device GPU: Failed to get DXGI device");
 		return;
 	}
 
 	ComPtr<IDXGIAdapter> dxgiAdapter;
 	hr = dxgiDevice->GetAdapter(&dxgiAdapter);
 	if (FAILED(hr)) {
-		vddlog("e", "Retrieving D3D Device GPU: Failed to get DXGI adapter");
+		g_log.Message(Refactoring::LogType::Error, "Retrieving D3D Device GPU: Failed to get DXGI adapter");
 		return;
 	}
 
 	DXGI_ADAPTER_DESC desc;
 	hr = dxgiAdapter->GetDesc(&desc);
 	if (FAILED(hr)) {
-		vddlog("e", "Retrieving D3D Device GPU: Failed to get GPU description");
+		g_log.Message(Refactoring::LogType::Error, "Retrieving D3D Device GPU: Failed to get GPU description");
 		return;
 	}
 
@@ -1113,12 +1039,12 @@ void InitializeD3DDeviceAndLogGPU() {
 		utf8_desc = Refactoring::WStringToString(wdesc);
 	}
 	catch (const exception& e) {
-		vddlog("e", ("Retrieving D3D Device GPU: Conversion error: " + string(e.what())).c_str());
+		g_log.Message(Refactoring::LogType::Error, ("Retrieving D3D Device GPU: Conversion error: " + string(e.what())).c_str());
 		return;
 	}
 
 	string logtext = "Retrieving D3D Device GPU: " + utf8_desc;
-	vddlog("i", logtext.c_str());
+	g_log.Message(Refactoring::LogType::Info, logtext.c_str());
 }
 
 
@@ -1143,19 +1069,19 @@ bool UpdateXmlToggleSetting(bool toggle, const wchar_t* variable) {
 	CComPtr<IStream> pFileStream;
 	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: XML file could not be opened.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: XML file could not be opened.");
 		return false;
 	}
 
 	CComPtr<IXmlReader> pReader;
 	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create XML reader.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML reader.");
 		return false;
 	}
 	hr = pReader->SetInput(pFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to set XML reader input.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML reader input.");
 		return false;
 	}
 
@@ -1163,24 +1089,24 @@ bool UpdateXmlToggleSetting(bool toggle, const wchar_t* variable) {
 	wstring tempFileName = settingsname + L".temp";
 	hr = SHCreateStreamOnFileEx(tempFileName.c_str(), STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &pOutFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create output file stream.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create output file stream.");
 		return false;
 	}
 
 	CComPtr<IXmlWriter> pWriter;
 	hr = CreateXmlWriter(__uuidof(IXmlWriter), (void**)&pWriter, nullptr);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create XML writer.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML writer.");
 		return false;
 	}
 	hr = pWriter->SetOutput(pOutFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to set XML writer output.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML writer output.");
 		return false;
 	}
 	hr = pWriter->WriteStartDocument(XmlStandalone_Omit);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to write start of the document.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to write start of the document.");
 		return false;
 	}
 
@@ -1259,19 +1185,19 @@ bool UpdateXmlGpuSetting(const wchar_t* gpuName) {
 	CComPtr<IStream> pFileStream;
 	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: XML file could not be opened.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: XML file could not be opened.");
 		return false;
 	}
 
 	CComPtr<IXmlReader> pReader;
 	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create XML reader.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML reader.");
 		return false;
 	}
 	hr = pReader->SetInput(pFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to set XML reader input.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML reader input.");
 		return false;
 	}
 
@@ -1279,24 +1205,24 @@ bool UpdateXmlGpuSetting(const wchar_t* gpuName) {
 	std::wstring tempFileName = settingsname + L".temp";
 	hr = SHCreateStreamOnFileEx(tempFileName.c_str(), STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &pOutFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create output file stream.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create output file stream.");
 		return false;
 	}
 
 	CComPtr<IXmlWriter> pWriter;
 	hr = CreateXmlWriter(__uuidof(IXmlWriter), (void**)&pWriter, nullptr);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create XML writer.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML writer.");
 		return false;
 	}
 	hr = pWriter->SetOutput(pOutFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to set XML writer output.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML writer output.");
 		return false;
 	}
 	hr = pWriter->WriteStartDocument(XmlStandalone_Omit);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to write start of the document.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to write start of the document.");
 		return false;
 	}
 
@@ -1367,19 +1293,19 @@ bool UpdateXmlDisplayCountSetting(int displayCount) {
 	CComPtr<IStream> pFileStream;
 	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: XML file could not be opened.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: XML file could not be opened.");
 		return false;
 	}
 
 	CComPtr<IXmlReader> pReader;
 	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create XML reader.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML reader.");
 		return false;
 	}
 	hr = pReader->SetInput(pFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to set XML reader input.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML reader input.");
 		return false;
 	}
 
@@ -1387,24 +1313,24 @@ bool UpdateXmlDisplayCountSetting(int displayCount) {
 	std::wstring tempFileName = settingsname + L".temp";
 	hr = SHCreateStreamOnFileEx(tempFileName.c_str(), STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &pOutFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create output file stream.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create output file stream.");
 		return false;
 	}
 
 	CComPtr<IXmlWriter> pWriter;
 	hr = CreateXmlWriter(__uuidof(IXmlWriter), (void**)&pWriter, nullptr);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to create XML writer.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML writer.");
 		return false;
 	}
 	hr = pWriter->SetOutput(pOutFileStream);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to set XML writer output.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML writer output.");
 		return false;
 	}
 	hr = pWriter->WriteStartDocument(XmlStandalone_Omit);
 	if (FAILED(hr)) {
-		vddlog("e", "UpdatingXML: Failed to write start of the document.");
+		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to write start of the document.");
 		return false;
 	}
 
@@ -1476,7 +1402,7 @@ LUID getSetAdapterLuid() {
 	AdapterOption& adapterOption = Options.Adapter;
 
 	if (!adapterOption.hasTargetAdapter) {
-		vddlog("e","No Gpu Found/Selected");
+		g_log.Message(Refactoring::LogType::Error,"No Gpu Found/Selected");
 	}
 
 	return adapterOption.adapterLuid;
@@ -1488,7 +1414,7 @@ void GetGpuInfo()
 	AdapterOption& adapterOption = Options.Adapter;
 
 	if (!adapterOption.hasTargetAdapter) {
-		vddlog("e", "No GPU found or set.");
+		g_log.Message(Refactoring::LogType::Error, "No GPU found or set.");
 		return;
 	}
 
@@ -1497,10 +1423,10 @@ void GetGpuInfo()
 		LUID luid = getSetAdapterLuid();
 		string logtext = "ASSIGNED GPU: " + utf8_desc +
 			" (LUID: " + std::to_string(luid.LowPart) + "-" + std::to_string(luid.HighPart) + ")";
-		vddlog("i", logtext.c_str());
+		g_log.Message(Refactoring::LogType::Info, logtext.c_str());
 	}
 	catch (const exception& e) {
-		vddlog("e", ("Error: " + string(e.what())).c_str());
+		g_log.Message(Refactoring::LogType::Error, ("Error: " + string(e.what())).c_str());
 	}
 }
 
@@ -1532,7 +1458,7 @@ void logAvailableGPUs() {
 		if (bufferSize > 0) {
 			std::string logTextA(bufferSize - 1, '\0');
 			WideCharToMultiByte(CP_UTF8, 0, logText.c_str(), -1, &logTextA[0], bufferSize, nullptr, nullptr);
-			vddlog("c", logTextA.c_str());
+			g_log.Message(Refactoring::LogType::Companion, logTextA.c_str());
 		}
 	}
 }
@@ -1541,22 +1467,22 @@ void ReloadDriver(HANDLE hPipe) {
 	auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(hPipe);
 	if (pContext && pContext->pContext) {
 		pContext->pContext->InitAdapter();
-		vddlog("i", "Adapter reinitialized");
+		g_log.Message(Refactoring::LogType::Info, "Adapter reinitialized");
 	}
 }
 
 void HandleClient(HANDLE hPipe) {
 	g_pipeHandle = hPipe;
-	vddlog("p", "Client Handling Enabled");
+	g_log.Message(Refactoring::LogType::Pipe, "Client Handling Enabled");
 	wchar_t buffer[128];
 	DWORD bytesRead;
 	BOOL result = ReadFile(hPipe, buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL);
 	if (result && bytesRead != 0) {
 		buffer[bytesRead / sizeof(wchar_t)] = L'\0';
-		vddlog("p", Refactoring::WStringToString(buffer).c_str());
+		g_log.Message(Refactoring::LogType::Pipe, Refactoring::WStringToString(buffer).c_str());
 
 		if (wcsncmp(buffer, L"RELOAD_DRIVER", 13) == 0) {
-			vddlog("c", "Reloading the driver");
+			g_log.Message(Refactoring::LogType::Companion, "Reloading the driver");
 			ReloadDriver(hPipe);
 			
 		}
@@ -1565,13 +1491,13 @@ void HandleClient(HANDLE hPipe) {
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"debuglogging");
 				g_settings.logs.enable_debug_logs = true;
-				vddlog("c", "Pipe debugging enabled");
-				vddlog("d", "Debug Logs Enabled");
+				g_log.Message(Refactoring::LogType::Companion, "Pipe debugging enabled");
+				g_log.Message(Refactoring::LogType::Debug, "Debug Logs Enabled");
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"debuglogging");
 				g_settings.logs.enable_debug_logs = false;
-				vddlog("c", "Debugging disabled");
+				g_log.Message(Refactoring::LogType::Companion, "Debugging disabled");
 			}
 		}
 		else if (wcsncmp(buffer, L"LOGGING", 7) == 0) {
@@ -1579,24 +1505,24 @@ void HandleClient(HANDLE hPipe) {
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"logging");
 				g_settings.logs.enable_standard_logs = true;
-				vddlog("c", "Logging Enabled");
+				g_log.Message(Refactoring::LogType::Companion, "Logging Enabled");
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"logging");
 				g_settings.logs.enable_standard_logs = false;
-				vddlog("c", "Logging disabled"); // We can keep this here just to make it delete the logs on disable
+				g_log.Message(Refactoring::LogType::Companion, "Logging disabled"); // We can keep this here just to make it delete the logs on disable
 			}
 		}
 		else if (wcsncmp(buffer, L"HDRPLUS", 7) == 0) {
 			wchar_t* param = buffer + 8;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"HDRPlus");
-				vddlog("c", "HDR+ Enabled"); 
+				g_log.Message(Refactoring::LogType::Companion, "HDR+ Enabled"); 
 				ReloadDriver(hPipe);
 			} 
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"HDRPlus");
-				vddlog("c", "HDR+ Disabled");
+				g_log.Message(Refactoring::LogType::Companion, "HDR+ Disabled");
 				ReloadDriver(hPipe);
 			}
 		}
@@ -1604,12 +1530,12 @@ void HandleClient(HANDLE hPipe) {
 			wchar_t* param = buffer + 6;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"SDR10bit");
-				vddlog("c", "SDR 10 Bit Enabled");
+				g_log.Message(Refactoring::LogType::Companion, "SDR 10 Bit Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"SDR10bit");
-				vddlog("c", "SDR 10 Bit Disabled");
+				g_log.Message(Refactoring::LogType::Companion, "SDR 10 Bit Disabled");
 				ReloadDriver(hPipe);
 			}
 		}
@@ -1617,12 +1543,12 @@ void HandleClient(HANDLE hPipe) {
 			wchar_t* param = buffer + 11;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"CustomEdid");
-				vddlog("c", "Custom Edid Enabled");
+				g_log.Message(Refactoring::LogType::Companion, "Custom Edid Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"CustomEdid");
-				vddlog("c", "Custom Edid Disabled");
+				g_log.Message(Refactoring::LogType::Companion, "Custom Edid Disabled");
 				ReloadDriver(hPipe);
 			}
 		}
@@ -1630,12 +1556,12 @@ void HandleClient(HANDLE hPipe) {
 			wchar_t* param = buffer + 13;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"PreventSpoof");
-				vddlog("c", "Prevent Spoof Enabled");
+				g_log.Message(Refactoring::LogType::Companion, "Prevent Spoof Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"PreventSpoof");
-				vddlog("c", "Prevent Spoof Disabled");
+				g_log.Message(Refactoring::LogType::Companion, "Prevent Spoof Disabled");
 				ReloadDriver(hPipe);
 			}
 		}
@@ -1643,12 +1569,12 @@ void HandleClient(HANDLE hPipe) {
 			wchar_t* param = buffer + 12;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"EdidCeaOverride");
-				vddlog("c", "Cea override Enabled");
+				g_log.Message(Refactoring::LogType::Companion, "Cea override Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"EdidCeaOverride");
-				vddlog("c", "Cea override Disabled");
+				g_log.Message(Refactoring::LogType::Companion, "Cea override Disabled");
 				ReloadDriver(hPipe);
 			}
 		}
@@ -1656,61 +1582,61 @@ void HandleClient(HANDLE hPipe) {
 			wchar_t* param = buffer + 15;
 			if (wcsncmp(param, L"true", 4) == 0) {
 				UpdateXmlToggleSetting(true, L"HardwareCursor");
-				vddlog("c", "Hardware Cursor Enabled");
+				g_log.Message(Refactoring::LogType::Companion, "Hardware Cursor Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
 				UpdateXmlToggleSetting(false, L"HardwareCursor");
-				vddlog("c", "Hardware Cursor Disabled");
+				g_log.Message(Refactoring::LogType::Companion, "Hardware Cursor Disabled");
 				ReloadDriver(hPipe);
 			}
 		}
 		else if (wcsncmp(buffer, L"D3DDEVICEGPU", 12) == 0) {
-			vddlog("c", "Retrieving D3D GPU (This information may be inaccurate without reloading the driver first)");
+			g_log.Message(Refactoring::LogType::Companion, "Retrieving D3D GPU (This information may be inaccurate without reloading the driver first)");
 			InitializeD3DDeviceAndLogGPU();
-			vddlog("c", "Retrieved D3D GPU");
+			g_log.Message(Refactoring::LogType::Companion, "Retrieved D3D GPU");
 		}
 		else if (wcsncmp(buffer, L"IDDCXVERSION", 12) == 0) {
-			vddlog("c", "Logging iddcx version");
+			g_log.Message(Refactoring::LogType::Companion, "Logging iddcx version");
 			LogIddCxVersion(); 
 		}
 		else if (wcsncmp(buffer, L"GETASSIGNEDGPU", 14) == 0) {
-			vddlog("c", "Retrieving Assigned GPU");
+			g_log.Message(Refactoring::LogType::Companion, "Retrieving Assigned GPU");
 			GetGpuInfo();
-			vddlog("c", "Retrieved Assigned GPU");
+			g_log.Message(Refactoring::LogType::Companion, "Retrieved Assigned GPU");
 		}
 		else if (wcsncmp(buffer, L"GETALLGPUS", 10) == 0) {
-			vddlog("c", "Logging all GPUs");
-			vddlog("i", "If any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
+			g_log.Message(Refactoring::LogType::Companion, "Logging all GPUs");
+			g_log.Message(Refactoring::LogType::Info, "If any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
 			logAvailableGPUs();
-			vddlog("c", "Logged all GPUs");
+			g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
 		}  
 		else if (wcsncmp(buffer, L"SETGPU", 6) == 0) {
 			std::wstring gpuName = buffer + 7;
 			gpuName = gpuName.substr(1, gpuName.size() - 2); 
 
-			vddlog("c", std::format("Setting GPU to: {}", Refactoring::WStringToString(gpuName)).c_str());
+			g_log.Message(Refactoring::LogType::Companion, std::format("Setting GPU to: {}", Refactoring::WStringToString(gpuName)).c_str());
 			if (UpdateXmlGpuSetting(gpuName.c_str())) {
-				vddlog("c", "Gpu Changed, Restarting Driver");
+				g_log.Message(Refactoring::LogType::Companion, "Gpu Changed, Restarting Driver");
 			}
 			else {
-				vddlog("e", "Failed to update GPU setting in XML. Restarting anyway");
+				g_log.Message(Refactoring::LogType::Error, "Failed to update GPU setting in XML. Restarting anyway");
 			}
 			ReloadDriver(hPipe);
 		}
 		else if (wcsncmp(buffer, L"SETDISPLAYCOUNT", 15) == 0) {
-			vddlog("i", "Setting Display Count");
+			g_log.Message(Refactoring::LogType::Info, "Setting Display Count");
 
 			int newDisplayCount = 1;
 			swscanf_s(buffer + 15, L"%d", &newDisplayCount);
 
-			vddlog("c", std::format("Setting display count  to {}", newDisplayCount).c_str());
+			g_log.Message(Refactoring::LogType::Companion, std::format("Setting display count  to {}", newDisplayCount).c_str());
 
 			if (UpdateXmlDisplayCountSetting(newDisplayCount)){
-				vddlog("c", "Display Count Changed, Restarting Driver");
+				g_log.Message(Refactoring::LogType::Companion, "Display Count Changed, Restarting Driver");
 			}
 			else {
-				vddlog("e", "Failed to update display count setting in XML. Restarting anyway");
+				g_log.Message(Refactoring::LogType::Error, "Failed to update display count setting in XML. Restarting anyway");
 			}
 			ReloadDriver(hPipe);
 		}
@@ -1730,11 +1656,11 @@ void HandleClient(HANDLE hPipe) {
 		}
 		else if (wcsncmp(buffer, L"PING", 4) == 0) {
 			SendToPipe("PONG");
-			vddlog("p", "Heartbeat Ping");
+			g_log.Message(Refactoring::LogType::Pipe, "Heartbeat Ping");
 		}
 		else {
-			vddlog("e", "Unknown command");
-			vddlog("e", Refactoring::WStringToString(buffer).c_str());
+			g_log.Message(Refactoring::LogType::Error, "Unknown command");
+			g_log.Message(Refactoring::LogType::Error, Refactoring::WStringToString(buffer).c_str());
 		}
 	}
 	DisconnectNamedPipe(hPipe);
@@ -1750,10 +1676,10 @@ DWORD WINAPI NamedPipeServer(LPVOID lpParam) {
 	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
 	sa.bInheritHandle = FALSE;
 	const wchar_t* sddl = L"D:(A;;GA;;;WD)";
-	vddlog("d", "Starting pipe with parameters: D:(A;;GA;;;WD)");
+	g_log.Message(Refactoring::LogType::Debug, "Starting pipe with parameters: D:(A;;GA;;;WD)");
 	if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
 		sddl, SDDL_REVISION_1, &sa.lpSecurityDescriptor, NULL)) {
-		vddlog("e", std::format("[Named Pipe Server] Error Converting security descriptor to wide-string. Error code: {}", GetLastError()).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("[Named Pipe Server] Error Converting security descriptor to wide-string. Error code: {}", GetLastError()).c_str());
 		return 1;
 	}
 	HANDLE hPipe;
@@ -1768,14 +1694,14 @@ DWORD WINAPI NamedPipeServer(LPVOID lpParam) {
 			&sa);
 
 		if (hPipe == INVALID_HANDLE_VALUE) {
-			vddlog("e", std::format("[Named Pipe Server] Pipe handle invalid. Error code: {}", GetLastError()).c_str());
+			g_log.Message(Refactoring::LogType::Error, std::format("[Named Pipe Server] Pipe handle invalid. Error code: {}", GetLastError()).c_str());
 			LocalFree(sa.lpSecurityDescriptor);
 			return 1;
 		}
 
 		BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
 		if (connected) {
-			vddlog("p", "Client Connected");
+			g_log.Message(Refactoring::LogType::Pipe, "Client Connected");
 			HandleClient(hPipe);
 		}
 		else {
@@ -1787,18 +1713,18 @@ DWORD WINAPI NamedPipeServer(LPVOID lpParam) {
 }
 
 void StartNamedPipeServer() {
-	vddlog("p", "Starting Pipe");
+	g_log.Message(Refactoring::LogType::Pipe, "Starting Pipe");
 	hPipeThread = CreateThread(NULL, 0, NamedPipeServer, NULL, 0, NULL);
 	if (hPipeThread == NULL) {
-		vddlog("e", std::format("Pipe was not created. Error code: {}", GetLastError()).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Pipe was not created. Error code: {}", GetLastError()).c_str());
 	}
 	else {
-		vddlog("p", "Pipe created");
+		g_log.Message(Refactoring::LogType::Pipe, "Pipe created");
 	}
 }
 
 void StopNamedPipeServer() {
-	vddlog("p", "Stopping Pipe");
+	g_log.Message(Refactoring::LogType::Pipe, "Stopping Pipe");
 	{
 		lock_guard<mutex> lock(g_Mutex);
 		g_Running = false;
@@ -1821,7 +1747,7 @@ void StopNamedPipeServer() {
 		WaitForSingleObject(hPipeThread, INFINITE);
 		CloseHandle(hPipeThread);
 		hPipeThread = NULL;
-		vddlog("p", "Stopped Pipe");
+		g_log.Message(Refactoring::LogType::Pipe, "Stopped Pipe");
 	}
 }
 
@@ -1834,7 +1760,7 @@ EvtDriverUnload(
 {
 	UNREFERENCED_PARAMETER(Driver);
 	StopNamedPipeServer();
-	vddlog("i", "Driver Unloaded");
+	g_log.Message(Refactoring::LogType::Info, "Driver Unloaded");
 }
 
 _Use_decl_annotations_
@@ -1861,7 +1787,7 @@ extern "C" NTSTATUS DriverEntry(
 
 	if (g_settings.cursor.xor_cursor_support_level < 0 || g_settings.cursor.xor_cursor_support_level > 3)
 	{
-		vddlog("w", "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
+		g_log.Message(Refactoring::LogType::Warning, "Selected Xor Level unsupported, defaulting to IDDCX_XOR_CURSOR_SUPPORT_FULL");
 		g_cursor_iddcx.xor_cursor_support_level = IDDCX_XOR_CURSOR_SUPPORT_FULL;
 	}
 	else {
@@ -1871,10 +1797,10 @@ extern "C" NTSTATUS DriverEntry(
 
 	std::string xorCursorSupportLevelName = XorCursorSupportLevelToString(g_cursor_iddcx.xor_cursor_support_level);
 
-	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
+	g_log.Message(Refactoring::LogType::Info, ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 
-	vddlog("i", "Driver Starting");
-	vddlog("i", Refactoring::WStringToString(confpath).c_str());
+	g_log.Message(Refactoring::LogType::Info, "Driver Starting");
+	g_log.Message(Refactoring::LogType::Info, Refactoring::WStringToString(confpath).c_str());
 	LogIddCxVersion();
 
 	Status = WdfDriverCreate(pDriverObject, pRegistryPath, &Attributes, &Config, WDF_NO_HANDLE);
@@ -1908,17 +1834,17 @@ void loadSettings() {
 		CComPtr<IXmlReader> pReader;
 		HRESULT hr = SHCreateStreamOnFileW(filename.c_str(), STGM_READ, &pStream);
 		if (FAILED(hr)) {
-			vddlog("e", "Loading Settings: Failed to create file stream.");
+			g_log.Message(Refactoring::LogType::Error, "Loading Settings: Failed to create file stream.");
 			return; 
 		}
 		hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, NULL);
 		if (FAILED(hr)) {
-			vddlog("e", "Loading Settings: Failed to create XmlReader.");
+			g_log.Message(Refactoring::LogType::Error, "Loading Settings: Failed to create XmlReader.");
 			return;
 		}
 		hr = pReader->SetInput(pStream);
 		if (FAILED(hr)) {
-			vddlog("e", "Loading Settings: Failed to set input stream.");
+			g_log.Message(Refactoring::LogType::Error, "Loading Settings: Failed to set input stream.");
 			return;
 		}
 
@@ -1953,7 +1879,7 @@ void loadSettings() {
 					monitorcount = stoi(wstring(pwszValue, cwchValue));
 					if (monitorcount == 0) {
 						monitorcount = 1;
-						vddlog("i", "Loading singular monitor (Monitor Count is not valid)");
+						g_log.Message(Refactoring::LogType::Info, "Loading singular monitor (Monitor Count is not valid)");
 					}
 				}
 				else if (currentElement == L"friendlyname") {
@@ -1983,7 +1909,7 @@ void loadSettings() {
 					res.push_back(make_tuple(stoi(width), stoi(height), vsync_num, vsync_den));
 					stringstream ss;
 					ss << "Added: " << stoi(width) << "x" << stoi(height) << " @ " << vsync_num << "/" << vsync_den << "Hz";
-					vddlog("d", ss.str().c_str());
+					g_log.Message(Refactoring::LogType::Debug, ss.str().c_str());
 				}
 				else if (currentElement == L"g_refresh_rate") {
 					globalRefreshRates.push_back(stoi(wstring(pwszValue, cwchValue)));
@@ -1999,13 +1925,13 @@ void loadSettings() {
 		for (const auto& resTuple : resolutions) {
 			stringstream ss;
 			ss << get<0>(resTuple) << "x" << get<1>(resTuple);
-			vddlog("t", ss.str().c_str());
+			g_log.Message("t", ss.str().c_str());
 		}
 
 		for (const auto& globalRate : globalRefreshRates) {
 			stringstream ss;
 			ss << globalRate << " Hz";
-			vddlog("t", ss.str().c_str());
+			g_log.Message("t", ss.str().c_str());
 		}
 		*/
 
@@ -2030,7 +1956,7 @@ void loadSettings() {
 				<< get<1>(tup) << ", "
 				<< get<2>(tup) << ", "
 				<< get<3>(tup) << ")";
-			vddlog("t", ss.str().c_str());
+			g_log.Message("t", ss.str().c_str());
 		}
 		
 		*/
@@ -2046,20 +1972,20 @@ void loadSettings() {
 			EdidProfileData edidProfile;
 			if (LoadEdidProfile(Refactoring::StringToWstring(g_settings.edid_integration.profile_path), edidProfile)) {
 				if (ApplyEdidProfile(edidProfile)) {
-					vddlog("i", "EDID profile applied successfully");
+					g_log.Message(Refactoring::LogType::Info, "EDID profile applied successfully");
 				} else {
-					vddlog("w", "EDID profile loaded but not applied (integration disabled)");
+					g_log.Message(Refactoring::LogType::Warning, "EDID profile loaded but not applied (integration disabled)");
 				}
 			} else {
 				if (g_settings.edid_integration.fallback_on_error) {
-					vddlog("w", "EDID profile loading failed, using manual settings");
+					g_log.Message(Refactoring::LogType::Warning, "EDID profile loading failed, using manual settings");
 				} else {
-					vddlog("e", "EDID profile loading failed and fallback disabled");
+					g_log.Message(Refactoring::LogType::Error, "EDID profile loading failed and fallback disabled");
 				}
 			}
 		}
 		
-		vddlog("i","Using vdd_settings.xml");
+		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");
 		return;
 	}
 	const wstring optionsname = confpath + L"\\option.txt";
@@ -2082,20 +2008,20 @@ void loadSettings() {
 				}
 			}
 
-			vddlog("i", "Using option.txt");
+			g_log.Message(Refactoring::LogType::Info, "Using option.txt");
 			monitorModes = res;
 			RebuildKnownMonitorModesCache();
 			for (const auto &mode : res)
 			{
 				int width, height, vsync_num, vsync_den;
 				tie(width, height, vsync_num, vsync_den) = mode;
-				vddlog("d", std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
+				g_log.Message(Refactoring::LogType::Debug, std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
 			}
 			return;
 		}
 		else
 		{
-			vddlog("w", "option.txt is empty or the first line is invalid. Enabling Fallback");
+			g_log.Message(Refactoring::LogType::Warning, "option.txt is empty or the first line is invalid. Enabling Fallback");
 		}
 	}
 
@@ -2141,7 +2067,7 @@ void loadSettings() {
 		{3840, 2160, 165.0f}
 	};
 
-	vddlog("i", "Loading Fallback - no settings found");
+	g_log.Message(Refactoring::LogType::Info, "Loading Fallback - no settings found");
 
 	for (const auto& mode : fallbackRes) {
 		int width, height;
@@ -2153,7 +2079,7 @@ void loadSettings() {
 
 		res.push_back(make_tuple(width, height, vsync_num, vsync_den));
 
-		vddlog("d", std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
+		g_log.Message(Refactoring::LogType::Debug, std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
 	}
 
 	monitorModes = res;
@@ -2172,7 +2098,7 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 
 	//logStream << "Initializing device:"
 	//	<< "\n  DeviceInit Pointer: " << static_cast<void*>(pDeviceInit);
-	vddlog("d", std::format("Initializing device:\n  DeviceInit Pointer: {}", static_cast<void *>(pDeviceInit)).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Initializing device:\n  DeviceInit Pointer: {}", static_cast<void *>(pDeviceInit)).c_str());
 
 	// Register for power callbacks - in this sample only power-on is needed
 	WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&PnpPowerCallbacks);
@@ -2189,7 +2115,7 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 		<< "\n  EvtIddCxMonitorGetDefaultDescriptionModes: " << (IddConfig.EvtIddCxMonitorGetDefaultDescriptionModes ? "Set" : "Not Set")
 		<< "\n  EvtIddCxMonitorAssignSwapChain: " << (IddConfig.EvtIddCxMonitorAssignSwapChain ? "Set" : "Not Set")
 		<< "\n  EvtIddCxMonitorUnassignSwapChain: " << (IddConfig.EvtIddCxMonitorUnassignSwapChain ? "Set" : "Not Set");
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 	// If the driver wishes to handle custom IoDeviceControl requests, it's necessary to use this callback since IddCx
 	// redirects IoDeviceControl requests to an internal queue. This sample does not need this.
@@ -2200,11 +2126,11 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 	if (gpuname.empty() || gpuname == L"default") {
 		const wstring adaptername = confpath + L"\\adapter.txt";
 		Options.Adapter.load(adaptername.c_str());
-		vddlog("i", "Attempting to Load GPU from adapter.txt");
+		g_log.Message(Refactoring::LogType::Info, "Attempting to Load GPU from adapter.txt");
 	}
 	else {
 		Options.Adapter.xmlprovide(gpuname);
-		vddlog("i", "Loading GPU from vdd_settings.xml");
+		g_log.Message(Refactoring::LogType::Info, "Loading GPU from vdd_settings.xml");
 	}
 
 	GetGpuInfo();
@@ -2233,7 +2159,7 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 	Status = IddCxDeviceInitConfig(pDeviceInit, &IddConfig);
 	if (!NT_SUCCESS(Status))
 	{
-		vddlog("e", std::format("IddCxDeviceInitConfig failed with status: {}", Status).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("IddCxDeviceInitConfig failed with status: {}", Status).c_str());
 		return Status;
 	}
 
@@ -2249,20 +2175,20 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 			}
 		};
 
-	vddlog("d", "Creating device with WdfDeviceCreate:");
+	g_log.Message(Refactoring::LogType::Debug, "Creating device with WdfDeviceCreate:");
 
 	WDFDEVICE Device = nullptr;
 	Status = WdfDeviceCreate(&pDeviceInit, &Attr, &Device);
 	if (!NT_SUCCESS(Status))
 	{
-		vddlog("e", std::format("WdfDeviceCreate failed with status: {}", Status).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("WdfDeviceCreate failed with status: {}", Status).c_str());
 		return Status;
 	}
 
 	Status = IddCxDeviceInitialize(Device);
 	if (!NT_SUCCESS(Status))
 	{
-		vddlog("e", std::format("IddCxDeviceInitialize failed with status: {}", Status).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("IddCxDeviceInitialize failed with status: {}", Status).c_str());
 		return Status;
 	}
 
@@ -2276,11 +2202,11 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 	if (pContext)
 	{
 		pContext->pContext = new IndirectDeviceContext(Device);
-		vddlog("d", "Device context initialized and attached to WDF device.");
+		g_log.Message(Refactoring::LogType::Debug, "Device context initialized and attached to WDF device.");
 	}
 	else
 	{
-		vddlog("e", "Failed to get device context wrapper.");
+		g_log.Message(Refactoring::LogType::Error, "Failed to get device context wrapper.");
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 	return Status;
@@ -2297,7 +2223,7 @@ NTSTATUS VirtualDisplayDriverDeviceD0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_ST
 	logStream << "Entering D0 power state:"
 		<< "\n  Device Handle: " << static_cast<void*>(Device)
 		<< "\n  Previous State: " << PreviousState;
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 	// This function is called by WDF to start the device in the fully-on power state.
 
@@ -2310,11 +2236,11 @@ NTSTATUS VirtualDisplayDriverDeviceD0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_ST
 	if (pContext && pContext->pContext)
 	{
 		pContext->pContext->InitAdapter();
-		vddlog("d", "InitAdapter called successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "InitAdapter called successfully.");
 	}
 	else
 	{
-		vddlog("e", "Failed to get device context.");
+		g_log.Message(Refactoring::LogType::Error, "Failed to get device context.");
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
@@ -2338,27 +2264,27 @@ HRESULT Direct3DDevice::Init()
 	// The DXGI factory could be cached, but if a new render adapter appears on the system, a new factory needs to be
 	// created. If caching is desired, check DxgiFactory->IsCurrent() each time and recreate the factory if !IsCurrent.
 
-	vddlog("d", "Initializing Direct3DDevice...");
+	g_log.Message(Refactoring::LogType::Debug, "Initializing Direct3DDevice...");
 
 	hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&DxgiFactory));
 	if (FAILED(hr))
 	{
-		vddlog("e", std::format("Failed to create DXGI factory. HRESULT: {}", hr).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to create DXGI factory. HRESULT: {}", hr).c_str());
 		return hr;
 	}
-	vddlog("d", "DXGI factory created successfully.");
+	g_log.Message(Refactoring::LogType::Debug, "DXGI factory created successfully.");
 
 	// Find the specified render adapter
 	hr = DxgiFactory->EnumAdapterByLuid(AdapterLuid, IID_PPV_ARGS(&Adapter));
 	if (FAILED(hr))
 	{
-		vddlog("e", std::format("Failed to enumerate adapter by LUID. HRESULT: {}", hr).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to enumerate adapter by LUID. HRESULT: {}", hr).c_str());
 		return hr;
 	}
 
 	DXGI_ADAPTER_DESC desc;
 	Adapter->GetDesc(&desc);
-	vddlog("i", std::format("Adapter found: {} (Vendor ID: {}, Device ID: {})", Refactoring::WStringToString(desc.Description), desc.VendorId, desc.DeviceId).c_str());
+	g_log.Message(Refactoring::LogType::Info, std::format("Adapter found: {} (Vendor ID: {}, Device ID: {})", Refactoring::WStringToString(desc.Description), desc.VendorId, desc.DeviceId).c_str());
 
 
 #if 0 // Test code
@@ -2383,12 +2309,12 @@ HRESULT Direct3DDevice::Init()
 	{
 		// If creating the D3D device failed, it's possible the render GPU was lost (e.g. detachable GPU) or else the
 		// system is in a transient state.
-		vddlog("e", std::format("Failed to create Direct3D device. HRESULT: {}", hr).c_str());
-		vddlog("e", std::format("If creating the D3D device failed, it's possible the render GPU was lost (e.g. detachable GPU) or else the system "
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to create Direct3D device. HRESULT: {}", hr).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("If creating the D3D device failed, it's possible the render GPU was lost (e.g. detachable GPU) or else the system "
 								"is in a transient state. {}", hr).c_str());
 		return hr;
 	}
-	vddlog("i", std::format("Direct3D device created successfully. Feature Level: {:#x}", static_cast<int>(featureLevel)).c_str());
+	g_log.Message(Refactoring::LogType::Info, std::format("Direct3D device created successfully. Feature Level: {:#x}", static_cast<int>(featureLevel)).c_str());
 
 	return S_OK;
 }
@@ -2406,27 +2332,27 @@ SwapChainProcessor::SwapChainProcessor(IDDCX_SWAPCHAIN hSwapChain, shared_ptr<Di
 		<< "\n  SwapChain Handle: " << static_cast<void*>(hSwapChain)
 		<< "\n  Device Pointer: " << static_cast<void*>(Device.get())
 		<< "\n  NewFrameEvent Handle: " << NewFrameEvent;
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 	m_hTerminateEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
 	if (!m_hTerminateEvent.Get())
 	{
-		vddlog("e", std::format("Failed to create terminate event. GetLastError: {}", GetLastError()).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to create terminate event. GetLastError: {}", GetLastError()).c_str());
 	}
 	else
 	{
-		vddlog("d", "Terminate event created successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Terminate event created successfully.");
 	}
 
 	// Immediately create and run the swap-chain processing thread, passing 'this' as the thread parameter
 	m_hThread.Attach(CreateThread(nullptr, 0, RunThread, this, 0, nullptr));
 	if (!m_hThread.Get())
 	{
-		vddlog("e", std::format("Failed to create swap-chain processing thread. GetLastError: {}", GetLastError()).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to create swap-chain processing thread. GetLastError: {}", GetLastError()).c_str());
 	}
 	else
 	{
-		vddlog("d", "Swap-chain processing thread created and started successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Swap-chain processing thread created and started successfully.");
 	}
 }
 
@@ -2436,17 +2362,17 @@ SwapChainProcessor::~SwapChainProcessor()
 
 	logStream << "Destructing SwapChainProcessor:";
 
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 	// Alert the swap-chain processing thread to terminate
 	//SetEvent(m_hTerminateEvent.Get()); changed for error handling + log purposes 
 
 	if (SetEvent(m_hTerminateEvent.Get()))
 	{
-		vddlog("d", "Terminate event signaled successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Terminate event signaled successfully.");
 	}
 	else
 	{
-		vddlog("e", std::format("Failed to signal terminate event. GetLastError: {}", GetLastError()).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to signal terminate event. GetLastError: {}", GetLastError()).c_str());
 	}
 
 	if (m_hThread.Get())
@@ -2456,35 +2382,35 @@ SwapChainProcessor::~SwapChainProcessor()
 		switch (waitResult)
 		{
 		case WAIT_OBJECT_0:
-			vddlog("d", "Thread terminated successfully.");
+			g_log.Message(Refactoring::LogType::Debug, "Thread terminated successfully.");
 			break;
 		case WAIT_ABANDONED:
-			vddlog("e", std::format("Thread wait was abandoned. GetLastError: {}", GetLastError()).c_str());
+			g_log.Message(Refactoring::LogType::Error, std::format("Thread wait was abandoned. GetLastError: {}", GetLastError()).c_str());
 			break;
 		case WAIT_TIMEOUT:
-			vddlog("e", std::format("Thread wait timed out. This should not happen. GetLastError: {}", GetLastError()).c_str());
+			g_log.Message(Refactoring::LogType::Error, std::format("Thread wait timed out. This should not happen. GetLastError: {}", GetLastError()).c_str());
 			break;
 		default:
-			vddlog("e", std::format("Unexpected result from WaitForSingleObject. GetLastError: {}", GetLastError()).c_str());
+			g_log.Message(Refactoring::LogType::Error, std::format("Unexpected result from WaitForSingleObject. GetLastError: {}", GetLastError()).c_str());
 			break;
 		}
 	}
 	else
 	{
-		vddlog("e", "No valid thread handle to wait for.");
+		g_log.Message(Refactoring::LogType::Error, "No valid thread handle to wait for.");
 	}
 }
 
 DWORD CALLBACK SwapChainProcessor::RunThread(LPVOID Argument)
 {
-	vddlog("d", std::format("RunThread started. Argument: {}", Argument).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("RunThread started. Argument: {}", Argument).c_str());
 	reinterpret_cast<SwapChainProcessor*>(Argument)->Run();
 	return 0;
 }
 
 void SwapChainProcessor::Run()
 {
-	vddlog("d", "Run method started.");
+	g_log.Message(Refactoring::LogType::Debug, "Run method started.");
 
 	// For improved performance, make use of the Multimedia Class Scheduler Service, which will intelligently
 	// prioritize this thread for improved throughput in high CPU-load scenarios.
@@ -2493,16 +2419,16 @@ void SwapChainProcessor::Run()
 
 	if (AvTaskHandle)
 	{
-		vddlog("d", std::format("Multimedia thread characteristics set successfully. AvTask: {}", AvTask).c_str());
+		g_log.Message(Refactoring::LogType::Debug, std::format("Multimedia thread characteristics set successfully. AvTask: {}", AvTask).c_str());
 	}
 	else
 	{
-		vddlog("e", std::format("Failed to set multimedia thread characteristics. GetLastError: {}", GetLastError()).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to set multimedia thread characteristics. GetLastError: {}", GetLastError()).c_str());
 	}
 
 	RunCore();
 
-	vddlog("d", "Core processing function RunCore() completed.");
+	g_log.Message(Refactoring::LogType::Debug, "Core processing function RunCore() completed.");
 
 	// Always delete the swap-chain object when swap-chain processing loop terminates in order to kick the system to
 	// provide a new swap-chain if necessary.
@@ -2513,23 +2439,23 @@ void SwapChainProcessor::Run()
 	if (m_hSwapChain)
 	{
 		WdfObjectDelete((WDFOBJECT)m_hSwapChain);
-		vddlog("d", "Swap-chain object deleted.");
+		g_log.Message(Refactoring::LogType::Debug, "Swap-chain object deleted.");
 		m_hSwapChain = nullptr;
 	}
 	else
 	{
-		vddlog("w", "No valid swap-chain object to delete.");
+		g_log.Message(Refactoring::LogType::Warning, "No valid swap-chain object to delete.");
 	}
 	/*
 	AvRevertMmThreadCharacteristics(AvTaskHandle);
 	*/ //error handling when reversing multimedia thread characteristics 
 	if (AvRevertMmThreadCharacteristics(AvTaskHandle))
 	{
-		vddlog("d", "Multimedia thread characteristics reverted successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Multimedia thread characteristics reverted successfully.");
 	}
 	else
 	{
-		vddlog("e", std::format("Failed to revert multimedia thread characteristics. GetLastError: {}", GetLastError()).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to revert multimedia thread characteristics. GetLastError: {}", GetLastError()).c_str());
 	}
 }
 
@@ -2546,16 +2472,16 @@ void SwapChainProcessor::RunCore()
 	HRESULT hr = m_Device->Device.As(&DxgiDevice);
 	if (FAILED(hr))
 	{
-		vddlog("e", std::format("Failed to get DXGI device interface. HRESULT: {}", hr).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to get DXGI device interface. HRESULT: {}", hr).c_str());
 		return;
 	}
-	vddlog("i", "DXGI device interface obtained successfully.");
-	//vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Info, "DXGI device interface obtained successfully.");
+	//g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 
 	// Validate that our device is still valid before setting it
 	if (!m_Device || !m_Device->Device) {
-		vddlog("e", "Direct3DDevice became invalid during SwapChain processing");
+		g_log.Message(Refactoring::LogType::Error, "Direct3DDevice became invalid during SwapChain processing");
 		return;
 	}
 
@@ -2565,11 +2491,11 @@ void SwapChainProcessor::RunCore()
 	hr = IddCxSwapChainSetDevice(m_hSwapChain, &SetDevice);
 	if (FAILED(hr))
 	{
-		vddlog("e", std::format("Failed to set device to swap chain. HRESULT: {}", hr).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to set device to swap chain. HRESULT: {}", hr).c_str());
 		return;
 	}
-	vddlog("d", "Device set to swap chain successfully.");
-	vddlog("d", "Starting buffer acquisition and release loop.");
+	g_log.Message(Refactoring::LogType::Debug, "Device set to swap chain successfully.");
+	g_log.Message(Refactoring::LogType::Debug, "Starting buffer acquisition and release loop.");
 
 	// Acquire and release buffers in a loop
 	for (;;)
@@ -2611,7 +2537,7 @@ void SwapChainProcessor::RunCore()
 
 			if (waitHandleCount == 0)
 			{
-				vddlog("e", "No valid wait handles available while waiting for the next frame.");
+				g_log.Message(Refactoring::LogType::Error, "No valid wait handles available while waiting for the next frame.");
 				break;
 			}
 
@@ -2637,7 +2563,7 @@ void SwapChainProcessor::RunCore()
 			{
 				hr = HRESULT_FROM_WIN32(WaitResult == WAIT_FAILED ? GetLastError() : WaitResult);
 				logStream << "Unexpected wait result. HRESULT: " << hr;
-				vddlog("e", logStream.str().c_str());
+				g_log.Message(Refactoring::LogType::Error, logStream.str().c_str());
 				break;
 			}
 		}
@@ -2661,7 +2587,7 @@ void SwapChainProcessor::RunCore()
 			// ==============================
 
 			AcquiredBuffer.Reset();
-			//vddlog("d", "Reset buffer");
+			//g_log.Message(Refactoring::LogType::Debug, "Reset buffer");
 			hr = IddCxSwapChainFinishedProcessingFrame(m_hSwapChain);
 			if (FAILED(hr))
 			{
@@ -2680,11 +2606,11 @@ void SwapChainProcessor::RunCore()
 			//logStream.str(""); // Clear the stream
 			if (hr == DXGI_ERROR_ACCESS_LOST && retryCount < maxRetries)
 			{
-				vddlog(
-					"w",
+				g_log.Message(
+					Refactoring::LogType::Warning,
 					std::format("DXGI_ERROR_ACCESS_LOST detected. Retry {}/{} after {} ms delay.", (retryCount + 1), maxRetries, retryDelay).c_str());
 				//logStream << "DXGI_ERROR_ACCESS_LOST detected. Retry " << (retryCount + 1) << "/" << maxRetries << " after " << retryDelay << "ms delay.";
-				//vddlog("w", logStream.str().c_str());
+				//g_log.Message(Refactoring::LogType::Warning, logStream.str().c_str());
 				Sleep(retryDelay);
 				retryDelay = min(retryDelay * 2, maxRetryDelay);
 				retryCount++;
@@ -2700,7 +2626,7 @@ void SwapChainProcessor::RunCore()
 				{
 					logStream << "Failed to acquire buffer. Exiting loop. HRESULT: " << hr;
 				}
-				vddlog("e", logStream.str().c_str());
+				g_log.Message(Refactoring::LogType::Error, logStream.str().c_str());
 				// The swap-chain was likely abandoned, so exit the processing loop
 				break;
 			}
@@ -2782,16 +2708,16 @@ void updateCeaExtensionCount(vector<BYTE>& edid, int count) {
 
 vector<BYTE> loadEdid(const string& filePath) {
 	if (g_settings.edid.custom_edid) {
-		vddlog("i", "Attempting to use user Edid");
+		g_log.Message(Refactoring::LogType::Info, "Attempting to use user Edid");
 	}
 	else {
-		vddlog("i", "Using hardcoded edid");
+		g_log.Message(Refactoring::LogType::Info, "Using hardcoded edid");
 		return hardcodedEdid;
 	}
 
 	ifstream file(filePath, ios::binary | ios::ate);
 	if (!file) {
-		vddlog("i", "No custom edid found, using hardcoded edid");
+		g_log.Message(Refactoring::LogType::Info, "No custom edid found, using hardcoded edid");
 		return hardcodedEdid;
 	}
 
@@ -2803,8 +2729,8 @@ vector<BYTE> loadEdid(const string& filePath) {
 		//calculate checksum and compare it to 127 byte, if false then return hardcoded if true then return buffer to prevent loading borked edid.
 		BYTE calculatedChecksum = calculateChecksum(buffer);
 		if (calculatedChecksum != buffer[127]) {
-			vddlog("e", "Custom edid failed due to invalid checksum");
-			vddlog("i", "Using hardcoded edid");
+			g_log.Message(Refactoring::LogType::Error, "Custom edid failed due to invalid checksum");
+			g_log.Message(Refactoring::LogType::Info, "Using hardcoded edid");
 			return hardcodedEdid;
 		}
 
@@ -2821,11 +2747,11 @@ vector<BYTE> loadEdid(const string& filePath) {
 			}
 		}
 
-		vddlog("i", "Using custom edid");
+		g_log.Message(Refactoring::LogType::Info, "Using custom edid");
 		return buffer;
 	}
 	else {
-		vddlog("i", "Using hardcoded edid");
+		g_log.Message(Refactoring::LogType::Info, "Using hardcoded edid");
 		return hardcodedEdid;
 	}
 }
@@ -2851,10 +2777,10 @@ std::shared_ptr<Direct3DDevice> IndirectDeviceContext::GetOrCreateDevice(LUID Re
 		if (it != s_DeviceCache.end()) {
 			Device = it->second;
 			if (Device) {
-				vddlog("d", std::format("Reusing cached Direct3DDevice for LUID {} - {}", RenderAdapter.HighPart, RenderAdapter.LowPart).c_str());
+				g_log.Message(Refactoring::LogType::Debug, std::format("Reusing cached Direct3DDevice for LUID {} - {}", RenderAdapter.HighPart, RenderAdapter.LowPart).c_str());
 				return Device;
 			} else {
-				vddlog("d", std::format("Cached Direct3DDevice is null for LUID {} - {}, removing from cache", RenderAdapter.HighPart, RenderAdapter.LowPart)
+				g_log.Message(Refactoring::LogType::Debug, std::format("Cached Direct3DDevice is null for LUID {} - {}, removing from cache", RenderAdapter.HighPart, RenderAdapter.LowPart)
 								.c_str());
 				s_DeviceCache.erase(it);
 			}
@@ -2863,7 +2789,7 @@ std::shared_ptr<Direct3DDevice> IndirectDeviceContext::GetOrCreateDevice(LUID Re
 	
 	Device = make_shared<Direct3DDevice>(RenderAdapter);
 	if (FAILED(Device->Init())) {
-		vddlog("e", "Failed to initialize new Direct3DDevice");
+		g_log.Message(Refactoring::LogType::Error, "Failed to initialize new Direct3DDevice");
 		return nullptr;
 	}
 
@@ -2872,7 +2798,7 @@ std::shared_ptr<Direct3DDevice> IndirectDeviceContext::GetOrCreateDevice(LUID Re
 		s_DeviceCache[RenderAdapter] = Device;
 		auto msg = std::format("Created and cached new Direct3DDevice for LUID {} - {} (cache size now: {})", RenderAdapter.HighPart,
 							   RenderAdapter.LowPart, s_DeviceCache.size());
-		vddlog("d", msg.c_str());
+		g_log.Message(Refactoring::LogType::Debug, msg.c_str());
 	}
 
 	return Device;
@@ -2894,7 +2820,7 @@ void IndirectDeviceContext::CleanupExpiredDevices()
 	}
 	
 	if (removed > 0) {
-		vddlog("d", std::format("Cleaned up {} null Direct3DDevice references from cache", removed).c_str());
+		g_log.Message(Refactoring::LogType::Debug, std::format("Cleaned up {} null Direct3DDevice references from cache", removed).c_str());
 	}
 }
 
@@ -2909,14 +2835,14 @@ IndirectDeviceContext::~IndirectDeviceContext()
 {
 	std::map<IDDCX_MONITOR, std::unique_ptr<SwapChainProcessor>> processingThreads;
 
-	vddlog("d", "Destroying IndirectDeviceContext. Releasing per-monitor processing threads.");
+	g_log.Message(Refactoring::LogType::Debug, "Destroying IndirectDeviceContext. Releasing per-monitor processing threads.");
 
 	{
 		std::lock_guard<std::mutex> lock(m_ProcessingThreadsMutex);
 		processingThreads.swap(m_ProcessingThreads);
 	}
 
-	vddlog("d", std::format("Released {} monitor processing thread(s).", processingThreads.size()).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Released {} monitor processing thread(s).", processingThreads.size()).c_str());
 }
 
 #define NUM_VIRTUAL_DISPLAYS 1   //What is this even used for ?? Its never referenced
@@ -2933,14 +2859,14 @@ void IndirectDeviceContext::InitAdapter()
 	// This is also where static per-adapter capabilities are determined.
 	// ==============================
 
-	vddlog("d", "Initializing adapter...");
+	g_log.Message(Refactoring::LogType::Debug, "Initializing adapter...");
 
 	IDDCX_ADAPTER_CAPS AdapterCaps = {};
 	AdapterCaps.Size = sizeof(AdapterCaps);
 
 	if (IDD_IS_FUNCTION_AVAILABLE(IddCxSwapChainReleaseAndAcquireBuffer2)) {
 		AdapterCaps.Flags = IDDCX_ADAPTER_FLAGS_CAN_PROCESS_FP16;
-		vddlog("d", "FP16 processing capability detected.");
+		g_log.Message(Refactoring::LogType::Debug, "FP16 processing capability detected.");
 	}
 
 	// Declare basic feature support for the adapter (required)
@@ -2968,7 +2894,7 @@ void IndirectDeviceContext::InitAdapter()
 					Refactoring::WStringToString(AdapterCaps.EndPointDiagnostics.pEndPointFriendlyName), Refactoring::WStringToString(AdapterCaps.EndPointDiagnostics.pEndPointManufacturerName),
 					Refactoring::WStringToString(AdapterCaps.EndPointDiagnostics.pEndPointModelName), Version.MajorVer, Version.MajorVer);
 
-	vddlog("d", msg.c_str());
+	g_log.Message(Refactoring::LogType::Debug, msg.c_str());
 
 	// Initialize a WDF context that can store a pointer to the device context object
 	WDF_OBJECT_ATTRIBUTES Attr;
@@ -2983,28 +2909,28 @@ void IndirectDeviceContext::InitAdapter()
 	IDARG_OUT_ADAPTER_INIT AdapterInitOut;
 	NTSTATUS Status = IddCxAdapterInitAsync(&AdapterInit, &AdapterInitOut);
 
-	vddlog("d", std::format("Adapter Initialization Status: {}", Status).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Adapter Initialization Status: {}", Status).c_str());
 	logStream.str("");
 
 	if (NT_SUCCESS(Status))
 	{
 		// Store a reference to the WDF adapter handle
 		m_Adapter = AdapterInitOut.AdapterObject;
-		vddlog("d", "Adapter handle stored successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Adapter handle stored successfully.");
 
 		// Store the device context object into the WDF object context
 		auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(AdapterInitOut.AdapterObject);
 		pContext->pContext = this;
 	}
 	else {
-		vddlog("e", std::format("Failed to initialize adapter. Status: {}", Status).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to initialize adapter. Status: {}", Status).c_str());
 	}
 }
 
 void IndirectDeviceContext::FinishInit()
 {
 	Options.Adapter.apply(m_Adapter);
-	vddlog("i", "Applied Adapter configs.");
+	g_log.Message(Refactoring::LogType::Info, "Applied Adapter configs.");
 	for (unsigned int i = 0; i < numVirtualDisplays; i++) {
 		CreateMonitor(i);
 	}
@@ -3013,7 +2939,7 @@ void IndirectDeviceContext::FinishInit()
 void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 	wstring logMessage = L"Creating Monitor: " + to_wstring(index + 1);
 	string narrowLogMessage = Refactoring::WStringToString(logMessage);
-	vddlog("i", narrowLogMessage.c_str());
+	g_log.Message(Refactoring::LogType::Info, narrowLogMessage.c_str());
 
 	// ==============================
 	// TODO: In a real driver, the EDID should be retrieved dynamically from a connected physical monitor. The EDID
@@ -3035,7 +2961,7 @@ void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 	//MonitorInfo.MonitorDescription.DataSize = sizeof(s_KnownMonitorEdid);        can no longer use size of as converted to vector
 	if (s_KnownMonitorEdid.size() > UINT_MAX)
 	{
-		vddlog("e", "Edid size passes UINT_Max, escape to prevent loading borked display");
+		g_log.Message(Refactoring::LogType::Error, "Edid size passes UINT_Max, escape to prevent loading borked display");
 	}
 	else
 	{
@@ -3058,7 +2984,7 @@ void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 
 	// Create a container ID
 	CoCreateGuid(&MonitorInfo.MonitorContainerId);
-	vddlog("d", "Created container ID");
+	g_log.Message(Refactoring::LogType::Debug, "Created container ID");
 
 	IDARG_IN_MONITORCREATE MonitorCreate = {};
 	MonitorCreate.ObjectAttributes = &Attr;
@@ -3069,7 +2995,7 @@ void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 	NTSTATUS Status = IddCxMonitorCreate(m_Adapter, &MonitorCreate, &MonitorCreateOut);
 	if (NT_SUCCESS(Status))
 	{
-		vddlog("d", "Monitor created successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Monitor created successfully.");
 		m_Monitor = MonitorCreateOut.MonitorObject;
 
 		// Associate the monitor with this device context
@@ -3081,16 +3007,16 @@ void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 		Status = IddCxMonitorArrival(m_Monitor, &ArrivalOut);
 		if (NT_SUCCESS(Status))
 		{
-			vddlog("d", "Monitor arrival successfully reported.");
+			g_log.Message(Refactoring::LogType::Debug, "Monitor arrival successfully reported.");
 		}
 		else
 		{
-			vddlog("e", std::format("Failed to report monitor arrival. Status: {}", Status).c_str());
+			g_log.Message(Refactoring::LogType::Error, std::format("Failed to report monitor arrival. Status: {}", Status).c_str());
 		}
 	}
 	else
 	{
-		vddlog("e", std::format("Failed to create monitor. Status: {}", Status).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Failed to create monitor. Status: {}", Status).c_str());
 	}
 }
 
@@ -3105,7 +3031,7 @@ void IndirectDeviceContext::AssignSwapChain(IDDCX_MONITOR Monitor, IDDCX_SWAPCHA
 	auto Device = GetOrCreateDevice(RenderAdapter);
 	if (!Device)
 	{
-		vddlog("e", "Failed to get or create Direct3DDevice, deleting existing swap-chain.");
+		g_log.Message(Refactoring::LogType::Error, "Failed to get or create Direct3DDevice, deleting existing swap-chain.");
 		WdfObjectDelete(SwapChain);
 		return;
 	}
@@ -3122,10 +3048,10 @@ void IndirectDeviceContext::AssignSwapChain(IDDCX_MONITOR Monitor, IDDCX_SWAPCHA
 		}
 
 		if (previousProcessor) {
-			vddlog("d", "Replaced existing processing thread for this monitor only.");
+			g_log.Message(Refactoring::LogType::Debug, "Replaced existing processing thread for this monitor only.");
 		}
 		else {
-			vddlog("d", "Created a new processing thread for this monitor.");
+			g_log.Message(Refactoring::LogType::Debug, "Created a new processing thread for this monitor.");
 		}
 
 		if (g_settings.cursor.hardware_cursor){
@@ -3138,7 +3064,7 @@ void IndirectDeviceContext::AssignSwapChain(IDDCX_MONITOR Monitor, IDDCX_SWAPCHA
 
 			if (!mouseEvent)
 			{
-				vddlog("e", "Failed to create mouse event. No hardware cursor supported!");
+				g_log.Message(Refactoring::LogType::Error, "Failed to create mouse event. No hardware cursor supported!");
 				return;
 			}
 
@@ -3168,10 +3094,10 @@ void IndirectDeviceContext::AssignSwapChain(IDDCX_MONITOR Monitor, IDDCX_SWAPCHA
 				return;
 			}
 
-			vddlog("d", "Hardware cursor setup completed successfully.");
+			g_log.Message(Refactoring::LogType::Debug, "Hardware cursor setup completed successfully.");
 		}
 		else {
-			vddlog("d", "Hardware cursor is disabled, Skipped creation.");
+			g_log.Message(Refactoring::LogType::Debug, "Hardware cursor is disabled, Skipped creation.");
 		}
 		// At this point, the swap-chain is set up and the hardware cursor is enabled
 		// Further swap-chain and cursor processing will occur in the new processing thread.
@@ -3195,11 +3121,11 @@ void IndirectDeviceContext::UnassignSwapChain(IDDCX_MONITOR Monitor)
 
 	if (processorToStop)
 	{
-		vddlog("i", "Unassigning swapchain for one monitor. Its processing thread will be stopped.");
+		g_log.Message(Refactoring::LogType::Info, "Unassigning swapchain for one monitor. Its processing thread will be stopped.");
 	}
 	else
 	{
-		vddlog("w", "UnassignSwapChain called for a monitor without an active processing thread.");
+		g_log.Message(Refactoring::LogType::Warning, "UnassignSwapChain called for a monitor without an active processing thread.");
 	}
 }
 
@@ -3217,13 +3143,13 @@ NTSTATUS VirtualDisplayDriverAdapterInitFinished(IDDCX_ADAPTER AdapterObject, co
 	if (NT_SUCCESS(pInArgs->AdapterInitStatus))
 	{
 		pContext->pContext->FinishInit();
-		vddlog("d", "Adapter initialization finished successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Adapter initialization finished successfully.");
 	}
 	else
 	{
-		vddlog("e", std::format("Adapter initialization failed. Status: {}", pInArgs->AdapterInitStatus).c_str());
+		g_log.Message(Refactoring::LogType::Error, std::format("Adapter initialization failed. Status: {}", pInArgs->AdapterInitStatus).c_str());
 	}
-	vddlog("i", "Finished Setting up adapter.");
+	g_log.Message(Refactoring::LogType::Info, "Finished Setting up adapter.");
 	
 
 	return STATUS_SUCCESS;
@@ -3254,16 +3180,16 @@ NTSTATUS VirtualDisplayDriverParseMonitorDescription(const IDARG_IN_PARSEMONITOR
 	// ==============================
 
 	stringstream logStream;
-	vddlog("d", std::format("Parsing monitor description. Input buffer count: {}", pInArgs->MonitorModeBufferInputCount).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Parsing monitor description. Input buffer count: {}", pInArgs->MonitorModeBufferInputCount).c_str());
 
 	RebuildKnownMonitorModesCache();
 	pOutArgs->MonitorModeBufferOutputCount = (UINT)monitorModes.size();
 
-	vddlog("d", std::format("Number of monitor modes generated: {}", monitorModes.size()).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Number of monitor modes generated: {}", monitorModes.size()).c_str());
 
 	if (pInArgs->MonitorModeBufferInputCount < monitorModes.size())
 	{
-		vddlog("w",
+		g_log.Message(Refactoring::LogType::Warning,
 			   std::format("Buffer too small. Input count: {}, Required: {}", pInArgs->MonitorModeBufferInputCount, monitorModes.size()).c_str());
 		// Return success if there was no buffer, since the caller was only asking for a count of modes
 		return (pInArgs->MonitorModeBufferInputCount > 0) ? STATUS_BUFFER_TOO_SMALL : STATUS_SUCCESS;
@@ -3280,7 +3206,7 @@ NTSTATUS VirtualDisplayDriverParseMonitorDescription(const IDARG_IN_PARSEMONITOR
 
 		// Set the preferred mode as represented in the EDID
 		pOutArgs->PreferredMonitorModeIdx = 0;
-		vddlog("d", "Monitor description parsed successfully.");
+		g_log.Message(Refactoring::LogType::Debug, "Monitor description parsed successfully.");
 		return STATUS_SUCCESS;
 	}
 }
@@ -3329,7 +3255,7 @@ void CreateTargetMode(DISPLAYCONFIG_VIDEO_SIGNAL_INFO& Mode, UINT Width, UINT He
 		<< "\n  hSync Frequency: " << Mode.hSyncFreq.Numerator << "/" << Mode.hSyncFreq.Denominator
 		<< "\n  Pixel Rate: " << Mode.pixelRate
 		<< "\n  Scan Line Ordering: " << Mode.scanLineOrdering;
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 }
 
 void CreateTargetMode(IDDCX_TARGET_MODE& Mode, UINT Width, UINT Height, UINT VSyncNum, UINT VSyncDen)
@@ -3341,7 +3267,7 @@ void CreateTargetMode(IDDCX_TARGET_MODE& Mode, UINT Width, UINT Height, UINT VSy
 void CreateTargetMode2(IDDCX_TARGET_MODE2& Mode, UINT Width, UINT Height, UINT VSyncNum, UINT VSyncDen)
 {
 	auto msg = std::format("[CreateTargetMode2] Creating IDDCX_TARGET_MODE2 with Width: {}, Height: {}, VSyncNum: {}, VSyncDen {}", Width, Height, VSyncNum, VSyncDen);
-	vddlog("d", msg.c_str());
+	g_log.Message(Refactoring::LogType::Debug, msg.c_str());
 
 	Mode.Size = sizeof(Mode);
 
@@ -3362,7 +3288,7 @@ void CreateTargetMode2(IDDCX_TARGET_MODE2& Mode, UINT Width, UINT Height, UINT V
 		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 	}
 
-	vddlog("d", std::format("IDDCX_TARGET_MODE2 configured with Size: {} and colour format {}", Mode.Size, g_settings.colours.color_format).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("IDDCX_TARGET_MODE2 configured with Size: {} and colour format {}", Mode.Size, g_settings.colours.color_format).c_str());
 
 	CreateTargetMode(Mode.TargetVideoSignalInfo.targetVideoSignalInfo, Width, Height, VSyncNum, VSyncDen);
 }
@@ -3376,7 +3302,7 @@ NTSTATUS VirtualDisplayDriverMonitorQueryModes(IDDCX_MONITOR MonitorObject, cons
 
 	stringstream logStream;
 	logStream << "Creating target modes. Number of monitor modes: " << monitorModes.size();
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 	// Create a set of modes supported for frame processing and scan-out. These are typically not based on the
 	// monitor's descriptor and instead are based on the static processing capability of the device. The OS will
@@ -3389,27 +3315,27 @@ NTSTATUS VirtualDisplayDriverMonitorQueryModes(IDDCX_MONITOR MonitorObject, cons
 		logStream << "Created target mode " << i << ": Width = " << std::get<0>(monitorModes[i])
 			<< ", Height = " << std::get<1>(monitorModes[i])
 			<< ", VSync = " << std::get<2>(monitorModes[i]);
-		vddlog("d", logStream.str().c_str());
+		g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 	}
 
 	pOutArgs->TargetModeBufferOutputCount = (UINT)TargetModes.size();
 
 	logStream.str("");
 	logStream << "Number of target modes to output: " << pOutArgs->TargetModeBufferOutputCount;
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 	if (pInArgs->TargetModeBufferInputCount >= TargetModes.size())
 	{
 		logStream.str("");
 		logStream << "Copying target modes to output buffer.";
-		vddlog("d", logStream.str().c_str());
+		g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 		copy(TargetModes.begin(), TargetModes.end(), pInArgs->pTargetModes);
 	}
 	else {
 		logStream.str("");
 		logStream << "Input buffer too small. Required: " << TargetModes.size()
 			<< ", Provided: " << pInArgs->TargetModeBufferInputCount;
-		vddlog("w", logStream.str().c_str());
+		g_log.Message(Refactoring::LogType::Warning, logStream.str().c_str());
 	}
 
 	return STATUS_SUCCESS;
@@ -3423,20 +3349,20 @@ NTSTATUS VirtualDisplayDriverMonitorAssignSwapChain(IDDCX_MONITOR MonitorObject,
 		<< "\n  hSwapChain: " << pInArgs->hSwapChain
 		<< "\n  RenderAdapterLuid: " << pInArgs->RenderAdapterLuid.LowPart << "-" << pInArgs->RenderAdapterLuid.HighPart
 		<< "\n  hNextSurfaceAvailable: " << pInArgs->hNextSurfaceAvailable;
-	vddlog("d", logStream.str().c_str());
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 	auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(MonitorObject);
 	pContext->pContext->AssignSwapChain(MonitorObject, pInArgs->hSwapChain, pInArgs->RenderAdapterLuid, pInArgs->hNextSurfaceAvailable);
-	vddlog("d", "Swap chain assigned successfully.");
+	g_log.Message(Refactoring::LogType::Debug, "Swap chain assigned successfully.");
 	return STATUS_SUCCESS;
 }
 
 _Use_decl_annotations_
 NTSTATUS VirtualDisplayDriverMonitorUnassignSwapChain(IDDCX_MONITOR MonitorObject)
 {
-	vddlog("d", std::format("Unassigning swap chain for monitor object: {:p}", static_cast<void *>(MonitorObject)).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Unassigning swap chain for monitor object: {:p}", static_cast<void *>(MonitorObject)).c_str());
 	auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(MonitorObject);
 	pContext->pContext->UnassignSwapChain(MonitorObject);
-	vddlog("d", "Swap chain unassigned successfully.");
+	g_log.Message(Refactoring::LogType::Debug, "Swap chain unassigned successfully.");
 	return STATUS_SUCCESS;
 }
 
@@ -3447,7 +3373,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterQueryTargetInfo(
 	IDARG_OUT_QUERYTARGET_INFO* pOutArgs
 )
 {
-	vddlog("d", std::format("Querying target info for adapter object: {:p}", static_cast<void *>(AdapterObject)).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Querying target info for adapter object: {:p}", static_cast<void *>(AdapterObject)).c_str());
 
 	UNREFERENCED_PARAMETER(pInArgs);
 
@@ -3473,7 +3399,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterQueryTargetInfo(
 		pOutArgs->DitheringSupport.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 	}
 
-	vddlog("d", std::format("Target capabilities set to: {}\nDithering support colour format set to: {}", 
+	g_log.Message(Refactoring::LogType::Debug, std::format("Target capabilities set to: {}\nDithering support colour format set to: {}", 
 		static_cast<int>(pOutArgs->TargetCaps), g_settings.colours.color_format).c_str());
 
 	return STATUS_SUCCESS;
@@ -3488,16 +3414,16 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	UNREFERENCED_PARAMETER(pInArgs);
 	
 	stringstream logStream;
-	vddlog("d", "=== PROCESSING HDR METADATA REQUEST ===");
+	g_log.Message(Refactoring::LogType::Debug, "=== PROCESSING HDR METADATA REQUEST ===");
 	
 	auto msg = std::format("Monitor Object: {:p}, HDR10 Metadata Enabled: {}, Color Primaries Enabled: {}", static_cast<void *>(MonitorObject),
 						   (g_settings.hdr_advanced.static_metadata_enabled ? "Yes" : "No"),
 						   (g_settings.hdr_advanced.color_primaries.primaries_enabled ? "Yes" : "No"));
-	vddlog("d", msg.c_str());
+	g_log.Message(Refactoring::LogType::Debug, msg.c_str());
 
 	// Check if HDR metadata processing is enabled
 	if (!g_settings.hdr_advanced.static_metadata_enabled) {
-		vddlog("i", "HDR10 static metadata is disabled, skipping metadata configuration");
+		g_log.Message(Refactoring::LogType::Info, "HDR10 static metadata is disabled, skipping metadata configuration");
 		return STATUS_SUCCESS;
 	}
 
@@ -3511,7 +3437,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 		if (storeIt != g_HdrMetadataStore.end() && storeIt->second.isValid) {
 			metadata = storeIt->second;
 			hasValidMetadata = true;
-			vddlog("i", "Using monitor-specific EDID-derived HDR metadata");
+			g_log.Message(Refactoring::LogType::Info, "Using monitor-specific EDID-derived HDR metadata");
 		}
 		// If no monitor-specific metadata, check for template metadata from EDID profile
 		else {
@@ -3521,7 +3447,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 				hasValidMetadata = true;
 				// Store it for this specific monitor for future use
 				g_HdrMetadataStore[MonitorObject] = metadata;
-				vddlog("i", "Using template EDID-derived HDR metadata and storing for monitor");
+				g_log.Message(Refactoring::LogType::Info, "Using template EDID-derived HDR metadata and storing for monitor");
 			}
 		}
 	}
@@ -3531,13 +3457,13 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 		if (g_settings.hdr_advanced.color_primaries.primaries_enabled) {
 			metadata = ConvertManualToSmpteMetadata();
 			hasValidMetadata = metadata.isValid;
-			vddlog("i", "Using manually configured HDR metadata");
+			g_log.Message(Refactoring::LogType::Info, "Using manually configured HDR metadata");
 		}
 	}
 
 	// If we still don't have valid metadata, return early
 	if (!hasValidMetadata) {
-		vddlog("w", "No valid HDR metadata available, skipping configuration");
+		g_log.Message(Refactoring::LogType::Warning, "No valid HDR metadata available, skipping configuration");
 		return STATUS_SUCCESS;
 	}
 
@@ -3548,7 +3474,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	// Note: The actual HDR metadata structure would depend on the IddCx version
 	// For now, we log that the metadata has been processed and stored
 	
-	vddlog("i", std::format("HDR metadata successfully configured and stored for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
+	g_log.Message(Refactoring::LogType::Info, std::format("HDR metadata successfully configured and stored for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 
 	// In a full implementation, you would pass the metadata to the IddCx framework here
 	// The exact API calls would depend on IddCx version and HDR implementation details
@@ -3571,11 +3497,11 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 	stringstream logStream;
 	auto msg1 = std::format("Parsing monitor description:\n  MonitorModeBufferInputCount: {}\n  pMonitorModes: {}",
 						   pInArgs->MonitorModeBufferInputCount, pInArgs->pMonitorModes ? "Valid" : "Null");
-	vddlog("d", msg1.c_str());
-	vddlog("i", "Monitor Modes:");
+	g_log.Message(Refactoring::LogType::Debug, msg1.c_str());
+	g_log.Message(Refactoring::LogType::Info, "Monitor Modes:");
 	for (const auto& mode : monitorModes)
 	{
-		vddlog("d",
+		g_log.Message(Refactoring::LogType::Debug,
 			   std::format("\n Mode - Width : {}, Height: {}, RefreshRate: {}", std::get<0>(mode), std::get<1>(mode), std::get<2>(mode)).c_str());
 	}
 
@@ -3591,12 +3517,12 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 	{
 		// Copy the known modes to the output buffer
 		if (pInArgs->pMonitorModes == nullptr) {
-			vddlog("e", "pMonitorModes is null but buffer size is sufficient");
+			g_log.Message(Refactoring::LogType::Error, "pMonitorModes is null but buffer size is sufficient");
 			return STATUS_INVALID_PARAMETER;
 		}
 		
 
-		vddlog("i", "Writing monitor modes to output buffer:");
+		g_log.Message(Refactoring::LogType::Info, "Writing monitor modes to output buffer:");
 		for (DWORD ModeIndex = 0; ModeIndex < monitorModes.size(); ModeIndex++)
 		{
 			pInArgs->pMonitorModes[ModeIndex].Size = sizeof(IDDCX_MONITOR_MODE2);
@@ -3631,7 +3557,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 			}
 			auto msg2 = std::format("\n  ModeIndex: {}\n  Size: {}\n  Origin: {}\n  Colour Format: {}", ModeIndex,
 								   pInArgs->pMonitorModes[ModeIndex].Size, static_cast<int>(pInArgs->pMonitorModes[ModeIndex].Origin), g_settings.colours.color_format);
-			vddlog("d", msg2.c_str());
+			g_log.Message(Refactoring::LogType::Debug, msg2.c_str());
 		}
 
 		// Set the preferred mode as represented in the EDID
@@ -3651,7 +3577,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 	//UNREFERENCED_PARAMETER(MonitorObject);
 	auto msg1 = std::format("Querying target modes:\n MonitorObject Handle: {:p}\n TargetModeBufferInputCount: {}",
 						   static_cast<void *>(MonitorObject), pInArgs->TargetModeBufferInputCount);
-	vddlog("d", msg1.c_str());
+	g_log.Message(Refactoring::LogType::Debug, msg1.c_str());
 
 	vector<IDDCX_TARGET_MODE2> TargetModes(monitorModes.size());
 
@@ -3659,7 +3585,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 	// monitor's descriptor and instead are based on the static processing capability of the device. The OS will
 	// report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
-	vddlog("d", "Creating target modes:");
+	g_log.Message(Refactoring::LogType::Debug, "Creating target modes:");
 
 	for (int i = 0; i < monitorModes.size(); i++)
 	{
@@ -3669,23 +3595,23 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 
 	pOutArgs->TargetModeBufferOutputCount = (UINT)TargetModes.size();
 
-	vddlog("d", std::format("Output target modes count: {}", pOutArgs->TargetModeBufferOutputCount).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Output target modes count: {}", pOutArgs->TargetModeBufferOutputCount).c_str());
 
 	if (pInArgs->TargetModeBufferInputCount >= TargetModes.size())
 	{
 		copy(TargetModes.begin(), TargetModes.end(), pInArgs->pTargetModes);
 
-		vddlog("i", "Target modes copied to output buffer:");
+		g_log.Message(Refactoring::LogType::Info, "Target modes copied to output buffer:");
 		for (int i = 0; i < TargetModes.size(); i++)
 		{
 			auto msg2 =
 				std::format("\n  TargetModeIndex: {}\n   Size: {}\n   ColourFormat: {}", i, TargetModes[i].Size, g_settings.colours.color_format);
-			vddlog("d", msg2.c_str());
+			g_log.Message(Refactoring::LogType::Debug, msg2.c_str());
 		}
 	}
 	else
 	{
-		vddlog("w", "Input buffer is too small for target modes.");
+		g_log.Message(Refactoring::LogType::Warning, "Input buffer is too small for target modes.");
 	}
 
 	return STATUS_SUCCESS;
@@ -3710,8 +3636,8 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 )
 {
 	stringstream logStream;
-	vddlog("d", "=== PROCESSING GAMMA RAMP REQUEST ===\n\n");
-	vddlog("d", std::format("Monitor Object: {:p}\nColor Space Enabled: {}, Matrix Transform Enabled: {}", static_cast<void *>(MonitorObject),
+	g_log.Message(Refactoring::LogType::Debug, "=== PROCESSING GAMMA RAMP REQUEST ===\n\n");
+	g_log.Message(Refactoring::LogType::Debug, std::format("Monitor Object: {:p}\nColor Space Enabled: {}, Matrix Transform Enabled: {}", static_cast<void *>(MonitorObject),
 							(g_settings.hdr_advanced.color_space.enabled ? "Yes" : "No"),
 							(g_settings.hdr_advanced.color_space.enable_matrix_transform ? "Yes" : "No"))
 					.c_str());
@@ -3719,7 +3645,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	// Check if color space processing is enabled
 	if (!g_settings.hdr_advanced.color_space.enabled)
 	{
-		vddlog("i", "Color space processing is disabled, skipping gamma ramp configuration");
+		g_log.Message(Refactoring::LogType::Info, "Color space processing is disabled, skipping gamma ramp configuration");
 		return STATUS_SUCCESS;
 	}
 
@@ -3733,7 +3659,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 		if (storeIt != g_GammaRampStore.end() && storeIt->second.isValid) {
 			gammaRamp = storeIt->second;
 			hasValidGammaRamp = true;
-			vddlog("i", "Using monitor-specific EDID-derived gamma ramp");
+			g_log.Message(Refactoring::LogType::Info, "Using monitor-specific EDID-derived gamma ramp");
 		}
 		// If no monitor-specific gamma ramp, check for template from EDID profile
 		else {
@@ -3743,7 +3669,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 				hasValidGammaRamp = true;
 				// Store it for this specific monitor for future use
 				g_GammaRampStore[MonitorObject] = gammaRamp;
-				vddlog("i", "Using template EDID-derived gamma ramp and storing for monitor");
+				g_log.Message(Refactoring::LogType::Info, "Using template EDID-derived gamma ramp and storing for monitor");
 			}
 		}
 	}
@@ -3752,18 +3678,18 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	if (!hasValidGammaRamp || g_settings.edid_integration.override_manual_settings) {
 		gammaRamp = ConvertManualToGammaRamp();
 		hasValidGammaRamp = gammaRamp.isValid;
-		vddlog("i", "Using manually configured gamma ramp");
+		g_log.Message(Refactoring::LogType::Info, "Using manually configured gamma ramp");
 	}
 
 	// If we still don't have valid gamma settings, return early
 	if (!hasValidGammaRamp) {
-		vddlog("w", "No valid gamma ramp available, skipping configuration");
+		g_log.Message(Refactoring::LogType::Warning, "No valid gamma ramp available, skipping configuration");
 		return STATUS_SUCCESS;
 	}
 
 	// Log the gamma ramp values being applied
-	vddlog("i", std::format("=== APPLYING GAMMA RAMP AND COLOR SPACE TRANSFORM ===\n").c_str());
-	vddlog("i", std::format("Gamma Value: {}\nColor Space: {}\nUse Matrix Transform: {}", gammaRamp.gamma,
+	g_log.Message(Refactoring::LogType::Info, std::format("=== APPLYING GAMMA RAMP AND COLOR SPACE TRANSFORM ===\n").c_str());
+	g_log.Message(Refactoring::LogType::Info, std::format("Gamma Value: {}\nColor Space: {}\nUse Matrix Transform: {}", gammaRamp.gamma,
 							gammaRamp.colorSpace, gammaRamp.useMatrix ? "Yes" : "No")
 					.c_str());
 
@@ -3775,7 +3701,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 				  << "  [" << gammaRamp.matrix.matrix[0][0] << ", " << gammaRamp.matrix.matrix[0][1] << ", " << gammaRamp.matrix.matrix[0][2] << ", " << gammaRamp.matrix.matrix[0][3] << "]\n"
 				  << "  [" << gammaRamp.matrix.matrix[1][0] << ", " << gammaRamp.matrix.matrix[1][1] << ", " << gammaRamp.matrix.matrix[1][2] << ", " << gammaRamp.matrix.matrix[1][3] << "]\n"
 				  << "  [" << gammaRamp.matrix.matrix[2][0] << ", " << gammaRamp.matrix.matrix[2][1] << ", " << gammaRamp.matrix.matrix[2][2] << ", " << gammaRamp.matrix.matrix[2][3] << "]";
-		vddlog("i", logStream.str().c_str());
+		g_log.Message(Refactoring::LogType::Info, logStream.str().c_str());
 
 		// Store the matrix for this monitor
 		g_GammaRampStore[MonitorObject] = gammaRamp;
@@ -3783,26 +3709,26 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 		// In a full implementation, you would apply the matrix to the rendering pipeline here
 		// The exact API calls would depend on IddCx version and hardware capabilities
 		
-		vddlog("i", std::format("3x4 matrix transform applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
+		g_log.Message(Refactoring::LogType::Info, std::format("3x4 matrix transform applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 	}
 	else if (pInArgs->Type == IDDCX_GAMMARAMP_TYPE_RGB256x3x16)
 	{
 		// Apply traditional RGB gamma ramp
-		vddlog("i", std::format("Applying RGB 256x3x16 gamma ramp with gamma {}", gammaRamp.gamma).c_str());
+		g_log.Message(Refactoring::LogType::Info, std::format("Applying RGB 256x3x16 gamma ramp with gamma {}", gammaRamp.gamma).c_str());
 
 		// In a full implementation, you would generate and apply RGB lookup tables here
 		// Based on the gamma value and color space
-		vddlog("i", std::format("RGB gamma ramp applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
+		g_log.Message(Refactoring::LogType::Info, std::format("RGB gamma ramp applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 	}
 	else
 	{
-		vddlog("w", std::format("Unsupported gamma ramp type: {}, using default gamma processing", static_cast<int>(pInArgs->Type)).c_str());
+		g_log.Message(Refactoring::LogType::Warning, std::format("Unsupported gamma ramp type: {}, using default gamma processing", static_cast<int>(pInArgs->Type)).c_str());
 	}
 
 	// Store the final gamma ramp for this monitor
 	g_GammaRampStore[MonitorObject] = gammaRamp;
 
-	vddlog("i", std::format("Gamma ramp configuration completed for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
+	g_log.Message(Refactoring::LogType::Info, std::format("Gamma ramp configuration completed for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 
 	return STATUS_SUCCESS;
 }
