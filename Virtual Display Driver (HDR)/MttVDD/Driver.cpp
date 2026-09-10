@@ -1056,7 +1056,7 @@ extern "C" BOOL WINAPI DllMain(
 }
 
 
-bool UpdateXmlToggleSetting(bool toggle, const wchar_t* variable) {
+bool UpdateXmlSetting(std::wstring value, const wchar_t* variable) {
 	const wstring settingsname = confpath + L"\\vdd_settings.xml";
 	CComPtr<IStream> pFileStream;
 	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
@@ -1122,7 +1122,7 @@ bool UpdateXmlToggleSetting(bool toggle, const wchar_t* variable) {
 		case XmlNodeType_Text:
 			pReader->GetValue(&pwszValue, nullptr);
 			if (variableElementFound) {
-				pWriter->WriteString(toggle ? L"true" : L"false");
+				pWriter->WriteString(value.c_str());
 				variableElementFound = false;
 			}
 			else {
@@ -1151,7 +1151,7 @@ bool UpdateXmlToggleSetting(bool toggle, const wchar_t* variable) {
 
 	if (variableElementFound) {
 		pWriter->WriteStartElement(nullptr, variable, nullptr);
-		pWriter->WriteString(toggle ? L"true" : L"false");
+		pWriter->WriteString(value.c_str());
 		pWriter->WriteEndElement();
 	}
 
@@ -1170,225 +1170,6 @@ bool UpdateXmlToggleSetting(bool toggle, const wchar_t* variable) {
 	}
 	return true;
 }
-
-
-bool UpdateXmlGpuSetting(const wchar_t* gpuName) {
-	const std::wstring settingsname = confpath + L"\\vdd_settings.xml";
-	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: XML file could not be opened.");
-		return false;
-	}
-
-	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML reader.");
-		return false;
-	}
-	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML reader input.");
-		return false;
-	}
-
-	CComPtr<IStream> pOutFileStream;
-	std::wstring tempFileName = settingsname + L".temp";
-	hr = SHCreateStreamOnFileEx(tempFileName.c_str(), STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &pOutFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create output file stream.");
-		return false;
-	}
-
-	CComPtr<IXmlWriter> pWriter;
-	hr = CreateXmlWriter(__uuidof(IXmlWriter), (void**)&pWriter, nullptr);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML writer.");
-		return false;
-	}
-	hr = pWriter->SetOutput(pOutFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML writer output.");
-		return false;
-	}
-	hr = pWriter->WriteStartDocument(XmlStandalone_Omit);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to write start of the document.");
-		return false;
-	}
-
-	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
-	const wchar_t* pwszValue;
-	bool gpuElementFound = false;
-
-	while (S_OK == pReader->Read(&nodeType)) {
-		switch (nodeType) {
-		case XmlNodeType_Element:
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			pWriter->WriteStartElement(nullptr, pwszLocalName, nullptr);
-			break;
-
-		case XmlNodeType_EndElement:
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			pWriter->WriteEndElement();
-			break;
-
-		case XmlNodeType_Text:
-			pReader->GetValue(&pwszValue, nullptr);
-			if (gpuElementFound) {
-				pWriter->WriteString(gpuName); 
-				gpuElementFound = false;
-			}
-			else {
-				pWriter->WriteString(pwszValue);
-			}
-			break;
-
-		case XmlNodeType_Whitespace:
-			pReader->GetValue(&pwszValue, nullptr);
-			pWriter->WriteWhitespace(pwszValue);
-			break;
-
-		case XmlNodeType_Comment:
-			pReader->GetValue(&pwszValue, nullptr);
-			pWriter->WriteComment(pwszValue);
-			break;
-		}
-
-		if (nodeType == XmlNodeType_Element) {
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (wcscmp(pwszLocalName, L"gpu") == 0) {
-				gpuElementFound = true;
-			}
-		}
-	}
-	hr = pWriter->WriteEndDocument();
-	if (FAILED(hr)) {
-		return false;
-	}
-
-	pFileStream.Release();
-	pOutFileStream.Release();
-	pWriter.Release();
-	pReader.Release();
-
-	if (!MoveFileExW(tempFileName.c_str(), settingsname.c_str(), MOVEFILE_REPLACE_EXISTING)) {
-		return false;
-	}
-	return true;
-}
-
-bool UpdateXmlDisplayCountSetting(int displayCount) {
-	const std::wstring settingsname = confpath + L"\\vdd_settings.xml";
-	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: XML file could not be opened.");
-		return false;
-	}
-
-	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML reader.");
-		return false;
-	}
-	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML reader input.");
-		return false;
-	}
-
-	CComPtr<IStream> pOutFileStream;
-	std::wstring tempFileName = settingsname + L".temp";
-	hr = SHCreateStreamOnFileEx(tempFileName.c_str(), STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &pOutFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create output file stream.");
-		return false;
-	}
-
-	CComPtr<IXmlWriter> pWriter;
-	hr = CreateXmlWriter(__uuidof(IXmlWriter), (void**)&pWriter, nullptr);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML writer.");
-		return false;
-	}
-	hr = pWriter->SetOutput(pOutFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML writer output.");
-		return false;
-	}
-	hr = pWriter->WriteStartDocument(XmlStandalone_Omit);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to write start of the document.");
-		return false;
-	}
-
-	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
-	const wchar_t* pwszValue;
-	bool displayCountElementFound = false;
-
-	while (S_OK == pReader->Read(&nodeType)) {
-		switch (nodeType) {
-		case XmlNodeType_Element:
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			pWriter->WriteStartElement(nullptr, pwszLocalName, nullptr);
-			break;
-
-		case XmlNodeType_EndElement:
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			pWriter->WriteEndElement();
-			break;
-
-		case XmlNodeType_Text:
-			pReader->GetValue(&pwszValue, nullptr);
-			if (displayCountElementFound) {
-				pWriter->WriteString(std::to_wstring(displayCount).c_str());
-				displayCountElementFound = false; 
-			}
-			else {
-				pWriter->WriteString(pwszValue);
-			}
-			break;
-
-		case XmlNodeType_Whitespace:
-			pReader->GetValue(&pwszValue, nullptr);
-			pWriter->WriteWhitespace(pwszValue);
-			break;
-
-		case XmlNodeType_Comment:
-			pReader->GetValue(&pwszValue, nullptr);
-			pWriter->WriteComment(pwszValue);
-			break;
-		}
-
-		if (nodeType == XmlNodeType_Element) {
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (wcscmp(pwszLocalName, L"count") == 0) {
-				displayCountElementFound = true; 
-			}
-		}
-	}
-
-	hr = pWriter->WriteEndDocument();
-	if (FAILED(hr)) {
-		return false;
-	}
-
-	pFileStream.Release();
-	pOutFileStream.Release();
-	pWriter.Release();
-	pReader.Release();
-
-	if (!MoveFileExW(tempFileName.c_str(), settingsname.c_str(), MOVEFILE_REPLACE_EXISTING)) {
-		return false;
-	}
-	return true;
-}
-
 
 LUID getSetAdapterLuid() {
 	AdapterOption& adapterOption = Options.Adapter;
@@ -1474,13 +1255,13 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"LOG_DEBUG", 9) == 0) {
 			wchar_t* param = buffer + 10;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"debuglogging");
+				UpdateXmlSetting(L"true", L"debuglogging");
 				g_settings.logs.enable_debug_logs = true;
 				g_log.Message(Refactoring::LogType::Companion, "Pipe debugging enabled");
 				g_log.Message(Refactoring::LogType::Debug, "Debug Logs Enabled");
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"debuglogging");
+				UpdateXmlSetting(L"false", L"debuglogging");
 				g_settings.logs.enable_debug_logs = false;
 				g_log.Message(Refactoring::LogType::Companion, "Debugging disabled");
 			}
@@ -1488,12 +1269,12 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"LOGGING", 7) == 0) {
 			wchar_t* param = buffer + 8;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"logging");
+				UpdateXmlSetting(L"true", L"logging");
 				g_settings.logs.enable_standard_logs = true;
 				g_log.Message(Refactoring::LogType::Companion, "Logging Enabled");
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"logging");
+				UpdateXmlSetting(L"false", L"logging");
 				g_settings.logs.enable_standard_logs = false;
 				g_log.Message(Refactoring::LogType::Companion, "Logging disabled"); // We can keep this here just to make it delete the logs on disable
 			}
@@ -1501,12 +1282,12 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"HDRPLUS", 7) == 0) {
 			wchar_t* param = buffer + 8;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"HDRPlus");
+				UpdateXmlSetting(L"true", L"HDRPlus");
 				g_log.Message(Refactoring::LogType::Companion, "HDR+ Enabled"); 
 				ReloadDriver(hPipe);
 			} 
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"HDRPlus");
+				UpdateXmlSetting(L"false", L"HDRPlus");
 				g_log.Message(Refactoring::LogType::Companion, "HDR+ Disabled");
 				ReloadDriver(hPipe);
 			}
@@ -1514,12 +1295,12 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"SDR10", 5) == 0) {
 			wchar_t* param = buffer + 6;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"SDR10bit");
+				UpdateXmlSetting(L"true", L"SDR10bit");
 				g_log.Message(Refactoring::LogType::Companion, "SDR 10 Bit Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"SDR10bit");
+				UpdateXmlSetting(L"false", L"SDR10bit");
 				g_log.Message(Refactoring::LogType::Companion, "SDR 10 Bit Disabled");
 				ReloadDriver(hPipe);
 			}
@@ -1527,12 +1308,12 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"CUSTOMEDID", 10) == 0) {
 			wchar_t* param = buffer + 11;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"CustomEdid");
+				UpdateXmlSetting(L"true", L"CustomEdid");
 				g_log.Message(Refactoring::LogType::Companion, "Custom Edid Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"CustomEdid");
+				UpdateXmlSetting(L"false", L"CustomEdid");
 				g_log.Message(Refactoring::LogType::Companion, "Custom Edid Disabled");
 				ReloadDriver(hPipe);
 			}
@@ -1540,12 +1321,12 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"PREVENTSPOOF", 12) == 0) {
 			wchar_t* param = buffer + 13;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"PreventSpoof");
+				UpdateXmlSetting(L"true", L"PreventSpoof");
 				g_log.Message(Refactoring::LogType::Companion, "Prevent Spoof Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"PreventSpoof");
+				UpdateXmlSetting(L"false", L"PreventSpoof");
 				g_log.Message(Refactoring::LogType::Companion, "Prevent Spoof Disabled");
 				ReloadDriver(hPipe);
 			}
@@ -1553,12 +1334,12 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"CEAOVERRIDE", 11) == 0) {
 			wchar_t* param = buffer + 12;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"EdidCeaOverride");
+				UpdateXmlSetting(L"true", L"EdidCeaOverride");
 				g_log.Message(Refactoring::LogType::Companion, "Cea override Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"EdidCeaOverride");
+				UpdateXmlSetting(L"false", L"EdidCeaOverride");
 				g_log.Message(Refactoring::LogType::Companion, "Cea override Disabled");
 				ReloadDriver(hPipe);
 			}
@@ -1566,12 +1347,12 @@ void HandleClient(HANDLE hPipe) {
 		else if (wcsncmp(buffer, L"HARDWARECURSOR", 14) == 0) {
 			wchar_t* param = buffer + 15;
 			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlToggleSetting(true, L"HardwareCursor");
+				UpdateXmlSetting(L"true", L"HardwareCursor");
 				g_log.Message(Refactoring::LogType::Companion, "Hardware Cursor Enabled");
 				ReloadDriver(hPipe);
 			}
 			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlToggleSetting(false, L"HardwareCursor");
+				UpdateXmlSetting(L"false", L"HardwareCursor");
 				g_log.Message(Refactoring::LogType::Companion, "Hardware Cursor Disabled");
 				ReloadDriver(hPipe);
 			}
@@ -1601,7 +1382,8 @@ void HandleClient(HANDLE hPipe) {
 			gpuName = gpuName.substr(1, gpuName.size() - 2); 
 
 			g_log.Message(Refactoring::LogType::Companion, std::format("Setting GPU to: {}", Refactoring::WStringToString(gpuName)).c_str());
-			if (UpdateXmlGpuSetting(gpuName.c_str())) {
+			if (UpdateXmlSetting(gpuName, L"friendlyname"))
+			{
 				g_log.Message(Refactoring::LogType::Companion, "Gpu Changed, Restarting Driver");
 			}
 			else {
@@ -1617,7 +1399,8 @@ void HandleClient(HANDLE hPipe) {
 
 			g_log.Message(Refactoring::LogType::Companion, std::format("Setting display count  to {}", newDisplayCount).c_str());
 
-			if (UpdateXmlDisplayCountSetting(newDisplayCount)){
+			if (UpdateXmlSetting(std::to_wstring(newDisplayCount), L"count"))
+			{
 				g_log.Message(Refactoring::LogType::Companion, "Display Count Changed, Restarting Driver");
 			}
 			else {
