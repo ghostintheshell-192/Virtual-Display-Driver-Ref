@@ -503,10 +503,7 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
              // Secondary sort: refresh rate
              return get<3>(a) > get<3>(b);  // Higher refresh rate first
          });
-    
-    stringstream ss;
-    ss << "Generated " << generatedModes.size() << " modes from EDID (filtered from " << profile.modes.size() << " total)";
-    vddlog("i", ss.str().c_str());
+	vddlog("i", std::format("Generated {} modes from EDID (filtered from {} total)", generatedModes.size(), profile.modes.size()).c_str());
     
     return generatedModes;
 }
@@ -533,11 +530,8 @@ tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profi
             get<1>(mode) == profile.preferredHeight) {
             // Found matching resolution, use it
             preferredMode = mode;
-            
-            stringstream ss;
-            ss << "Found EDID preferred mode: " << profile.preferredWidth << "x" << profile.preferredHeight 
-               << "@" << get<3>(mode) << "Hz";
-            vddlog("i", ss.str().c_str());
+			vddlog("i",
+				   std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferredWidth, profile.preferredHeight, get<3>(mode)).c_str());
             break;
         }
     }
@@ -580,11 +574,8 @@ vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, 
                 mergedModes.push_back(edidMode);
             }
         }
-        
-        stringstream ss;
-        ss << "Combined modes: " << manualModes.size() << " manual + " 
-           << (mergedModes.size() - manualModes.size()) << " unique EDID = " << mergedModes.size() << " total";
-        vddlog("i", ss.str().c_str());
+		vddlog("i", std::format("Combined modes: {} manual + {} unique EDID = {} total", 
+								manualModes.size(), edidModes.size(), mergedModes.size()).c_str());
     }
     
     return mergedModes;
@@ -622,9 +613,7 @@ vector<tuple<int, int, int, int>> OptimizeModeList(const vector<tuple<int, int, 
     const size_t maxModes = 32;
     if (optimizedModes.size() > maxModes) {
         optimizedModes.resize(maxModes);
-        stringstream ss;
-        ss << "Limited mode list to " << maxModes << " modes for optimal performance";
-        vddlog("i", ss.str().c_str());
+		vddlog("i", std::format("Limited mode list to {} modes for optimal performance", maxModes).c_str());
     }
     
     return optimizedModes;
@@ -699,7 +688,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 	std::wstring currentSection;
 	
 	// Temporary mode data
-	int tempWidth = 0, tempHeight = 0, tempRefreshRateMultiplier = 1000, tempNominalRefreshRate = 60;
+	int tWidth = 0, tHeight = 0, tRefreshRateMultiplier = 1000, tNominalRefreshRate = 60;
 
 	while (S_OK == (hr = pReader->Read(&nodeType))) {
 		switch (nodeType) {
@@ -724,22 +713,24 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 			// Parse monitor modes
 			if (currentSection == L"MonitorModes") {
 				if (currentElement == L"Width") {
-					tempWidth = stoi(value);
+					tWidth = stoi(value);
 				}
 				else if (currentElement == L"Height") {
-					tempHeight = stoi(value);
+					tHeight = stoi(value);
 				}
 				else if (currentElement == L"RefreshRateMultiplier") {
-					tempRefreshRateMultiplier = stoi(value);
+					tRefreshRateMultiplier = stoi(value);
 				}
 				else if (currentElement == L"NominalRefreshRate") {
-					tempNominalRefreshRate = stoi(value);
+					tNominalRefreshRate = stoi(value);
 					// Complete mode entry
-					if (tempWidth > 0 && tempHeight > 0) {
-						profile.modes.push_back(make_tuple(tempWidth, tempHeight, tempRefreshRateMultiplier, tempNominalRefreshRate));
-						stringstream ss;
-						ss << "EDID Mode: " << tempWidth << "x" << tempHeight << " @ " << tempRefreshRateMultiplier << "/" << tempNominalRefreshRate << "Hz";
-						vddlog("d", ss.str().c_str());
+					if (tWidth > 0 && tHeight > 0)
+					{
+						profile.modes.push_back(
+							make_tuple(tWidth, tHeight, tRefreshRateMultiplier, tNominalRefreshRate));
+						vddlog("d", std::format("EDID Mode: {}x{} @{}/{}Hz", tWidth, tHeight, tRefreshRateMultiplier,
+												tNominalRefreshRate)
+										.c_str());
 					}
 				}
 			}
@@ -810,10 +801,8 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 		}
 	}
 
-	stringstream ss;
-	ss << "EDID Profile loaded: " << profile.modes.size() << " modes, HDR10: " << (profile.hdr10Supported ? "Yes" : "No") 
-	   << ", Color space: " << profile.primaryColorSpace;
-	vddlog("i", ss.str().c_str());
+	vddlog("i", std::format("EDID Profile loaded: {} modes, HDR10: {}, Color space: {}", profile.modes.size(),
+							profile.hdr10Supported ? "Yes" : "No", profile.primaryColorSpace).c_str());
 	
 	return true;
 }
@@ -941,10 +930,10 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 			   << "  Matrix Transform: " << (gammaRamp.useMatrix ? "Enabled" : "Disabled");
 			
 			if (gammaRamp.useMatrix) {
-				ss << "\n  3x4 Matrix:\n"
-				   << "    [" << gammaRamp.matrix.matrix[0][0] << ", " << gammaRamp.matrix.matrix[0][1] << ", " << gammaRamp.matrix.matrix[0][2] << ", " << gammaRamp.matrix.matrix[0][3] << "]\n"
-				   << "    [" << gammaRamp.matrix.matrix[1][0] << ", " << gammaRamp.matrix.matrix[1][1] << ", " << gammaRamp.matrix.matrix[1][2] << ", " << gammaRamp.matrix.matrix[1][3] << "]\n"
-				   << "    [" << gammaRamp.matrix.matrix[2][0] << ", " << gammaRamp.matrix.matrix[2][1] << ", " << gammaRamp.matrix.matrix[2][2] << ", " << gammaRamp.matrix.matrix[2][3] << "]";
+				ss << "\n3x4 Matrix:\n"
+				   << "[" << gammaRamp.matrix.matrix[0][0] << ", " << gammaRamp.matrix.matrix[0][1] << ", " << gammaRamp.matrix.matrix[0][2] << ", " << gammaRamp.matrix.matrix[0][3] << "]\n"
+				   << "[" << gammaRamp.matrix.matrix[1][0] << ", " << gammaRamp.matrix.matrix[1][1] << ", " << gammaRamp.matrix.matrix[1][2] << ", " << gammaRamp.matrix.matrix[1][3] << "]\n"
+				   << "[" << gammaRamp.matrix.matrix[2][0] << ", " << gammaRamp.matrix.matrix[2][1] << ", " << gammaRamp.matrix.matrix[2][2] << ", " << gammaRamp.matrix.matrix[2][3] << "]";
 			}
 			
 			vddlog("i", ss.str().c_str());
@@ -1059,17 +1048,14 @@ void vddlog(const char* type, const char* message) {
 	}
 }
 
-
-
 void LogIddCxVersion() {
 	IDARG_OUT_GETVERSION outArgs;
 	NTSTATUS status = IddCxGetVersion(&outArgs);
 
 	if (NT_SUCCESS(status)) {
-		char versionStr[16];
-		sprintf_s(versionStr, "0x%lx", outArgs.IddCxVersion);
-		string logMessage = "IDDCX Version: " + string(versionStr);
-		vddlog("i", logMessage.c_str());
+		//char versionStr[16];
+		//sprintf_s(versionStr, "0x%lx", outArgs.IddCxVersion);
+		vddlog("i", std::format("IDDCX Version: {:#x}", outArgs.IddCxVersion).c_str());
 	}
 	else {
 		vddlog("i", "Failed to get IDDCX version");
@@ -1551,10 +1537,6 @@ void logAvailableGPUs() {
 	}
 }
 
-
-
-
-
 void ReloadDriver(HANDLE hPipe) {
 	auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(hPipe);
 	if (pContext && pContext->pContext) {
@@ -1562,7 +1544,6 @@ void ReloadDriver(HANDLE hPipe) {
 		vddlog("i", "Adapter reinitialized");
 	}
 }
-
 
 void HandleClient(HANDLE hPipe) {
 	g_pipeHandle = hPipe;
@@ -1572,11 +1553,8 @@ void HandleClient(HANDLE hPipe) {
 	BOOL result = ReadFile(hPipe, buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL);
 	if (result && bytesRead != 0) {
 		buffer[bytesRead / sizeof(wchar_t)] = L'\0';
-		wstring bufferwstr(buffer);
-		int bufferSize = WideCharToMultiByte(CP_UTF8, 0, bufferwstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-		string bufferstr(bufferSize, 0);
-		WideCharToMultiByte(CP_UTF8, 0, bufferwstr.c_str(), -1, &bufferstr[0], bufferSize, nullptr, nullptr);
-		vddlog("p", bufferstr.c_str());
+		vddlog("p", Refactoring::WStringToString(buffer).c_str());
+
 		if (wcsncmp(buffer, L"RELOAD_DRIVER", 13) == 0) {
 			vddlog("c", "Reloading the driver");
 			ReloadDriver(hPipe);
@@ -1703,7 +1681,7 @@ void HandleClient(HANDLE hPipe) {
 		}
 		else if (wcsncmp(buffer, L"GETALLGPUS", 10) == 0) {
 			vddlog("c", "Logging all GPUs");
-			vddlog("i", "Any GPUs which show twice but you only have one, will most likely be the GPU the driver is attached to");
+			vddlog("i", "If any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
 			logAvailableGPUs();
 			vddlog("c", "Logged all GPUs");
 		}  
@@ -1711,11 +1689,7 @@ void HandleClient(HANDLE hPipe) {
 			std::wstring gpuName = buffer + 7;
 			gpuName = gpuName.substr(1, gpuName.size() - 2); 
 
-			int size_needed = WideCharToMultiByte(CP_UTF8, 0, gpuName.c_str(), static_cast<int>(gpuName.length()), nullptr, 0, nullptr, nullptr);
-			std::string gpuNameNarrow(size_needed, 0);
-			WideCharToMultiByte(CP_UTF8, 0, gpuName.c_str(), static_cast<int>(gpuName.length()), &gpuNameNarrow[0], size_needed, nullptr, nullptr);
-
-			vddlog("c", ("Setting GPU to: " + gpuNameNarrow).c_str());
+			vddlog("c", std::format("Setting GPU to: {}", Refactoring::WStringToString(gpuName)).c_str());
 			if (UpdateXmlGpuSetting(gpuName.c_str())) {
 				vddlog("c", "Gpu Changed, Restarting Driver");
 			}
@@ -1730,8 +1704,7 @@ void HandleClient(HANDLE hPipe) {
 			int newDisplayCount = 1;
 			swscanf_s(buffer + 15, L"%d", &newDisplayCount);
 
-			std::wstring displayLog = L"Setting display count  to " + std::to_wstring(newDisplayCount);
-			vddlog("c", Refactoring::WStringToString(displayLog).c_str());
+			vddlog("c", std::format("Setting display count  to {}", newDisplayCount).c_str());
 
 			if (UpdateXmlDisplayCountSetting(newDisplayCount)){
 				vddlog("c", "Display Count Changed, Restarting Driver");
@@ -1761,12 +1734,7 @@ void HandleClient(HANDLE hPipe) {
 		}
 		else {
 			vddlog("e", "Unknown command");
-
-			size_t size_needed;
-			wcstombs_s(&size_needed, nullptr, 0, buffer, 0);
-			std::string narrowString(size_needed, 0);
-			wcstombs_s(nullptr, &narrowString[0], size_needed, buffer, size_needed);
-			vddlog("e", narrowString.c_str());
+			vddlog("e", Refactoring::WStringToString(buffer).c_str());
 		}
 	}
 	DisconnectNamedPipe(hPipe);
@@ -1785,9 +1753,7 @@ DWORD WINAPI NamedPipeServer(LPVOID lpParam) {
 	vddlog("d", "Starting pipe with parameters: D:(A;;GA;;;WD)");
 	if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
 		sddl, SDDL_REVISION_1, &sa.lpSecurityDescriptor, NULL)) {
-		DWORD ErrorCode = GetLastError();
-		string errorMessage = to_string(ErrorCode);
-		vddlog("e", errorMessage.c_str());
+		vddlog("e", std::format("[Named Pipe Server] Error Converting security descriptor to wide-string. Error code: {}", GetLastError()).c_str());
 		return 1;
 	}
 	HANDLE hPipe;
@@ -1802,9 +1768,7 @@ DWORD WINAPI NamedPipeServer(LPVOID lpParam) {
 			&sa);
 
 		if (hPipe == INVALID_HANDLE_VALUE) {
-			DWORD ErrorCode = GetLastError();
-			string errorMessage = to_string(ErrorCode);
-			vddlog("e", errorMessage.c_str());
+			vddlog("e", std::format("[Named Pipe Server] Pipe handle invalid. Error code: {}", GetLastError()).c_str());
 			LocalFree(sa.lpSecurityDescriptor);
 			return 1;
 		}
@@ -1826,9 +1790,7 @@ void StartNamedPipeServer() {
 	vddlog("p", "Starting Pipe");
 	hPipeThread = CreateThread(NULL, 0, NamedPipeServer, NULL, 0, NULL);
 	if (hPipeThread == NULL) {
-		DWORD ErrorCode = GetLastError();
-		string errorMessage = to_string(ErrorCode);
-		vddlog("e", errorMessage.c_str());
+		vddlog("e", std::format("Pipe was not created. Error code: {}", GetLastError()).c_str());
 	}
 	else {
 		vddlog("p", "Pipe created");
@@ -1912,9 +1874,7 @@ extern "C" NTSTATUS DriverEntry(
 	vddlog("i", ("Selected Xor Cursor Support Level: " + xorCursorSupportLevelName).c_str());
 
 	vddlog("i", "Driver Starting");
-	string utf8_confpath = Refactoring::WStringToString(confpath);
-	string logtext = "VDD Path: " + utf8_confpath;
-	vddlog("i", logtext.c_str());
+	vddlog("i", Refactoring::WStringToString(confpath).c_str());
 	LogIddCxVersion();
 
 	Status = WdfDriverCreate(pDriverObject, pRegistryPath, &Attributes, &Config, WDF_NO_HANDLE);
@@ -2106,34 +2066,38 @@ void loadSettings() {
 	ifstream ifs(optionsname);
 	if (ifs.is_open()) {
     string line;
-    if (getline(ifs, line) && !line.empty()) {
-        numVirtualDisplays = stoi(line);
-        vector<tuple<int, int, int, int>> res; 
+		if (getline(ifs, line) && !line.empty())
+		{
+			numVirtualDisplays = stoi(line);
+			vector<tuple<int, int, int, int>> res;
 
-        while (getline(ifs, line)) {
-            vector<string> strvec = split(line, ',');
-            if (strvec.size() == 3 && strvec[0].substr(0, 1) != "#") {
-                int vsync_num, vsync_den;
-                float_to_vsync(stof(strvec[2]), vsync_num, vsync_den); 
-                res.push_back({ stoi(strvec[0]), stoi(strvec[1]), vsync_num, vsync_den });
-            }
-        }
+			while (getline(ifs, line))
+			{
+				vector<string> strvec = split(line, ',');
+				if (strvec.size() == 3 && strvec[0].substr(0, 1) != "#")
+				{
+					int vsync_num, vsync_den;
+					float_to_vsync(stof(strvec[2]), vsync_num, vsync_den);
+					res.push_back({stoi(strvec[0]), stoi(strvec[1]), vsync_num, vsync_den});
+				}
+			}
 
-        vddlog("i", "Using option.txt");
-        monitorModes = res;
-        RebuildKnownMonitorModesCache();
-        for (const auto& mode : res) {
-            int width, height, vsync_num, vsync_den;
-            tie(width, height, vsync_num, vsync_den) = mode;
-            stringstream ss;
-            ss << "Resolution: " << width << "x" << height << " @ " << vsync_num << "/" << vsync_den << "Hz";
-            vddlog("d", ss.str().c_str());
-        }
-		return;
-    } else {
-        vddlog("w", "option.txt is empty or the first line is invalid. Enabling Fallback");
-    }
-}
+			vddlog("i", "Using option.txt");
+			monitorModes = res;
+			RebuildKnownMonitorModesCache();
+			for (const auto &mode : res)
+			{
+				int width, height, vsync_num, vsync_den;
+				tie(width, height, vsync_num, vsync_den) = mode;
+				vddlog("d", std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
+			}
+			return;
+		}
+		else
+		{
+			vddlog("w", "option.txt is empty or the first line is invalid. Enabling Fallback");
+		}
+	}
 
 
 	numVirtualDisplays = 1;
@@ -2187,12 +2151,9 @@ void loadSettings() {
 		int vsync_num, vsync_den;
 		float_to_vsync(refreshRate, vsync_num, vsync_den);
 
-		stringstream ss;
 		res.push_back(make_tuple(width, height, vsync_num, vsync_den));
 
-
-		ss << "Resolution: " << width << "x" << height << " @ " << vsync_num << "/" << vsync_den << "Hz";
-		vddlog("d", ss.str().c_str());
+		vddlog("d", std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
 	}
 
 	monitorModes = res;
@@ -2206,13 +2167,12 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 {
 	NTSTATUS Status = STATUS_SUCCESS;
 	WDF_PNPPOWER_EVENT_CALLBACKS PnpPowerCallbacks;
-	stringstream logStream;
 
 	UNREFERENCED_PARAMETER(Driver);
 
-	logStream << "Initializing device:"
-		<< "\n  DeviceInit Pointer: " << static_cast<void*>(pDeviceInit);
-	vddlog("d", logStream.str().c_str());
+	//logStream << "Initializing device:"
+	//	<< "\n  DeviceInit Pointer: " << static_cast<void*>(pDeviceInit);
+	vddlog("d", std::format("Initializing device:\n  DeviceInit Pointer: {}", static_cast<void *>(pDeviceInit)).c_str());
 
 	// Register for power callbacks - in this sample only power-on is needed
 	WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&PnpPowerCallbacks);
@@ -2222,6 +2182,7 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 	IDD_CX_CLIENT_CONFIG IddConfig;
 	IDD_CX_CLIENT_CONFIG_INIT(&IddConfig);
 
+	stringstream logStream;
 	logStream.str("");
 	logStream << "Configuring IDD_CX client:"
 		<< "\n  EvtIddCxAdapterInitFinished: " << (IddConfig.EvtIddCxAdapterInitFinished ? "Set" : "Not Set")
@@ -2235,20 +2196,18 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 	// IddConfig.EvtIddCxDeviceIoControl = VirtualDisplayDriverIoDeviceControl;
 
 	loadSettings();
-	logStream.str("");
+
 	if (gpuname.empty() || gpuname == L"default") {
 		const wstring adaptername = confpath + L"\\adapter.txt";
 		Options.Adapter.load(adaptername.c_str());
-		logStream << "Attempting to Load GPU from adapter.txt";
+		vddlog("i", "Attempting to Load GPU from adapter.txt");
 	}
 	else {
 		Options.Adapter.xmlprovide(gpuname);
-		logStream << "Loading GPU from vdd_settings.xml";
+		vddlog("i", "Loading GPU from vdd_settings.xml");
 	}
-	vddlog("i", logStream.str().c_str());
+
 	GetGpuInfo();
-
-
 
 	IddConfig.EvtIddCxAdapterInitFinished = VirtualDisplayDriverAdapterInitFinished;
 
@@ -2274,9 +2233,7 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 	Status = IddCxDeviceInitConfig(pDeviceInit, &IddConfig);
 	if (!NT_SUCCESS(Status))
 	{
-		logStream.str("");
-		logStream << "IddCxDeviceInitConfig failed with status: " << Status;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("IddCxDeviceInitConfig failed with status: {}", Status).c_str());
 		return Status;
 	}
 
@@ -2292,26 +2249,20 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 			}
 		};
 
-	logStream.str(""); 
-	logStream << "Creating device with WdfDeviceCreate:";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "Creating device with WdfDeviceCreate:");
 
 	WDFDEVICE Device = nullptr;
 	Status = WdfDeviceCreate(&pDeviceInit, &Attr, &Device);
 	if (!NT_SUCCESS(Status))
 	{
-		logStream.str(""); 
-		logStream << "WdfDeviceCreate failed with status: " << Status;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("WdfDeviceCreate failed with status: {}", Status).c_str());
 		return Status;
 	}
 
 	Status = IddCxDeviceInitialize(Device);
 	if (!NT_SUCCESS(Status))
 	{
-		logStream.str(""); 
-		logStream << "IddCxDeviceInitialize failed with status: " << Status;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("IddCxDeviceInitialize failed with status: {}", Status).c_str());
 		return Status;
 	}
 
@@ -2325,15 +2276,11 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 	if (pContext)
 	{
 		pContext->pContext = new IndirectDeviceContext(Device);
-		logStream.str(""); 
-		logStream << "Device context initialized and attached to WDF device.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "Device context initialized and attached to WDF device.");
 	}
 	else
 	{
-		logStream.str(""); 
-		logStream << "Failed to get device context wrapper.";
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", "Failed to get device context wrapper.");
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 	return Status;
@@ -2362,21 +2309,12 @@ NTSTATUS VirtualDisplayDriverDeviceD0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_ST
 	auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(Device);
 	if (pContext && pContext->pContext)
 	{
-		logStream.str("");
-		logStream << "Initializing adapter...";
-		vddlog("d", logStream.str().c_str());
-
-
 		pContext->pContext->InitAdapter();
-		logStream.str(""); 
-		logStream << "InitAdapter called successfully.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "InitAdapter called successfully.");
 	}
 	else
 	{
-		logStream.str(""); 
-		logStream << "Failed to get device context.";
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", "Failed to get device context.");
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
@@ -2397,41 +2335,30 @@ Direct3DDevice::Direct3DDevice() : AdapterLuid({})
 HRESULT Direct3DDevice::Init()
 {
 	HRESULT hr;
-	stringstream logStream;
-
 	// The DXGI factory could be cached, but if a new render adapter appears on the system, a new factory needs to be
 	// created. If caching is desired, check DxgiFactory->IsCurrent() each time and recreate the factory if !IsCurrent.
 
-	logStream << "Initializing Direct3DDevice...";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "Initializing Direct3DDevice...");
 
 	hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&DxgiFactory));
 	if (FAILED(hr))
 	{
-		logStream.str(""); 
-		logStream << "Failed to create DXGI factory. HRESULT: " << hr;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to create DXGI factory. HRESULT: {}", hr).c_str());
 		return hr;
 	}
-	logStream.str(""); 
-	logStream << "DXGI factory created successfully.";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "DXGI factory created successfully.");
 
 	// Find the specified render adapter
 	hr = DxgiFactory->EnumAdapterByLuid(AdapterLuid, IID_PPV_ARGS(&Adapter));
 	if (FAILED(hr))
 	{
-		logStream.str(""); 
-		logStream << "Failed to enumerate adapter by LUID. HRESULT: " << hr;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to enumerate adapter by LUID. HRESULT: {}", hr).c_str());
 		return hr;
 	}
 
 	DXGI_ADAPTER_DESC desc;
 	Adapter->GetDesc(&desc);
-	logStream.str("");
-	logStream << "Adapter found: " << desc.Description << " (Vendor ID: " << desc.VendorId << ", Device ID: " << desc.DeviceId << ")";
-	vddlog("i", logStream.str().c_str());
+	vddlog("i", std::format("Adapter found: {} (Vendor ID: {}, Device ID: {})", Refactoring::WStringToString(desc.Description), desc.VendorId, desc.DeviceId).c_str());
 
 
 #if 0 // Test code
@@ -2456,18 +2383,12 @@ HRESULT Direct3DDevice::Init()
 	{
 		// If creating the D3D device failed, it's possible the render GPU was lost (e.g. detachable GPU) or else the
 		// system is in a transient state.
-		logStream.str(""); 
-		logStream << "Failed to create Direct3D device. HRESULT: " << hr;
-		vddlog("e", logStream.str().c_str());
-		logStream.str("");
-		logStream << "If creating the D3D device failed, it's possible the render GPU was lost (e.g. detachable GPU) or else the system is in a transient state. " << hr;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to create Direct3D device. HRESULT: {}", hr).c_str());
+		vddlog("e", std::format("If creating the D3D device failed, it's possible the render GPU was lost (e.g. detachable GPU) or else the system "
+								"is in a transient state. {}", hr).c_str());
 		return hr;
 	}
-
-	logStream.str("");
-	logStream << "Direct3D device created successfully. Feature Level: " << featureLevel;
-	vddlog("i", logStream.str().c_str());
+	vddlog("i", std::format("Direct3D device created successfully. Feature Level: {:#x}", static_cast<int>(featureLevel)).c_str());
 
 	return S_OK;
 }
@@ -2490,30 +2411,22 @@ SwapChainProcessor::SwapChainProcessor(IDDCX_SWAPCHAIN hSwapChain, shared_ptr<Di
 	m_hTerminateEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
 	if (!m_hTerminateEvent.Get())
 	{
-		logStream.str("");
-		logStream << "Failed to create terminate event. GetLastError: " << GetLastError();
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to create terminate event. GetLastError: {}", GetLastError()).c_str());
 	}
 	else
 	{
-		logStream.str("");
-		logStream << "Terminate event created successfully.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "Terminate event created successfully.");
 	}
 
 	// Immediately create and run the swap-chain processing thread, passing 'this' as the thread parameter
 	m_hThread.Attach(CreateThread(nullptr, 0, RunThread, this, 0, nullptr));
 	if (!m_hThread.Get())
 	{
-		logStream.str("");
-		logStream << "Failed to create swap-chain processing thread. GetLastError: " << GetLastError();
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to create swap-chain processing thread. GetLastError: {}", GetLastError()).c_str());
 	}
 	else
 	{
-		logStream.str("");
-		logStream << "Swap-chain processing thread created and started successfully.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "Swap-chain processing thread created and started successfully.");
 	}
 }
 
@@ -2529,15 +2442,11 @@ SwapChainProcessor::~SwapChainProcessor()
 
 	if (SetEvent(m_hTerminateEvent.Get()))
 	{
-		logStream.str(""); 
-		logStream << "Terminate event signaled successfully.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "Terminate event signaled successfully.");
 	}
 	else
 	{
-		logStream.str(""); 
-		logStream << "Failed to signal terminate event. GetLastError: " << GetLastError();
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to signal terminate event. GetLastError: {}", GetLastError()).c_str());
 	}
 
 	if (m_hThread.Get())
@@ -2547,52 +2456,35 @@ SwapChainProcessor::~SwapChainProcessor()
 		switch (waitResult)
 		{
 		case WAIT_OBJECT_0:
-			logStream.str(""); 
-			logStream << "Thread terminated successfully.";
-			vddlog("d", logStream.str().c_str());
+			vddlog("d", "Thread terminated successfully.");
 			break;
 		case WAIT_ABANDONED:
-			logStream.str(""); 
-			logStream << "Thread wait was abandoned. GetLastError: " << GetLastError();
-			vddlog("e", logStream.str().c_str());
+			vddlog("e", std::format("Thread wait was abandoned. GetLastError: {}", GetLastError()).c_str());
 			break;
 		case WAIT_TIMEOUT:
-			logStream.str(""); 
-			logStream << "Thread wait timed out. This should not happen. GetLastError: " << GetLastError();
-			vddlog("e", logStream.str().c_str());
+			vddlog("e", std::format("Thread wait timed out. This should not happen. GetLastError: {}", GetLastError()).c_str());
 			break;
 		default:
-			logStream.str(""); 
-			logStream << "Unexpected result from WaitForSingleObject. GetLastError: " << GetLastError();
-			vddlog("e", logStream.str().c_str());
+			vddlog("e", std::format("Unexpected result from WaitForSingleObject. GetLastError: {}", GetLastError()).c_str());
 			break;
 		}
 	}
 	else
 	{
-		logStream.str("");
-		logStream << "No valid thread handle to wait for.";
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", "No valid thread handle to wait for.");
 	}
 }
 
 DWORD CALLBACK SwapChainProcessor::RunThread(LPVOID Argument)
 {
-	stringstream logStream;
-
-	logStream << "RunThread started. Argument: " << Argument;
-	vddlog("d", logStream.str().c_str());
-
+	vddlog("d", std::format("RunThread started. Argument: {}", Argument).c_str());
 	reinterpret_cast<SwapChainProcessor*>(Argument)->Run();
 	return 0;
 }
 
 void SwapChainProcessor::Run()
 {
-	stringstream logStream;
-
-	logStream << "Run method started.";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "Run method started.");
 
 	// For improved performance, make use of the Multimedia Class Scheduler Service, which will intelligently
 	// prioritize this thread for improved throughput in high CPU-load scenarios.
@@ -2601,22 +2493,16 @@ void SwapChainProcessor::Run()
 
 	if (AvTaskHandle)
 	{
-		logStream.str("");
-		logStream << "Multimedia thread characteristics set successfully. AvTask: " << AvTask;
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", std::format("Multimedia thread characteristics set successfully. AvTask: {}", AvTask).c_str());
 	}
 	else
 	{
-		logStream.str(""); 
-		logStream << "Failed to set multimedia thread characteristics. GetLastError: " << GetLastError();
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to set multimedia thread characteristics. GetLastError: {}", GetLastError()).c_str());
 	}
 
 	RunCore();
 
-	logStream.str(""); 
-	logStream << "Core processing function RunCore() completed.";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "Core processing function RunCore() completed.");
 
 	// Always delete the swap-chain object when swap-chain processing loop terminates in order to kick the system to
 	// provide a new swap-chain if necessary.
@@ -2627,31 +2513,23 @@ void SwapChainProcessor::Run()
 	if (m_hSwapChain)
 	{
 		WdfObjectDelete((WDFOBJECT)m_hSwapChain);
-		logStream.str("");
-		logStream << "Swap-chain object deleted.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "Swap-chain object deleted.");
 		m_hSwapChain = nullptr;
 	}
 	else
 	{
-		logStream.str("");
-		logStream << "No valid swap-chain object to delete.";
-		vddlog("w", logStream.str().c_str());
+		vddlog("w", "No valid swap-chain object to delete.");
 	}
 	/*
 	AvRevertMmThreadCharacteristics(AvTaskHandle);
 	*/ //error handling when reversing multimedia thread characteristics 
 	if (AvRevertMmThreadCharacteristics(AvTaskHandle))
 	{
-		logStream.str(""); 
-		logStream << "Multimedia thread characteristics reverted successfully.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "Multimedia thread characteristics reverted successfully.");
 	}
 	else
 	{
-		logStream.str(""); 
-		logStream << "Failed to revert multimedia thread characteristics. GetLastError: " << GetLastError();
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to revert multimedia thread characteristics. GetLastError: {}", GetLastError()).c_str());
 	}
 }
 
@@ -2668,11 +2546,10 @@ void SwapChainProcessor::RunCore()
 	HRESULT hr = m_Device->Device.As(&DxgiDevice);
 	if (FAILED(hr))
 	{
-		logStream << "Failed to get DXGI device interface. HRESULT: " << hr;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to get DXGI device interface. HRESULT: {}", hr).c_str());
 		return;
 	}
-	logStream << "DXGI device interface obtained successfully.";
+	vddlog("i", "DXGI device interface obtained successfully.");
 	//vddlog("d", logStream.str().c_str());
 
 
@@ -2686,19 +2563,13 @@ void SwapChainProcessor::RunCore()
 	SetDevice.pDevice = DxgiDevice.Get();
 
 	hr = IddCxSwapChainSetDevice(m_hSwapChain, &SetDevice);
-	logStream.str("");
 	if (FAILED(hr))
 	{
-		logStream << "Failed to set device to swap chain. HRESULT: " << hr;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to set device to swap chain. HRESULT: {}", hr).c_str());
 		return;
 	}
-	logStream << "Device set to swap chain successfully.";
-	//vddlog("d", logStream.str().c_str());
-
-	logStream.str(""); 
-	logStream << "Starting buffer acquisition and release loop.";
-	//vddlog("d", logStream.str().c_str());
+	vddlog("d", "Device set to swap chain successfully.");
+	vddlog("d", "Starting buffer acquisition and release loop.");
 
 	// Acquire and release buffers in a loop
 	for (;;)
@@ -2806,11 +2677,14 @@ void SwapChainProcessor::RunCore()
 		}
 		else
 		{
-			logStream.str(""); // Clear the stream
+			//logStream.str(""); // Clear the stream
 			if (hr == DXGI_ERROR_ACCESS_LOST && retryCount < maxRetries)
 			{
-				logStream << "DXGI_ERROR_ACCESS_LOST detected. Retry " << (retryCount + 1) << "/" << maxRetries << " after " << retryDelay << "ms delay.";
-				vddlog("w", logStream.str().c_str());
+				vddlog(
+					"w",
+					std::format("DXGI_ERROR_ACCESS_LOST detected. Retry {}/{} after {} ms delay.", (retryCount + 1), maxRetries, retryDelay).c_str());
+				//logStream << "DXGI_ERROR_ACCESS_LOST detected. Retry " << (retryCount + 1) << "/" << maxRetries << " after " << retryDelay << "ms delay.";
+				//vddlog("w", logStream.str().c_str());
 				Sleep(retryDelay);
 				retryDelay = min(retryDelay * 2, maxRetryDelay);
 				retryCount++;
@@ -2917,8 +2791,7 @@ vector<BYTE> loadEdid(const string& filePath) {
 
 	ifstream file(filePath, ios::binary | ios::ate);
 	if (!file) {
-		vddlog("i", "No custom edid found");
-		vddlog("i", "Using hardcoded edid");
+		vddlog("i", "No custom edid found, using hardcoded edid");
 		return hardcodedEdid;
 	}
 
@@ -2971,38 +2844,22 @@ int maincalc() {
 std::shared_ptr<Direct3DDevice> IndirectDeviceContext::GetOrCreateDevice(LUID RenderAdapter)
 {
 	std::shared_ptr<Direct3DDevice> Device;
-	stringstream logStream;
-
-	logStream << "GetOrCreateDevice called for LUID: " << RenderAdapter.HighPart << "-" << RenderAdapter.LowPart;
-	vddlog("d", logStream.str().c_str());
 
 	{
 		std::lock_guard<std::mutex> lock(s_DeviceCacheMutex);
-		
-		logStream.str("");
-		logStream << "Device cache size: " << s_DeviceCache.size();
-		vddlog("d", logStream.str().c_str());
-		
 		auto it = s_DeviceCache.find(RenderAdapter);
 		if (it != s_DeviceCache.end()) {
 			Device = it->second;
 			if (Device) {
-				logStream.str("");
-				logStream << "Reusing cached Direct3DDevice for LUID " << RenderAdapter.HighPart << "-" << RenderAdapter.LowPart;
-				vddlog("d", logStream.str().c_str());
+				vddlog("d", std::format("Reusing cached Direct3DDevice for LUID {} - {}", RenderAdapter.HighPart, RenderAdapter.LowPart).c_str());
 				return Device;
 			} else {
-				logStream.str("");
-				logStream << "Cached Direct3DDevice is null for LUID " << RenderAdapter.HighPart << "-" << RenderAdapter.LowPart << ", removing from cache";
-				vddlog("d", logStream.str().c_str());
+				vddlog("d", std::format("Cached Direct3DDevice is null for LUID {} - {}, removing from cache", RenderAdapter.HighPart, RenderAdapter.LowPart)
+								.c_str());
 				s_DeviceCache.erase(it);
 			}
 		}
 	}
-
-	logStream.str("");
-	logStream << "Creating new Direct3DDevice for LUID " << RenderAdapter.HighPart << "-" << RenderAdapter.LowPart;
-	vddlog("d", logStream.str().c_str());
 	
 	Device = make_shared<Direct3DDevice>(RenderAdapter);
 	if (FAILED(Device->Init())) {
@@ -3013,9 +2870,9 @@ std::shared_ptr<Direct3DDevice> IndirectDeviceContext::GetOrCreateDevice(LUID Re
 	{
 		std::lock_guard<std::mutex> lock(s_DeviceCacheMutex);
 		s_DeviceCache[RenderAdapter] = Device;
-		logStream.str("");
-		logStream << "Created and cached new Direct3DDevice for LUID " << RenderAdapter.HighPart << "-" << RenderAdapter.LowPart << " (cache size now: " << s_DeviceCache.size() << ")";
-		vddlog("d", logStream.str().c_str());
+		auto msg = std::format("Created and cached new Direct3DDevice for LUID {} - {} (cache size now: {})", RenderAdapter.HighPart,
+							   RenderAdapter.LowPart, s_DeviceCache.size());
+		vddlog("d", msg.c_str());
 	}
 
 	return Device;
@@ -3037,9 +2894,7 @@ void IndirectDeviceContext::CleanupExpiredDevices()
 	}
 	
 	if (removed > 0) {
-		stringstream logStream;
-		logStream << "Cleaned up " << removed << " null Direct3DDevice references from cache";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", std::format("Cleaned up {} null Direct3DDevice references from cache", removed).c_str());
 	}
 }
 
@@ -3048,30 +2903,20 @@ IndirectDeviceContext::IndirectDeviceContext(_In_ WDFDEVICE WdfDevice) :
 	m_Adapter(nullptr),
 	m_Monitor(nullptr),
 	m_Monitor2(nullptr)
-{
-	// Initialize Phase 5: Final Integration and Testing
-	NTSTATUS initStatus = InitializePhase5Integration();
-	if (!NT_SUCCESS(initStatus)) {
-		vddlog("w", "Phase 5 integration initialization completed with warnings");
-	}
-}
+{}
 
 IndirectDeviceContext::~IndirectDeviceContext()
 {
-	stringstream logStream;
 	std::map<IDDCX_MONITOR, std::unique_ptr<SwapChainProcessor>> processingThreads;
 
-	logStream << "Destroying IndirectDeviceContext. Releasing per-monitor processing threads.";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "Destroying IndirectDeviceContext. Releasing per-monitor processing threads.");
 
 	{
 		std::lock_guard<std::mutex> lock(m_ProcessingThreadsMutex);
 		processingThreads.swap(m_ProcessingThreads);
 	}
 
-	logStream.str("");
-	logStream << "Released " << processingThreads.size() << " monitor processing thread(s).";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Released {} monitor processing thread(s).", processingThreads.size()).c_str());
 }
 
 #define NUM_VIRTUAL_DISPLAYS 1   //What is this even used for ?? Its never referenced
@@ -3088,16 +2933,14 @@ void IndirectDeviceContext::InitAdapter()
 	// This is also where static per-adapter capabilities are determined.
 	// ==============================
 
-	logStream << "Initializing adapter...";
-	vddlog("d", logStream.str().c_str());
-	logStream.str("");
+	vddlog("d", "Initializing adapter...");
 
 	IDDCX_ADAPTER_CAPS AdapterCaps = {};
 	AdapterCaps.Size = sizeof(AdapterCaps);
 
 	if (IDD_IS_FUNCTION_AVAILABLE(IddCxSwapChainReleaseAndAcquireBuffer2)) {
 		AdapterCaps.Flags = IDDCX_ADAPTER_FLAGS_CAN_PROCESS_FP16;
-		logStream << "FP16 processing capability detected.";
+		vddlog("d", "FP16 processing capability detected.");
 	}
 
 	// Declare basic feature support for the adapter (required)
@@ -3118,18 +2961,14 @@ void IndirectDeviceContext::InitAdapter()
 	AdapterCaps.EndPointDiagnostics.pFirmwareVersion = &Version;
 	AdapterCaps.EndPointDiagnostics.pHardwareVersion = &Version;
 
-	logStream << "Adapter Caps Initialized:"
-		<< "\n  Max Monitors Supported: " << AdapterCaps.MaxMonitorsSupported
-		<< "\n  Gamma Support: " << AdapterCaps.EndPointDiagnostics.GammaSupport
-		<< "\n  Transmission Type: " << AdapterCaps.EndPointDiagnostics.TransmissionType
-		<< "\n  Friendly Name: " << AdapterCaps.EndPointDiagnostics.pEndPointFriendlyName
-		<< "\n  Manufacturer Name: " << AdapterCaps.EndPointDiagnostics.pEndPointManufacturerName
-		<< "\n  Model Name: " << AdapterCaps.EndPointDiagnostics.pEndPointModelName
-		<< "\n  Firmware Version: " << Version.MajorVer
-		<< "\n  Hardware Version: " << Version.MajorVer;
+	auto msg =
+		std::format("Adapter Caps Initialized:\n  Max Monitors Supported: {}\n  Gamma Support: {}\n  Transmission Type: {}\n  Friendly Name: {}\n  "
+					"Manufacturer Name: {}\n  Model Name: {}\n  Firmware Version: {}\n  Hardware Version: {}",
+					AdapterCaps.MaxMonitorsSupported, static_cast<int>(AdapterCaps.EndPointDiagnostics.GammaSupport), static_cast<int>(AdapterCaps.EndPointDiagnostics.TransmissionType),
+					Refactoring::WStringToString(AdapterCaps.EndPointDiagnostics.pEndPointFriendlyName), Refactoring::WStringToString(AdapterCaps.EndPointDiagnostics.pEndPointManufacturerName),
+					Refactoring::WStringToString(AdapterCaps.EndPointDiagnostics.pEndPointModelName), Version.MajorVer, Version.MajorVer);
 
-	vddlog("d", logStream.str().c_str());
-	logStream.str("");
+	vddlog("d", msg.c_str());
 
 	// Initialize a WDF context that can store a pointer to the device context object
 	WDF_OBJECT_ATTRIBUTES Attr;
@@ -3144,24 +2983,21 @@ void IndirectDeviceContext::InitAdapter()
 	IDARG_OUT_ADAPTER_INIT AdapterInitOut;
 	NTSTATUS Status = IddCxAdapterInitAsync(&AdapterInit, &AdapterInitOut);
 
-	logStream << "Adapter Initialization Status: " << Status;
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Adapter Initialization Status: {}", Status).c_str());
 	logStream.str("");
 
 	if (NT_SUCCESS(Status))
 	{
 		// Store a reference to the WDF adapter handle
 		m_Adapter = AdapterInitOut.AdapterObject;
-		logStream << "Adapter handle stored successfully.";
-		vddlog("d", logStream.str().c_str());
+		vddlog("d", "Adapter handle stored successfully.");
 
 		// Store the device context object into the WDF object context
 		auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(AdapterInitOut.AdapterObject);
 		pContext->pContext = this;
 	}
 	else {
-		logStream << "Failed to initialize adapter. Status: " << Status;
-		vddlog("e", logStream.str().c_str());
+		vddlog("e", std::format("Failed to initialize adapter. Status: {}", Status).c_str());
 	}
 }
 
@@ -3212,10 +3048,6 @@ void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 	MonitorInfo.MonitorDescription.pData = IndirectDeviceContext::s_KnownMonitorEdid.data();
 
 
-
-
-
-
 	// ==============================
 	// TODO: The monitor's container ID should be distinct from "this" device's container ID if the monitor is not
 	// permanently attached to the display adapter device object. The container ID is typically made unique for each
@@ -3253,16 +3085,12 @@ void IndirectDeviceContext::CreateMonitor(unsigned int index) {
 		}
 		else
 		{
-			stringstream ss;
-			ss << "Failed to report monitor arrival. Status: " << Status;
-			vddlog("e", ss.str().c_str());
+			vddlog("e", std::format("Failed to report monitor arrival. Status: {}", Status).c_str());
 		}
 	}
 	else
 	{
-		stringstream ss;
-		ss << "Failed to create monitor. Status: " << Status;
-		vddlog("e", ss.str().c_str());
+		vddlog("e", std::format("Failed to create monitor. Status: {}", Status).c_str());
 	}
 }
 
@@ -3393,9 +3221,7 @@ NTSTATUS VirtualDisplayDriverAdapterInitFinished(IDDCX_ADAPTER AdapterObject, co
 	}
 	else
 	{
-		stringstream ss;
-		ss << "Adapter initialization failed. Status: " << pInArgs->AdapterInitStatus;
-		vddlog("e", ss.str().c_str());
+		vddlog("e", std::format("Adapter initialization failed. Status: {}", pInArgs->AdapterInitStatus).c_str());
 	}
 	vddlog("i", "Finished Setting up adapter.");
 	
@@ -3428,21 +3254,17 @@ NTSTATUS VirtualDisplayDriverParseMonitorDescription(const IDARG_IN_PARSEMONITOR
 	// ==============================
 
 	stringstream logStream;
-	logStream << "Parsing monitor description. Input buffer count: " << pInArgs->MonitorModeBufferInputCount;
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Parsing monitor description. Input buffer count: {}", pInArgs->MonitorModeBufferInputCount).c_str());
 
 	RebuildKnownMonitorModesCache();
 	pOutArgs->MonitorModeBufferOutputCount = (UINT)monitorModes.size();
 
-	logStream.str("");
-	logStream << "Number of monitor modes generated: " << monitorModes.size();
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Number of monitor modes generated: {}", monitorModes.size()).c_str());
 
 	if (pInArgs->MonitorModeBufferInputCount < monitorModes.size())
 	{
-		logStream.str(""); 
-		logStream << "Buffer too small. Input count: " << pInArgs->MonitorModeBufferInputCount << ", Required: " << monitorModes.size();
-		vddlog("w", logStream.str().c_str());
+		vddlog("w",
+			   std::format("Buffer too small. Input count: {}, Required: {}", pInArgs->MonitorModeBufferInputCount, monitorModes.size()).c_str());
 		// Return success if there was no buffer, since the caller was only asking for a count of modes
 		return (pInArgs->MonitorModeBufferInputCount > 0) ? STATUS_BUFFER_TOO_SMALL : STATUS_SUCCESS;
 	}
@@ -3488,11 +3310,6 @@ NTSTATUS VirtualDisplayDriverMonitorGetDefaultModes(IDDCX_MONITOR MonitorObject,
 void CreateTargetMode(DISPLAYCONFIG_VIDEO_SIGNAL_INFO& Mode, UINT Width, UINT Height, UINT VSyncNum, UINT VSyncDen)
 {
 	stringstream logStream;
-	logStream << "Creating target mode with Width: " << Width
-		<< ", Height: " << Height
-		<< ", VSyncNum: " << VSyncNum
-		<< ", VSyncDen: " << VSyncDen;
-	vddlog("d", logStream.str().c_str());
 
 	Mode.totalSize.cx = Mode.activeSize.cx = Width;
 	Mode.totalSize.cy = Mode.activeSize.cy = Height;
@@ -3505,8 +3322,7 @@ void CreateTargetMode(DISPLAYCONFIG_VIDEO_SIGNAL_INFO& Mode, UINT Width, UINT He
 	Mode.scanLineOrdering = DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE;
 	Mode.pixelRate = VSyncNum * Width * Height / VSyncDen;
 
-	logStream.str("");
-	logStream << "Target mode configured with:"
+	logStream << "[CreateTargetMode] Target mode configured with:"
 		<< "\n  Total Size: (" << Mode.totalSize.cx << ", " << Mode.totalSize.cy << ")"
 		<< "\n  Active Size: (" << Mode.activeSize.cx << ", " << Mode.activeSize.cy << ")"
 		<< "\n  vSync Frequency: " << Mode.vSyncFreq.Numerator << "/" << Mode.vSyncFreq.Denominator
@@ -3524,15 +3340,10 @@ void CreateTargetMode(IDDCX_TARGET_MODE& Mode, UINT Width, UINT Height, UINT VSy
 
 void CreateTargetMode2(IDDCX_TARGET_MODE2& Mode, UINT Width, UINT Height, UINT VSyncNum, UINT VSyncDen)
 {
-	stringstream logStream;
-	logStream << "Creating IDDCX_TARGET_MODE2 with Width: " << Width
-		<< ", Height: " << Height
-		<< ", VSyncNum: " << VSyncNum
-		<< ", VSyncDen: " << VSyncDen;
-	vddlog("d", logStream.str().c_str());
+	auto msg = std::format("[CreateTargetMode2] Creating IDDCX_TARGET_MODE2 with Width: {}, Height: {}, VSyncNum: {}, VSyncDen {}", Width, Height, VSyncNum, VSyncDen);
+	vddlog("d", msg.c_str());
 
 	Mode.Size = sizeof(Mode);
-
 
 	if (g_settings.colours.color_format == "RGB")
 	{
@@ -3550,13 +3361,8 @@ void CreateTargetMode2(IDDCX_TARGET_MODE2& Mode, UINT Width, UINT Height, UINT V
 	else {
 		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 	}
-	
 
-	logStream.str(""); 
-	logStream << "IDDCX_TARGET_MODE2 configured with Size: " << Mode.Size << " and colour format "
-			  << g_settings.colours.color_format;
-	vddlog("d", logStream.str().c_str());
-
+	vddlog("d", std::format("IDDCX_TARGET_MODE2 configured with Size: {} and colour format {}", Mode.Size, g_settings.colours.color_format).c_str());
 
 	CreateTargetMode(Mode.TargetVideoSignalInfo.targetVideoSignalInfo, Width, Height, VSyncNum, VSyncDen);
 }
@@ -3627,9 +3433,7 @@ NTSTATUS VirtualDisplayDriverMonitorAssignSwapChain(IDDCX_MONITOR MonitorObject,
 _Use_decl_annotations_
 NTSTATUS VirtualDisplayDriverMonitorUnassignSwapChain(IDDCX_MONITOR MonitorObject)
 {
-	stringstream logStream;
-	logStream << "Unassigning swap chain for monitor object: " << MonitorObject;
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Unassigning swap chain for monitor object: {:p}", static_cast<void *>(MonitorObject)).c_str());
 	auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(MonitorObject);
 	pContext->pContext->UnassignSwapChain(MonitorObject);
 	vddlog("d", "Swap chain unassigned successfully.");
@@ -3643,9 +3447,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterQueryTargetInfo(
 	IDARG_OUT_QUERYTARGET_INFO* pOutArgs
 )
 {
-	stringstream logStream;
-	logStream << "Querying target info for adapter object: " << AdapterObject;
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Querying target info for adapter object: {:p}", static_cast<void *>(AdapterObject)).c_str());
 
 	UNREFERENCED_PARAMETER(pInArgs);
 
@@ -3671,10 +3473,8 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterQueryTargetInfo(
 		pOutArgs->DitheringSupport.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 	}
 
-	logStream.str("");
-	logStream << "Target capabilities set to: " << pOutArgs->TargetCaps
-			  << "\nDithering support colour format set to: " << g_settings.colours.color_format;
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Target capabilities set to: {}\nDithering support colour format set to: {}", 
+		static_cast<int>(pOutArgs->TargetCaps), g_settings.colours.color_format).c_str());
 
 	return STATUS_SUCCESS;
 }
@@ -3688,14 +3488,12 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 	UNREFERENCED_PARAMETER(pInArgs);
 	
 	stringstream logStream;
-	logStream << "=== PROCESSING HDR METADATA REQUEST ===";
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "=== PROCESSING HDR METADATA REQUEST ===");
 	
-	logStream.str("");
-	logStream << "Monitor Object: " << MonitorObject 
-			  << ", HDR10 Metadata Enabled: " << (g_settings.hdr_advanced.static_metadata_enabled ? "Yes" : "No")
-			  << ", Color Primaries Enabled: " << (g_settings.hdr_advanced.color_primaries.primaries_enabled ? "Yes" : "No");
-	vddlog("d", logStream.str().c_str());
+	auto msg = std::format("Monitor Object: {:p}, HDR10 Metadata Enabled: {}, Color Primaries Enabled: {}", static_cast<void *>(MonitorObject),
+						   (g_settings.hdr_advanced.static_metadata_enabled ? "Yes" : "No"),
+						   (g_settings.hdr_advanced.color_primaries.primaries_enabled ? "Yes" : "No"));
+	vddlog("d", msg.c_str());
 
 	// Check if HDR metadata processing is enabled
 	if (!g_settings.hdr_advanced.static_metadata_enabled) {
@@ -3743,29 +3541,14 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
 		return STATUS_SUCCESS;
 	}
 
-	// Log the HDR metadata values being applied
-	logStream.str("");
-	logStream << "=== APPLYING SMPTE ST.2086 HDR METADATA ===\n"
-			  << "Red Primary: (" << metadata.display_primaries_x[0] << ", " << metadata.display_primaries_y[0] << ")\n"
-			  << "Green Primary: (" << metadata.display_primaries_x[1] << ", " << metadata.display_primaries_y[1] << ")\n" 
-			  << "Blue Primary: (" << metadata.display_primaries_x[2] << ", " << metadata.display_primaries_y[2] << ")\n"
-			  << "White Point: (" << metadata.white_point_x << ", " << metadata.white_point_y << ")\n"
-			  << "Max Mastering Luminance: " << metadata.max_display_mastering_luminance << " (0.0001 cd/m² units)\n"
-			  << "Min Mastering Luminance: " << metadata.min_display_mastering_luminance << " (0.0001 cd/m² units)\n"
-			  << "Max Content Light Level: " << metadata.max_content_light_level << " nits\n"
-			  << "Max Frame Average Light Level: " << metadata.max_frame_avg_light_level << " nits";
-	vddlog("i", logStream.str().c_str());
-
-	// Store the metadata for this monitor
+	// APPLYING SMPTE ST.2086 HDR METADATA for this monitor
 	g_HdrMetadataStore[MonitorObject] = metadata;
 
 	// Convert our metadata to the IddCx expected format
 	// Note: The actual HDR metadata structure would depend on the IddCx version
 	// For now, we log that the metadata has been processed and stored
 	
-	logStream.str("");
-	logStream << "HDR metadata successfully configured and stored for monitor " << MonitorObject;
-	vddlog("i", logStream.str().c_str());
+	vddlog("i", std::format("HDR metadata successfully configured and stored for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 
 	// In a full implementation, you would pass the metadata to the IddCx framework here
 	// The exact API calls would depend on IddCx version and HDR implementation details
@@ -3786,20 +3569,15 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 	// ==============================
 
 	stringstream logStream;
-	logStream << "Parsing monitor description:"
-		<< "\n  MonitorModeBufferInputCount: " << pInArgs->MonitorModeBufferInputCount
-		<< "\n  pMonitorModes: " << (pInArgs->pMonitorModes ? "Valid" : "Null");
-	vddlog("d", logStream.str().c_str());
-
-	logStream.str("");
-	logStream << "Monitor Modes:";
+	auto msg1 = std::format("Parsing monitor description:\n  MonitorModeBufferInputCount: {}\n  pMonitorModes: {}",
+						   pInArgs->MonitorModeBufferInputCount, pInArgs->pMonitorModes ? "Valid" : "Null");
+	vddlog("d", msg1.c_str());
+	vddlog("i", "Monitor Modes:");
 	for (const auto& mode : monitorModes)
 	{
-		logStream << "\n  Mode - Width: " << std::get<0>(mode)
-			<< ", Height: " << std::get<1>(mode)
-			<< ", RefreshRate: " << std::get<2>(mode);
+		vddlog("d",
+			   std::format("\n Mode - Width : {}, Height: {}, RefreshRate: {}", std::get<0>(mode), std::get<1>(mode), std::get<2>(mode)).c_str());
 	}
-	vddlog("d", logStream.str().c_str());
 
 	RebuildKnownMonitorModesCache();
 	pOutArgs->MonitorModeBufferOutputCount = (UINT)monitorModes.size();
@@ -3817,8 +3595,8 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 			return STATUS_INVALID_PARAMETER;
 		}
 		
-		logStream.str(""); // Clear the stream
-		logStream << "Writing monitor modes to output buffer:";
+
+		vddlog("i", "Writing monitor modes to output buffer:");
 		for (DWORD ModeIndex = 0; ModeIndex < monitorModes.size(); ModeIndex++)
 		{
 			pInArgs->pMonitorModes[ModeIndex].Size = sizeof(IDDCX_MONITOR_MODE2);
@@ -3851,16 +3629,10 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 				pInArgs->pMonitorModes[ModeIndex].BitsPerComponent.Rgb =
 					g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 			}
-
-
-
-			logStream << "\n  ModeIndex: " << ModeIndex
-				<< "\n    Size: " << pInArgs->pMonitorModes[ModeIndex].Size
-				<< "\n    Origin: " << pInArgs->pMonitorModes[ModeIndex].Origin
-					  << "\n    Colour Format: " << g_settings.colours.color_format;
+			auto msg2 = std::format("\n  ModeIndex: {}\n  Size: {}\n  Origin: {}\n  Colour Format: {}", ModeIndex,
+								   pInArgs->pMonitorModes[ModeIndex].Size, static_cast<int>(pInArgs->pMonitorModes[ModeIndex].Origin), g_settings.colours.color_format);
+			vddlog("d", msg2.c_str());
 		}
-
-		vddlog("d", logStream.str().c_str());
 
 		// Set the preferred mode as represented in the EDID
 		pOutArgs->PreferredMonitorModeIdx = 0;
@@ -3877,12 +3649,9 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 )
 {
 	//UNREFERENCED_PARAMETER(MonitorObject);
-	stringstream logStream;
-
-	logStream << "Querying target modes:"
-		<< "\n  MonitorObject Handle: " << static_cast<void*>(MonitorObject) 
-		<< "\n  TargetModeBufferInputCount: " << pInArgs->TargetModeBufferInputCount;
-	vddlog("d", logStream.str().c_str());
+	auto msg1 = std::format("Querying target modes:\n MonitorObject Handle: {:p}\n TargetModeBufferInputCount: {}",
+						   static_cast<void *>(MonitorObject), pInArgs->TargetModeBufferInputCount);
+	vddlog("d", msg1.c_str());
 
 	vector<IDDCX_TARGET_MODE2> TargetModes(monitorModes.size());
 
@@ -3890,37 +3659,29 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 	// monitor's descriptor and instead are based on the static processing capability of the device. The OS will
 	// report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
-	logStream.str(""); // Clear the stream
-	logStream << "Creating target modes:";
+	vddlog("d", "Creating target modes:");
 
-	for (int i = 0; i < monitorModes.size(); i++) {
-		CreateTargetMode2(TargetModes[i], std::get<0>(monitorModes[i]), std::get<1>(monitorModes[i]), std::get<2>(monitorModes[i]), std::get<3>(monitorModes[i]));
-		logStream << "\n  TargetModeIndex: " << i
-			<< "\n    Width: " << std::get<0>(monitorModes[i])
-			<< "\n    Height: " << std::get<1>(monitorModes[i])
-			<< "\n    RefreshRate: " << std::get<2>(monitorModes[i]);
+	for (int i = 0; i < monitorModes.size(); i++)
+	{
+		CreateTargetMode2(TargetModes[i], std::get<0>(monitorModes[i]), 
+			std::get<1>(monitorModes[i]), std::get<2>(monitorModes[i]), std::get<3>(monitorModes[i]));
 	}
-	vddlog("d", logStream.str().c_str());
 
 	pOutArgs->TargetModeBufferOutputCount = (UINT)TargetModes.size();
 
-	logStream.str("");
-	logStream << "Output target modes count: " << pOutArgs->TargetModeBufferOutputCount;
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", std::format("Output target modes count: {}", pOutArgs->TargetModeBufferOutputCount).c_str());
 
 	if (pInArgs->TargetModeBufferInputCount >= TargetModes.size())
 	{
 		copy(TargetModes.begin(), TargetModes.end(), pInArgs->pTargetModes);
 
-		logStream.str("");
-		logStream << "Target modes copied to output buffer:";
+		vddlog("i", "Target modes copied to output buffer:");
 		for (int i = 0; i < TargetModes.size(); i++)
 		{
-			logStream << "\n  TargetModeIndex: " << i
-				<< "\n    Size: " << TargetModes[i].Size
-					  << "\n    ColourFormat: " << g_settings.colours.color_format;
+			auto msg2 =
+				std::format("\n  TargetModeIndex: {}\n   Size: {}\n   ColourFormat: {}", i, TargetModes[i].Size, g_settings.colours.color_format);
+			vddlog("d", msg2.c_str());
 		}
-		vddlog("d", logStream.str().c_str());
 	}
 	else
 	{
@@ -3949,14 +3710,11 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 )
 {
 	stringstream logStream;
-	logStream << "=== PROCESSING GAMMA RAMP REQUEST ===";
-	vddlog("d", logStream.str().c_str());
-	
-	logStream.str("");
-	logStream << "Monitor Object: " << MonitorObject 
-			  << ", Color Space Enabled: " << (g_settings.hdr_advanced.color_space.enabled ? "Yes" : "No")
-			  << ", Matrix Transform Enabled: " << (g_settings.hdr_advanced.color_space.enable_matrix_transform ? "Yes" : "No");
-	vddlog("d", logStream.str().c_str());
+	vddlog("d", "=== PROCESSING GAMMA RAMP REQUEST ===\n\n");
+	vddlog("d", std::format("Monitor Object: {:p}\nColor Space Enabled: {}, Matrix Transform Enabled: {}", static_cast<void *>(MonitorObject),
+							(g_settings.hdr_advanced.color_space.enabled ? "Yes" : "No"),
+							(g_settings.hdr_advanced.color_space.enable_matrix_transform ? "Yes" : "No"))
+					.c_str());
 
 	// Check if color space processing is enabled
 	if (!g_settings.hdr_advanced.color_space.enabled)
@@ -4004,12 +3762,10 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 	}
 
 	// Log the gamma ramp values being applied
-	logStream.str("");
-	logStream << "=== APPLYING GAMMA RAMP AND COLOR SPACE TRANSFORM ===\n"
-			  << "Gamma Value: " << gammaRamp.gamma << "\n"
-			  << "Color Space: " << gammaRamp.colorSpace << "\n"
-			  << "Use Matrix Transform: " << (gammaRamp.useMatrix ? "Yes" : "No");
-	vddlog("i", logStream.str().c_str());
+	vddlog("i", std::format("=== APPLYING GAMMA RAMP AND COLOR SPACE TRANSFORM ===\n").c_str());
+	vddlog("i", std::format("Gamma Value: {}\nColor Space: {}\nUse Matrix Transform: {}", gammaRamp.gamma,
+							gammaRamp.colorSpace, gammaRamp.useMatrix ? "Yes" : "No")
+					.c_str());
 
 	// Apply gamma ramp based on type
 	if (pInArgs->Type == IDDCX_GAMMARAMP_TYPE_3x4_COLORSPACE_TRANSFORM && gammaRamp.useMatrix) {
@@ -4027,35 +3783,26 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
 		// In a full implementation, you would apply the matrix to the rendering pipeline here
 		// The exact API calls would depend on IddCx version and hardware capabilities
 		
-		logStream.str("");
-		logStream << "3x4 matrix transform applied successfully for monitor " << MonitorObject;
-		vddlog("i", logStream.str().c_str());
+		vddlog("i", std::format("3x4 matrix transform applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 	}
-	else if (pInArgs->Type == IDDCX_GAMMARAMP_TYPE_RGB256x3x16) {
+	else if (pInArgs->Type == IDDCX_GAMMARAMP_TYPE_RGB256x3x16)
+	{
 		// Apply traditional RGB gamma ramp
-		logStream.str("");
-		logStream << "Applying RGB 256x3x16 gamma ramp with gamma " << gammaRamp.gamma;
-		vddlog("i", logStream.str().c_str());
+		vddlog("i", std::format("Applying RGB 256x3x16 gamma ramp with gamma {}", gammaRamp.gamma).c_str());
 
 		// In a full implementation, you would generate and apply RGB lookup tables here
 		// Based on the gamma value and color space
-		
-		logStream.str("");
-		logStream << "RGB gamma ramp applied successfully for monitor " << MonitorObject;
-		vddlog("i", logStream.str().c_str());
+		vddlog("i", std::format("RGB gamma ramp applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 	}
-	else {
-		logStream.str("");
-		logStream << "Unsupported gamma ramp type: " << pInArgs->Type << ", using default gamma processing";
-		vddlog("w", logStream.str().c_str());
+	else
+	{
+		vddlog("w", std::format("Unsupported gamma ramp type: {}, using default gamma processing", static_cast<int>(pInArgs->Type)).c_str());
 	}
 
 	// Store the final gamma ramp for this monitor
 	g_GammaRampStore[MonitorObject] = gammaRamp;
 
-	logStream.str("");
-	logStream << "Gamma ramp configuration completed for monitor " << MonitorObject;
-	vddlog("i", logStream.str().c_str());
+	vddlog("i", std::format("Gamma ramp configuration completed for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
 
 	return STATUS_SUCCESS;
 }
