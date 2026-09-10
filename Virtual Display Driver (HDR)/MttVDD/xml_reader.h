@@ -16,6 +16,8 @@ class XmlReader
 
 	bool GetSetting(const std::string &value, const SettingValuePtr &result);
 
+	bool SetSetting(const std::string &value, const std::string &pipe_value, const SettingValuePtr &result);
+
   protected:
   private:
 	tinyxml2::XMLDocument settings_file;

@@ -1,5 +1,6 @@
 #include "settings_loader.h"
 #include <string>
+#include <algorithm>
 
 Refactoring::SettingsLoader::SettingsLoader(Logger *log, DriverSettings *g_settings)
 	: m_log(log), reg_reader(log), xml_reader(log), m_settings(g_settings), check_registry(false), check_xml(false), conf_path()
@@ -116,4 +117,20 @@ void Refactoring::SettingsLoader::LoadSettings()
 
 	if (check_registry)
 		reg_reader.CloseRegistry();
+}
+
+void Refactoring::SettingsLoader::SetSetting(std::string key, std::string pipe_str_value)
+{
+	if (!check_xml)
+		return;
+
+	for (const auto& entry : entries)
+	{
+
+		if (entry.key == key)
+		{
+			xml_reader.SetSetting(entry.key, pipe_str_value, entry.container);
+			return;
+		}
+	}
 }

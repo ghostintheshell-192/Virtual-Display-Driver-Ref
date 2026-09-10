@@ -58,3 +58,38 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 
 	return true;
 }
+
+bool Refactoring::XmlReader::SetSetting(const std::string& value, const std::string& pipe_value, const SettingValuePtr& result)
+{
+	std::vector<std::string> values = tokenize(value, '.');
+	std::string raw_value;
+
+	tinyxml2::XMLElement *current = settings_file.RootElement();
+
+	if (!current)
+		return false;
+
+	for (const auto &segment : values)
+	{
+		current = current->FirstChildElement(segment.c_str());
+		if (!current)
+		{
+			m_log->Message(LogType::Error, "[XmlReader] Node not found in xml: " + segment + "\n");
+			return false;
+		}
+	}
+
+	current->SetText(pipe_value.c_str());
+
+    std::visit(
+		[&pipe_value, &value, this](auto *ptr) {
+			using T = std::remove_pointer_t<decltype(ptr)>;
+
+			T old_val = *ptr;
+			*ptr = convert_setting<T>(pipe_value);
+			if (old_val != *ptr)
+				m_log->Message(LogType::Debug, value + " now has value = " + pipe_value);
+		},
+		result);
+	return true;
+}

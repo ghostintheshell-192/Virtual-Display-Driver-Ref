@@ -1243,140 +1243,101 @@ void HandleClient(HANDLE hPipe) {
 	wchar_t buffer[128];
 	DWORD bytesRead;
 	BOOL result = ReadFile(hPipe, buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL);
+
+	if (result && bytesRead == 0)
+	{
+		DisconnectNamedPipe(hPipe);
+		CloseHandle(hPipe);
+		g_pipeHandle = INVALID_HANDLE_VALUE;
+		return;
+	}
+
+	buffer[bytesRead / sizeof(wchar_t)] = L'\0';
+	auto str_buffer = Refactoring::WStringToString(buffer);
+	auto pipe_tokens = Refactoring::tokenize(str_buffer, ' ');
+
+	if (pipe_tokens.size() != 2)
+	{
+		return;
+	}
+
+	g_log.Message(Refactoring::LogType::Pipe, str_buffer.c_str());
+
+	struct elements
+	{
+		std::string xml_key;
+		std::string comment;
+		bool reload_pipe;
+	};
+
+	std::map<std::string, elements> entries;
+
+	entries.insert({"LOGGING", {"logging.logging", "Logging Enabled", false}});
+	entries.insert({"LOG_DEBUG", {"logging.debuglogging", "Debug Logs Enabled", false}});
+	entries.insert({"CUSTOMEDID", {"edid.CustomEdid", "Custom Edid Enabled", true}});
+	entries.insert({"PREVENTSPOOF", {"edid.PreventSpoof", "Prevent Spoof Enabled", true}});
+	entries.insert({"EdidCeaOverride", {"edid.EdidCeaOverride", "CEA Override Enabled", true}});
+	entries.insert({"HDRPLUS", {"colour.HDRPlus", "HDR Plus Enabled", true}});
+	entries.insert({"SDR10", {"colour.SDR10bit", "SDR 10 Enabled", true}});
+	entries.insert({"HARDWARECURSOR", {"cursor.HardwareCursor", "Hardware Cursor Enabled", true}});
+
+	auto it = entries.find(pipe_tokens[0]);
+	if (it != entries.end())
+	{
+		g_settings_manager.SetSetting(it->second.xml_key, pipe_tokens[1]);
+		if (it->second.reload_pipe)
+			ReloadDriver(hPipe);
+		if (pipe_tokens[0] == "LOGGING")
+		{
+			g_settings.logs.enable_standard_logs = Refactoring::convert_setting<bool>(pipe_tokens[1]);
+			g_log.ToggleStandardLogs(g_settings.logs.enable_standard_logs);
+		}
+		else if (pipe_tokens[0] == "LOG_DEBUG")
+		{
+			g_settings.logs.enable_debug_logs = Refactoring::convert_setting<bool>(pipe_tokens[1]);
+			g_log.ToggleDebugLogs(g_settings.logs.enable_debug_logs);
+		}
+		g_log.Message(Refactoring::LogType::Companion, it->second.comment);
+		return;
+	}
+
+
+
 	if (result && bytesRead != 0) {
 		buffer[bytesRead / sizeof(wchar_t)] = L'\0';
 		g_log.Message(Refactoring::LogType::Pipe, Refactoring::WStringToString(buffer).c_str());
 
+		//RELOAD THE DRIVER + LOGS
 		if (wcsncmp(buffer, L"RELOAD_DRIVER", 13) == 0) {
 			g_log.Message(Refactoring::LogType::Companion, "Reloading the driver");
 			ReloadDriver(hPipe);
 			
 		}
-		else if (wcsncmp(buffer, L"LOG_DEBUG", 9) == 0) {
-			wchar_t* param = buffer + 10;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"debuglogging");
-				g_settings.logs.enable_debug_logs = true;
-				g_log.Message(Refactoring::LogType::Companion, "Pipe debugging enabled");
-				g_log.Message(Refactoring::LogType::Debug, "Debug Logs Enabled");
-			}
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"debuglogging");
-				g_settings.logs.enable_debug_logs = false;
-				g_log.Message(Refactoring::LogType::Companion, "Debugging disabled");
-			}
-		}
-		else if (wcsncmp(buffer, L"LOGGING", 7) == 0) {
-			wchar_t* param = buffer + 8;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"logging");
-				g_settings.logs.enable_standard_logs = true;
-				g_log.Message(Refactoring::LogType::Companion, "Logging Enabled");
-			}
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"logging");
-				g_settings.logs.enable_standard_logs = false;
-				g_log.Message(Refactoring::LogType::Companion, "Logging disabled"); // We can keep this here just to make it delete the logs on disable
-			}
-		}
-		else if (wcsncmp(buffer, L"HDRPLUS", 7) == 0) {
-			wchar_t* param = buffer + 8;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"HDRPlus");
-				g_log.Message(Refactoring::LogType::Companion, "HDR+ Enabled"); 
-				ReloadDriver(hPipe);
-			} 
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"HDRPlus");
-				g_log.Message(Refactoring::LogType::Companion, "HDR+ Disabled");
-				ReloadDriver(hPipe);
-			}
-		}
-		else if (wcsncmp(buffer, L"SDR10", 5) == 0) {
-			wchar_t* param = buffer + 6;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"SDR10bit");
-				g_log.Message(Refactoring::LogType::Companion, "SDR 10 Bit Enabled");
-				ReloadDriver(hPipe);
-			}
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"SDR10bit");
-				g_log.Message(Refactoring::LogType::Companion, "SDR 10 Bit Disabled");
-				ReloadDriver(hPipe);
-			}
-		}
-		else if (wcsncmp(buffer, L"CUSTOMEDID", 10) == 0) {
-			wchar_t* param = buffer + 11;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"CustomEdid");
-				g_log.Message(Refactoring::LogType::Companion, "Custom Edid Enabled");
-				ReloadDriver(hPipe);
-			}
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"CustomEdid");
-				g_log.Message(Refactoring::LogType::Companion, "Custom Edid Disabled");
-				ReloadDriver(hPipe);
-			}
-		}
-		else if (wcsncmp(buffer, L"PREVENTSPOOF", 12) == 0) {
-			wchar_t* param = buffer + 13;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"PreventSpoof");
-				g_log.Message(Refactoring::LogType::Companion, "Prevent Spoof Enabled");
-				ReloadDriver(hPipe);
-			}
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"PreventSpoof");
-				g_log.Message(Refactoring::LogType::Companion, "Prevent Spoof Disabled");
-				ReloadDriver(hPipe);
-			}
-		}
-		else if (wcsncmp(buffer, L"CEAOVERRIDE", 11) == 0) {
-			wchar_t* param = buffer + 12;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"EdidCeaOverride");
-				g_log.Message(Refactoring::LogType::Companion, "Cea override Enabled");
-				ReloadDriver(hPipe);
-			}
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"EdidCeaOverride");
-				g_log.Message(Refactoring::LogType::Companion, "Cea override Disabled");
-				ReloadDriver(hPipe);
-			}
-		}
-		else if (wcsncmp(buffer, L"HARDWARECURSOR", 14) == 0) {
-			wchar_t* param = buffer + 15;
-			if (wcsncmp(param, L"true", 4) == 0) {
-				UpdateXmlSetting(L"true", L"HardwareCursor");
-				g_log.Message(Refactoring::LogType::Companion, "Hardware Cursor Enabled");
-				ReloadDriver(hPipe);
-			}
-			else if (wcsncmp(param, L"false", 5) == 0) {
-				UpdateXmlSetting(L"false", L"HardwareCursor");
-				g_log.Message(Refactoring::LogType::Companion, "Hardware Cursor Disabled");
-				ReloadDriver(hPipe);
-			}
-		}
+		// D3DDEVICEGPU: LOGS, initializeD3DDeviceAndLogGPU
 		else if (wcsncmp(buffer, L"D3DDEVICEGPU", 12) == 0) {
 			g_log.Message(Refactoring::LogType::Companion, "Retrieving D3D GPU (This information may be inaccurate without reloading the driver first)");
 			InitializeD3DDeviceAndLogGPU();
 			g_log.Message(Refactoring::LogType::Companion, "Retrieved D3D GPU");
 		}
+		// IDDCXVERSION: LOGS, LogIddCxVersion
 		else if (wcsncmp(buffer, L"IDDCXVERSION", 12) == 0) {
 			g_log.Message(Refactoring::LogType::Companion, "Logging iddcx version");
 			LogIddCxVersion(); 
 		}
+		// GETASSIGNEDGPU: LOGS, GetGpuInfo
 		else if (wcsncmp(buffer, L"GETASSIGNEDGPU", 14) == 0) {
 			g_log.Message(Refactoring::LogType::Companion, "Retrieving Assigned GPU");
 			GetGpuInfo();
 			g_log.Message(Refactoring::LogType::Companion, "Retrieved Assigned GPU");
 		}
+		// GETALLGPUS: LOGS, logAvailableGPUs
 		else if (wcsncmp(buffer, L"GETALLGPUS", 10) == 0) {
 			g_log.Message(Refactoring::LogType::Companion, "Logging all GPUs");
 			g_log.Message(Refactoring::LogType::Info, "If any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
 			logAvailableGPUs();
 			g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
-		}  
+		}
+		// SETGPU: updatesettings, LOGS, RELOAD DRIVER
 		else if (wcsncmp(buffer, L"SETGPU", 6) == 0) {
 			std::wstring gpuName = buffer + 7;
 			gpuName = gpuName.substr(1, gpuName.size() - 2); 
@@ -1391,6 +1352,7 @@ void HandleClient(HANDLE hPipe) {
 			}
 			ReloadDriver(hPipe);
 		}
+		// SETDISPLAYCOUNT: updatesettings, LOGS, RELOAD DRIVER
 		else if (wcsncmp(buffer, L"SETDISPLAYCOUNT", 15) == 0) {
 			g_log.Message(Refactoring::LogType::Info, "Setting Display Count");
 
@@ -1408,6 +1370,7 @@ void HandleClient(HANDLE hPipe) {
 			}
 			ReloadDriver(hPipe);
 		}
+		// GETSETTINGS: recupera il valore salvato per i log, e... lo stampa a video? (writefile)
 		else if (wcsncmp(buffer, L"GETSETTINGS", 11) == 0) {
 			//query and return settings
 			bool debugEnabled = g_settings.logs.enable_debug_logs;
@@ -1422,6 +1385,7 @@ void HandleClient(HANDLE hPipe) {
 			WriteFile(hPipe, settingsResponse.c_str(), bytesToWrite, &bytesWritten, NULL);
 
 		}
+		// PING: LOGS
 		else if (wcsncmp(buffer, L"PING", 4) == 0) {
 			g_log.SendToPipe("PONG");
 			g_log.Message(Refactoring::LogType::Pipe, "Heartbeat Ping");
