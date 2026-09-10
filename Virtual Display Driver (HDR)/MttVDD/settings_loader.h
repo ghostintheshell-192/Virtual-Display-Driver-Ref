@@ -21,7 +21,7 @@ namespace Refactoring
 		Logger * m_log;
 		RegistryReader reg_reader;
 		XmlReader xml_reader;
-		DriverSettings *settings;
+		DriverSettings * m_settings;
 
 		bool check_registry;
 		bool check_xml;

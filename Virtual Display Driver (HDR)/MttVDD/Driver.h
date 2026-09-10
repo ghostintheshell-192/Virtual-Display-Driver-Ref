@@ -6,6 +6,8 @@
 #include <wudfwdm.h>
 #include <wdf.h>
 #include <IddCx.h>
+#include "globals.h"
+#include "globals_iddcx.h"
 
 #include <dxgi1_5.h>
 #include <d3d11_2.h>
@@ -23,7 +25,6 @@
 
 // Utility function declarations
 std::vector<std::string> split(std::string& input, char delimiter);
-std::string WStringToString(const std::wstring& wstr);
 
 // Phase 5: Final Integration function declarations
 NTSTATUS ValidateEdidIntegration();
