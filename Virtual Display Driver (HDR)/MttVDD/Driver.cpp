@@ -1441,17 +1441,10 @@ void logAvailableGPUs() {
 		gpus.push_back(info);
 	}
 	for (const auto& gpu : gpus) {
-		wstring logMessage = L"GPU Name: ";
-		logMessage += gpu.desc.Description;
-		wstring memorySize = L" Memory: ";
-		memorySize += std::to_wstring(gpu.desc.DedicatedVideoMemory / (1024 * 1024)) + L" MB";
-		wstring logText = logMessage + memorySize;
-		int bufferSize = WideCharToMultiByte(CP_UTF8, 0, logText.c_str(), -1, nullptr, 0, nullptr, nullptr);
-		if (bufferSize > 0) {
-			std::string logTextA(bufferSize - 1, '\0');
-			WideCharToMultiByte(CP_UTF8, 0, logText.c_str(), -1, &logTextA[0], bufferSize, nullptr, nullptr);
-			g_log.Message(Refactoring::LogType::Companion, logTextA.c_str());
-		}
+		auto memorysize = gpu.desc.DedicatedVideoMemory / (1024 * 1024);
+
+		g_log.Message(Refactoring::LogType::Companion,
+					  std::format("GPU Name: {} Memory: {} MB", Refactoring::WStringToString(gpu.desc.Description), memorysize).c_str());
 	}
 }
 
