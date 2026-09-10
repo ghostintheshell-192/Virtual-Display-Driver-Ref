@@ -966,14 +966,6 @@ void float_to_vsync(float refresh_rate, int& num, int& den) {
 	den /= divisor;
 }
 
-void  SendToPipe(const std::string& logMessage) {
-	if (g_pipeHandle != INVALID_HANDLE_VALUE) {
-		DWORD bytesWritten;
-		DWORD logMessageSize = static_cast<DWORD>(logMessage.size());
-		WriteFile(g_pipeHandle, logMessage.c_str(), logMessageSize, &bytesWritten, NULL);
-	}
-}
-
 void LogIddCxVersion() {
 	IDARG_OUT_GETVERSION outArgs;
 	NTSTATUS status = IddCxGetVersion(&outArgs);
@@ -1655,7 +1647,7 @@ void HandleClient(HANDLE hPipe) {
 
 		}
 		else if (wcsncmp(buffer, L"PING", 4) == 0) {
-			SendToPipe("PONG");
+			g_log.SendToPipe("PONG");
 			g_log.Message(Refactoring::LogType::Pipe, "Heartbeat Ping");
 		}
 		else {
