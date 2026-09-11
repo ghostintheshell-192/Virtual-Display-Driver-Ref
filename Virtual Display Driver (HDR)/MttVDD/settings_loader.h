@@ -16,6 +16,9 @@ namespace Refactoring
 		void Init();
 		void LoadSettings();
 
+		bool GetSetting(const std::string &value);
+		bool SetSetting(const std::string &key, const std::string &pipe_str_value);
+
 	  protected:
 	  private:
 		Logger * m_log;
