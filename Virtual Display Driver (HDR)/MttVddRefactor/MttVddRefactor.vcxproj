@@ -143,19 +143,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="logger.cpp" />
-    <ClCompile Include="registry_reader.cpp" />
-    <ClCompile Include="settings_loader.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="xml_reader.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="globals.h" />
-    <ClInclude Include="logger.h" />
-    <ClInclude Include="registry_reader.h" />
-    <ClInclude Include="settings_loader.h" />
-    <ClInclude Include="utilities.h" />
-    <ClInclude Include="xml_reader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

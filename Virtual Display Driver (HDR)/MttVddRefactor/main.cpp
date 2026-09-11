@@ -1,19 +1,11 @@
-#include "logger.h"
-#include "settings_loader.h"
+#include <iostream>
+#include <format>
 
 int main()
 {
-	HANDLE hPipe;
-
-	// for now, hard-coded values are passed
-	Refactoring::Logger log("C:\\VirtualDisplayDriver\\", true, true, true);
-
-	log.Init(&hPipe);
-
-	Refactoring::SettingsLoader ss(&log);
-
-	ss.Init();
-	ss.LoadSettings();
+	bool debug = false;
+	bool logs = true;
+	std::cout << std::format("DEBUG={:s} LOG={:s}", debug, logs);
 
 	return 0;
 }
