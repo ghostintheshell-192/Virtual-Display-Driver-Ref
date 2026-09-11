@@ -119,18 +119,34 @@ void Refactoring::SettingsLoader::LoadSettings()
 		reg_reader.CloseRegistry();
 }
 
-void Refactoring::SettingsLoader::SetSetting(std::string key, std::string pipe_str_value)
+bool Refactoring::SettingsLoader::GetSetting(const std::string &key)
 {
 	if (!check_xml)
-		return;
+		return false;
 
 	for (const auto& entry : entries)
 	{
-
 		if (entry.key == key)
 		{
-			xml_reader.SetSetting(entry.key, pipe_str_value, entry.container);
-			return;
+			return xml_reader.GetSetting(entry.key, entry.container);
+		}
+		continue;
+	}
+
+	return true;
+}
+
+bool Refactoring::SettingsLoader::SetSetting(const std::string &key, const std::string &pipe_str_value)
+{
+	if (!check_xml)
+		return false;
+
+	for (const auto& entry : entries)
+	{
+		if (entry.key == key)
+		{
+			return xml_reader.SetSetting(entry.key, pipe_str_value, entry.container);
 		}
 	}
+	return true;
 }

@@ -16,7 +16,8 @@ namespace Refactoring
 		void Init();
 		void LoadSettings();
 
-		void SetSetting(std::string key, std::string pipe_str_value);
+		bool GetSetting(const std::string &value);
+		bool SetSetting(const std::string &key, const std::string &pipe_str_value);
 
 	  protected:
 	  private:
