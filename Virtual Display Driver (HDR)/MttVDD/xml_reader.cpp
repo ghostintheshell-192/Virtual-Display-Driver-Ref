@@ -15,7 +15,7 @@ bool Refactoring::XmlReader::OpenFile(std::string path)
 	return false;
 }
 
-tinyxml2::XMLElement* Refactoring::XmlReader::TraverseXml(const std::string& value, const SettingValuePtr& result)
+tinyxml2::XMLElement* Refactoring::XmlReader::TraverseXml(const std::string& value)
 {
 	std::vector<std::string> values = tokenize(value, '.');
 
@@ -38,7 +38,7 @@ tinyxml2::XMLElement* Refactoring::XmlReader::TraverseXml(const std::string& val
 
 bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingValuePtr &result)
 {
-	tinyxml2::XMLElement *current = TraverseXml(value, result);
+	tinyxml2::XMLElement *current = TraverseXml(value);
 
 	if (!current)
 		return false;
@@ -69,7 +69,7 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 
 bool Refactoring::XmlReader::SetSetting(const std::string& value, const std::string& pipe_value, const SettingValuePtr& result)
 {
-	tinyxml2::XMLElement * current = TraverseXml(value, result);
+	tinyxml2::XMLElement * current = TraverseXml(value);
 	if (!current)
 		return false;
 
