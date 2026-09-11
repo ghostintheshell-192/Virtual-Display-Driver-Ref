@@ -428,524 +428,38 @@ VddHdrMetadata ConvertManualToSmpteMetadata() {
     return metadata;
 }
 
-// === ENHANCED MODE MANAGEMENT FUNCTIONS ===
-
-// Generate modes from EDID with advanced filtering and optimization
-std::vector<Refactoring::Resolution> GenerateModesFromEdid(const EdidProfileData& profile) {
-    std::vector<Refactoring::Resolution> generatedModes;
-    
-    if (!g_settings.auto_resolutions.enabled) {
-        g_log.Message(Refactoring::LogType::Info, "Auto resolutions disabled, skipping EDID mode generation");
-        return generatedModes;
-    }
-    
-    for (const auto& mode : profile.modes) {
-        //int width = get<0>(mode);
-        //int height = get<1>(mode);
-        //int refreshRateMultiplier = get<2>(mode);
-        //int nominalRefreshRate = get<3>(mode);
-        
-        // Apply comprehensive filtering
-        bool passesFilter = true;
-        
-        // Resolution range filtering
-		if (mode.width < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_width ||
-			mode.width > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_width ||
-			mode.height < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_height ||
-			mode.height > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_height)
-		{
-            passesFilter = false;
-        }
-        
-        // Refresh rate filtering
-		if (mode.refresh_den < g_settings.auto_resolutions.edid_mode_filtering.min_refresh_rate ||
-			mode.refresh_den > g_settings.auto_resolutions.edid_mode_filtering.max_refresh_rate)
-		{
-            passesFilter = false;
-        }
-        
-        // Fractional rate filtering
-		if (g_settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates && mode.refresh_num != 1000)
-		{
-            passesFilter = false;
-        }
-        
-        // Add custom quality filtering
-        if (passesFilter) {
-            // Prefer standard aspect ratios for better compatibility
-            double aspectRatio = static_cast<double>(mode.width) / mode.height;
-            bool isStandardAspect = (abs(aspectRatio - 16.0/9.0) < 0.01) ||  // 16:9
-                                   (abs(aspectRatio - 16.0/10.0) < 0.01) ||  // 16:10
-                                   (abs(aspectRatio - 4.0/3.0) < 0.01) ||    // 4:3
-                                   (abs(aspectRatio - 21.0/9.0) < 0.01);     // 21:9
-            
-            // Log non-standard aspect ratios for information
-            if (!isStandardAspect) {
-                stringstream ss;
-                ss << "Including non-standard aspect ratio mode: " << mode.width << "x" << mode.height 
-                   << " (ratio: " << fixed << setprecision(2) << aspectRatio << ")";
-                g_log.Message(Refactoring::LogType::Debug, ss.str().c_str());
-            }
-            
-            generatedModes.push_back(mode);
-        }
-    }
-	// Sort modes by preference (resolution, then refresh rate)
-	sort(generatedModes.begin(), generatedModes.end(), [](const Refactoring::Resolution &a, const Refactoring::Resolution &b) {
-		// Primary sort: resolution (area)
-		int areaA = a.width * a.height;
-		int areaB = b.width * b.height;
-		if (areaA != areaB)
-			return areaA > areaB; // Larger resolution first
-
-		// Secondary sort: refresh rate
-		return a.refresh_den > a.refresh_den; // Higher refresh rate first
-	});
-	g_log.Message(Refactoring::LogType::Info, std::format("Generated {} modes from EDID (filtered from {} total)", generatedModes.size(), profile.modes.size()).c_str());
-    
-    return generatedModes;
-}
-
 // Find and validate preferred mode from EDID
-Refactoring::Resolution FindPreferredModeFromEdid(const EdidProfileData& profile, 
-                                                   const vector<Refactoring::Resolution>& availableModes) {
-    // Default fallback mode
+Refactoring::Resolution FindPreferredModeFromEdid(const EdidProfileData &profile, const vector<Refactoring::Resolution> &availableModes)
+{
+	// Default fallback mode
 	Refactoring::Resolution preferredMode =
-		Refactoring::Resolution(g_settings.auto_resolutions.preferred_mode.fallback_width, g_settings.auto_resolutions.preferred_mode.fallback_height,
-								1000, g_settings.auto_resolutions.preferred_mode.fallback_refresh);
-    
-    if (!g_settings.auto_resolutions.preferred_mode.preferred)
+		Refactoring::Resolution(
+			g_settings.auto_resolutions.preferred_mode.fallback_width, 
+			g_settings.auto_resolutions.preferred_mode.fallback_height,
+			1000, 
+			g_settings.auto_resolutions.preferred_mode.fallback_refresh);
+
+	if (!g_settings.auto_resolutions.preferred_mode.preferred)
 	{
-        g_log.Message(Refactoring::LogType::Info, "EDID preferred mode disabled, using fallback");
-        return preferredMode;
-    }
-    
-    // Look for EDID preferred mode in available modes
-    for (const auto& mode : availableModes) {
-        if (mode.width == profile.preferredWidth && 
-            mode.height == profile.preferredHeight) {
-            // Found matching resolution, use it
-            preferredMode = mode;
-			g_log.Message(Refactoring::LogType::Info,
-				   std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferredWidth, profile.preferredHeight, mode.refresh_den).c_str());
-            break;
-        }
-    }
-    
-    return preferredMode;
-}
-
-// Merge and optimize mode lists
-vector<Refactoring::Resolution> MergeAndOptimizeModes(const vector<Refactoring::Resolution>& manualModes,
-                                                        const vector<Refactoring::Resolution>& edidModes) {
-    vector<Refactoring::Resolution> mergedModes;
-    
-    if (g_settings.auto_resolutions.source_priority == "edid")
-	{
-        mergedModes = edidModes;
-        g_log.Message(Refactoring::LogType::Info, "Using EDID-only mode list");
-    }
-	else if (g_settings.auto_resolutions.source_priority == "manual")
-	{
-        mergedModes = manualModes;
-        g_log.Message(Refactoring::LogType::Info, "Using manual-only mode list");
-    }
-	else if (g_settings.auto_resolutions.source_priority == "combined")
-	{
-        // Start with manual modes
-        mergedModes = manualModes;
-        
-        // Add EDID modes that don't duplicate manual modes
-        for (const auto& edidMode : edidModes) {
-            bool isDuplicate = false;
-            for (const auto& manualMode : manualModes) {
-                if (edidMode.width == manualMode.width && 
-                    edidMode.height == manualMode.height && 
-                    edidMode.refresh_den == manualMode.refresh_den) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-            if (!isDuplicate) {
-                mergedModes.push_back(edidMode);
-            }
-        }
-		g_log.Message(Refactoring::LogType::Info, std::format("Combined modes: {} manual + {} unique EDID = {} total", 
-								manualModes.size(), edidModes.size(), mergedModes.size()).c_str());
-    }
-    
-    return mergedModes;
-}
-
-// Optimize mode list for performance and compatibility
-vector<Refactoring::Resolution> OptimizeModeList(const vector<Refactoring::Resolution>& modes,
-                                                   const Refactoring::Resolution& preferredMode) {
-    vector<Refactoring::Resolution> optimizedModes = modes;
-    
-    // Remove preferred mode from list if it exists, we'll add it at the front
-    optimizedModes.erase(
-        remove_if(optimizedModes.begin(), optimizedModes.end(),
-                  [&preferredMode](const Refactoring::Resolution& mode) {
-                      return mode.width == preferredMode.width && 
-                             mode.height == preferredMode.height &&
-                             mode.refresh_den == preferredMode.refresh_den;
-                  }),
-        optimizedModes.end());
-    
-    // Insert preferred mode at the beginning
-    optimizedModes.insert(optimizedModes.begin(), preferredMode);
-    
-    // Remove duplicate modes (same resolution and refresh rate)
-	std::sort(optimizedModes.begin(), optimizedModes.end(),[](const Refactoring::Resolution &a, const Refactoring::Resolution &b){
-		return a.width > b.width && a.height > b.height && a.refresh_den > b.refresh_den;
-	});
-
-    optimizedModes.erase(unique(optimizedModes.begin(), optimizedModes.end(),
-                                [](const Refactoring::Resolution& a, const Refactoring::Resolution& b) {
-                                    return a.width == b.width && 
-                                           a.height == b.height && 
-                                           a.refresh_den == b.refresh_den;
-                                }),
-                         optimizedModes.end());
-    
-    // Limit total number of modes for performance (Windows typically supports 20-50 modes)
-    const size_t maxModes = 32;
-    if (optimizedModes.size() > maxModes) {
-        optimizedModes.resize(maxModes);
-		g_log.Message(Refactoring::LogType::Info, std::format("Limited mode list to {} modes for optimal performance", maxModes).c_str());
-    }
-    
-    return optimizedModes;
-}
-
-// Enhanced mode validation with detailed reporting
-bool ValidateModeList(const vector<Refactoring::Resolution>& modes) {
-    if (modes.empty()) {
-        g_log.Message(Refactoring::LogType::Error, "Mode list is empty - this will cause display driver failure");
-        return false;
-    }
-    
-    stringstream validationReport;
-    validationReport << "=== MODE LIST VALIDATION REPORT ===\n"
-                    << "Total modes: " << modes.size() << "\n";
-    
-    // Analyze resolution distribution
-    map<pair<int, int>, int> resolutionCount;
-    map<int, int> refreshRateCount;
-    
-    for (const auto& mode : modes) {
-        pair<int, int> resolution = {mode.width, mode.height};
-        resolutionCount[resolution]++;
-        refreshRateCount[mode.refresh_den]++;
-    }
-    
-    validationReport << "Unique resolutions: " << resolutionCount.size() << "\n";
-    validationReport << "Unique refresh rates: " << refreshRateCount.size() << "\n";
-    validationReport << "Preferred mode: " << modes[0].width << "x" << modes[0].width
-                    << "@" << modes[0].refresh_den << "Hz";
-    
-    g_log.Message(Refactoring::LogType::Info, validationReport.str().c_str());
-    
-    return true;
-}
-
-bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
-	wstring fullPath = confpath + L"\\" + profilePath;
-	
-	// Check if file exists
-	if (!PathFileExistsW(fullPath.c_str())) {
-		g_log.Message(Refactoring::LogType::Warning, ("EDID profile not found: " + Refactoring::WStringToString(fullPath)).c_str());
-		return false;
+		g_log.Message(Refactoring::LogType::Info, "EDID preferred mode disabled, using fallback");
+		return preferredMode;
 	}
 
-	CComPtr<IStream> pStream;
-	CComPtr<IXmlReader> pReader;
-	HRESULT hr = SHCreateStreamOnFileW(fullPath.c_str(), STGM_READ, &pStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "LoadEdidProfile: Failed to create file stream.");
-		return false;
-	}
-
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, NULL);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "LoadEdidProfile: Failed to create XmlReader.");
-		return false;
-	}
-
-	hr = pReader->SetInput(pStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "LoadEdidProfile: Failed to set input stream.");
-		return false;
-	}
-
-	XmlNodeType nodeType;
-	const WCHAR* pwszLocalName;
-	const WCHAR* pwszValue;
-	UINT cwchLocalName;
-	UINT cwchValue;
-	std::wstring currentElement;
-	std::wstring currentSection;
-	
-	// Temporary mode data
-	int tWidth = 0, tHeight = 0, refresh_num = 1000, refresh_den = 60;
-
-	while (S_OK == (hr = pReader->Read(&nodeType))) {
-		switch (nodeType) {
-		case XmlNodeType_Element:
-			hr = pReader->GetLocalName(&pwszLocalName, &cwchLocalName);
-			if (FAILED(hr)) return false;
-			currentElement = std::wstring(pwszLocalName, cwchLocalName);
-			
-			// Track sections for context
-			if (currentElement == L"MonitorModes" || currentElement == L"HDRCapabilities" || 
-				currentElement == L"ColorProfile" || currentElement == L"PreferredMode") {
-				currentSection = currentElement;
-			}
-			break;
-			
-		case XmlNodeType_Text:
-			hr = pReader->GetValue(&pwszValue, &cwchValue);
-			if (FAILED(hr)) return false;
-			
-			wstring value = wstring(pwszValue, cwchValue);
-			
-			// Parse monitor modes
-			if (currentSection == L"MonitorModes") {
-				if (currentElement == L"Width") {
-					tWidth = stoi(value);
-				}
-				else if (currentElement == L"Height") {
-					tHeight = stoi(value);
-				}
-				else if (currentElement == L"RefreshRateMultiplier") {
-					refresh_num = stoi(value);
-				}
-				else if (currentElement == L"NominalRefreshRate") {
-					refresh_den = stoi(value);
-					// Complete mode entry
-					if (tWidth > 0 && tHeight > 0)
-					{
-						profile.modes.push_back(
-							Refactoring::Resolution(tWidth, tHeight, refresh_num, refresh_den));
-						g_log.Message(Refactoring::LogType::Debug, std::format("EDID Mode: {}x{} @{}/{}Hz", tWidth, tHeight, refresh_num,
-												refresh_den)
-										.c_str());
-					}
-				}
-			}
-			// Parse HDR capabilities
-			else if (currentSection == L"HDRCapabilities") {
-				if (currentElement == L"HDR10Supported") {
-					profile.hdr10Supported = (value == L"true");
-				}
-				else if (currentElement == L"DolbyVisionSupported") {
-					profile.dolbyVisionSupported = (value == L"true");
-				}
-				else if (currentElement == L"HDR10PlusSupported") {
-					profile.hdr10PlusSupported = (value == L"true");
-				}
-				else if (currentElement == L"MaxLuminance") {
-					profile.maxLuminance = stod(value);
-				}
-				else if (currentElement == L"MinLuminance") {
-					profile.minLuminance = stod(value);
-				}
-			}
-			// Parse color profile
-			else if (currentSection == L"ColorProfile") {
-				if (currentElement == L"PrimaryColorSpace") {
-					Refactoring::StringToWstring(profile.primaryColorSpace) = value;
-				}
-				else if (currentElement == L"Gamma") {
-					profile.gamma = stod(value);
-				}
-				else if (currentElement == L"RedX") {
-					profile.redX = stod(value);
-				}
-				else if (currentElement == L"RedY") {
-					profile.redY = stod(value);
-				}
-				else if (currentElement == L"GreenX") {
-					profile.greenX = stod(value);
-				}
-				else if (currentElement == L"GreenY") {
-					profile.greenY = stod(value);
-				}
-				else if (currentElement == L"BlueX") {
-					profile.blueX = stod(value);
-				}
-				else if (currentElement == L"BlueY") {
-					profile.blueY = stod(value);
-				}
-				else if (currentElement == L"WhiteX") {
-					profile.whiteX = stod(value);
-				}
-				else if (currentElement == L"WhiteY") {
-					profile.whiteY = stod(value);
-				}
-			}
-			// Parse preferred mode
-			else if (currentSection == L"PreferredMode") {
-				if (currentElement == L"Width") {
-					profile.preferredWidth = stoi(value);
-				}
-				else if (currentElement == L"Height") {
-					profile.preferredHeight = stoi(value);
-				}
-				else if (currentElement == L"RefreshRate") {
-					profile.preferredRefresh = stod(value);
-				}
-			}
+	// Look for EDID preferred mode in available modes
+	for (const auto &mode : availableModes)
+	{
+		if (mode.width == profile.preferredWidth && mode.height == profile.preferredHeight)
+		{
+			// Found matching resolution, use it
+			preferredMode = mode;
+			g_log.Message(
+				Refactoring::LogType::Info,
+				std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferredWidth, profile.preferredHeight, mode.refresh_den).c_str());
 			break;
 		}
 	}
 
-	g_log.Message(Refactoring::LogType::Info, std::format("EDID Profile loaded: {} modes, HDR10: {}, Color space: {}", profile.modes.size(),
-							profile.hdr10Supported ? "Yes" : "No", profile.primaryColorSpace).c_str());
-	
-	return true;
-}
-
-bool ApplyEdidProfile(const EdidProfileData& profile) {
-	if (!g_settings.edid_integration.enabled) {
-		return false;
-	}
-
-	// === ENHANCED MODE MANAGEMENT ===
-	if (g_settings.auto_resolutions.enabled) {
-		// Store original manual modes
-		vector<Refactoring::Resolution> originalModes = monitorModes;
-		
-		// Generate optimized modes from EDID
-		vector<Refactoring::Resolution> edidModes = GenerateModesFromEdid(profile);
-		
-		// Find preferred mode from EDID
-		Refactoring::Resolution preferredMode = FindPreferredModeFromEdid(profile, edidModes);
-		
-		// Merge and optimize mode lists
-		vector<Refactoring::Resolution> finalModes = MergeAndOptimizeModes(originalModes, edidModes);
-		
-		// Optimize final mode list with preferred mode priority
-		finalModes = OptimizeModeList(finalModes, preferredMode);
-		
-		// Validate the final mode list
-		if (ValidateModeList(finalModes)) {
-			monitorModes = finalModes;
-			RebuildKnownMonitorModesCache();
-			
-			stringstream ss;
-			ss << "Enhanced mode management completed:\n"
-			   << "  Original manual modes: " << originalModes.size() << "\n"
-			   << "  Generated EDID modes: " << edidModes.size() << "\n"
-			   << "  Final optimized modes: " << finalModes.size() << "\n"
-			   << "  Preferred mode: " << preferredMode.width << "x" << preferredMode.height
-			   << "@" << preferredMode.refresh_den << "Hz\n"
-			   << "  Source priority: " << g_settings.auto_resolutions.source_priority;
-			g_log.Message(Refactoring::LogType::Info, ss.str().c_str());
-		} else {
-			g_log.Message(Refactoring::LogType::Error, "Mode list validation failed, keeping original modes");
-		}
-	}
-
-	// Apply HDR settings if configured
-	if (g_settings.hdr_advanced.static_metadata_enabled && profile.hdr10Supported) {
-		if (g_settings.edid_integration.override_manual_settings || g_settings.hdr_advanced.max_display_mastering_luminance == 1000.0)
-		{ // Default value
-			g_settings.hdr_advanced.max_display_mastering_luminance = profile.maxLuminance;
-		}
-		if (g_settings.edid_integration.override_manual_settings ||
-			g_settings.hdr_advanced.min_display_mastering_luminance == 0.05)
-		{ // Default value
-			g_settings.hdr_advanced.min_display_mastering_luminance = profile.minLuminance;
-		}
-	}
-
-	// Apply color primaries if configured
-	if (g_settings.hdr_advanced.color_primaries.primaries_enabled &&
-		(g_settings.edid_integration.override_manual_settings || g_settings.hdr_advanced.color_primaries.redX == 0.708))
-	{ // Default Rec.2020 values
-		g_settings.hdr_advanced.color_primaries.redX = profile.redX;
-		g_settings.hdr_advanced.color_primaries.redY = profile.redY;
-		g_settings.hdr_advanced.color_primaries.greenX = profile.greenX;
-		g_settings.hdr_advanced.color_primaries.greenY = profile.greenY;
-		g_settings.hdr_advanced.color_primaries.blueX = profile.blueX;
-		g_settings.hdr_advanced.color_primaries.blueY = profile.blueY;
-		g_settings.hdr_advanced.color_primaries.whiteX = profile.whiteX;
-		g_settings.hdr_advanced.color_primaries.whiteY = profile.whiteY;
-	}
-
-	// Apply color space settings
-	if (g_settings.hdr_advanced.color_space.enabled &&
-		(g_settings.edid_integration.override_manual_settings ||
-		 g_settings.hdr_advanced.color_space.primary_color_space == "sRGB"))
-	{ // Default value
-		g_settings.hdr_advanced.color_space.primary_color_space = profile.primaryColorSpace;
-		g_settings.hdr_advanced.color_space.gamma_correction = profile.gamma;
-	}
-
-	// Generate and store HDR metadata for all monitors if HDR is enabled
-	if (g_settings.hdr_advanced.static_metadata_enabled && profile.hdr10Supported) {
-		VddHdrMetadata hdrMetadata = ConvertEdidToSmpteMetadata(profile);
-		
-		if (hdrMetadata.isValid) {
-			// Store metadata for future monitor creation
-			// Note: We don't have monitor handles yet at this point, so we'll store it as a template
-			// The actual association will happen when monitors are created or HDR metadata is requested
-			
-			stringstream ss;
-			ss << "Generated SMPTE ST.2086 HDR metadata from EDID profile:\n"
-			   << "  Red: (" << hdrMetadata.display_primaries_x[0] << ", " << hdrMetadata.display_primaries_y[0] << ") "
-			   << "→ (" << profile.redX << ", " << profile.redY << ")\n"
-			   << "  Green: (" << hdrMetadata.display_primaries_x[1] << ", " << hdrMetadata.display_primaries_y[1] << ") "
-			   << "→ (" << profile.greenX << ", " << profile.greenY << ")\n"
-			   << "  Blue: (" << hdrMetadata.display_primaries_x[2] << ", " << hdrMetadata.display_primaries_y[2] << ") "
-			   << "→ (" << profile.blueX << ", " << profile.blueY << ")\n"
-			   << "  White Point: (" << hdrMetadata.white_point_x << ", " << hdrMetadata.white_point_y << ") "
-			   << "→ (" << profile.whiteX << ", " << profile.whiteY << ")\n"
-			   << "  Max Luminance: " << hdrMetadata.max_display_mastering_luminance 
-			   << " (" << profile.maxLuminance << " nits)\n"
-			   << "  Min Luminance: " << hdrMetadata.min_display_mastering_luminance 
-			   << " (" << profile.minLuminance << " nits)";
-			g_log.Message(Refactoring::LogType::Info, ss.str().c_str());
-			
-			// Store as template metadata - will be applied to monitors during HDR metadata events
-			// We use a special key (nullptr converted to uintptr_t) to indicate template metadata
-			g_HdrMetadataStore[reinterpret_cast<IDDCX_MONITOR>(0)] = hdrMetadata;
-		} else {
-			g_log.Message(Refactoring::LogType::Warning, "Generated HDR metadata is not valid, skipping storage");
-		}
-	}
-
-	// Generate and store gamma ramp for color space processing if enabled
-	if (g_settings.hdr_advanced.color_space.enabled) {
-		VddGammaRamp gammaRamp = ConvertEdidToGammaRamp(profile);
-		
-		if (gammaRamp.isValid) {
-			// Store gamma ramp as template for future monitor creation
-			stringstream ss;
-			ss << "Generated Gamma Ramp from EDID profile:\n"
-			   << "  Gamma: " << gammaRamp.gamma << " (from " << profile.gamma << ")\n"
-			   << "  Color Space: " << gammaRamp.colorSpace << "\n"
-			   << "  Matrix Transform: " << (gammaRamp.useMatrix ? "Enabled" : "Disabled");
-			
-			if (gammaRamp.useMatrix) {
-				ss << "\n3x4 Matrix:\n"
-				   << "[" << gammaRamp.matrix.matrix[0][0] << ", " << gammaRamp.matrix.matrix[0][1] << ", " << gammaRamp.matrix.matrix[0][2] << ", " << gammaRamp.matrix.matrix[0][3] << "]\n"
-				   << "[" << gammaRamp.matrix.matrix[1][0] << ", " << gammaRamp.matrix.matrix[1][1] << ", " << gammaRamp.matrix.matrix[1][2] << ", " << gammaRamp.matrix.matrix[1][3] << "]\n"
-				   << "[" << gammaRamp.matrix.matrix[2][0] << ", " << gammaRamp.matrix.matrix[2][1] << ", " << gammaRamp.matrix.matrix[2][2] << ", " << gammaRamp.matrix.matrix[2][3] << "]";
-			}
-			
-			g_log.Message(Refactoring::LogType::Info, ss.str().c_str());
-			
-			// Store as template gamma ramp - will be applied to monitors during gamma ramp events
-			// We use a special key (nullptr converted to uintptr_t) to indicate template gamma ramp
-			g_GammaRampStore[reinterpret_cast<IDDCX_MONITOR>(0)] = gammaRamp;
-		} else {
-			g_log.Message(Refactoring::LogType::Warning, "Generated gamma ramp is not valid, skipping storage");
-		}
-	}
-
-	return true;
+	return preferredMode;
 }
 
 int gcd(int a, int b) {
@@ -1667,20 +1181,20 @@ void loadSettings() {
 		
 		// === APPLY EDID INTEGRATION ===
 		if (g_settings.edid_integration.enabled && g_settings.edid_integration.auto_configure) {
-			EdidProfileData edidProfile;
-			if (LoadEdidProfile(Refactoring::StringToWstring(g_settings.edid_integration.profile_path), edidProfile)) {
-				if (ApplyEdidProfile(edidProfile)) {
-					g_log.Message(Refactoring::LogType::Info, "EDID profile applied successfully");
-				} else {
-					g_log.Message(Refactoring::LogType::Warning, "EDID profile loaded but not applied (integration disabled)");
-				}
-			} else {
-				if (g_settings.edid_integration.fallback_on_error) {
-					g_log.Message(Refactoring::LogType::Warning, "EDID profile loading failed, using manual settings");
-				} else {
-					g_log.Message(Refactoring::LogType::Error, "EDID profile loading failed and fallback disabled");
-				}
-			}
+			//EdidProfileData edidProfile;
+			//if (LoadEdidProfile(Refactoring::StringToWstring(g_settings.edid_integration.profile_path), edidProfile)) {
+			//	if (ApplyEdidProfile(edidProfile)) {
+			//		g_log.Message(Refactoring::LogType::Info, "EDID profile applied successfully");
+			//	} else {
+			//		g_log.Message(Refactoring::LogType::Warning, "EDID profile loaded but not applied (integration disabled)");
+			//	}
+			//} else {
+			//	if (g_settings.edid_integration.fallback_on_error) {
+			//		g_log.Message(Refactoring::LogType::Warning, "EDID profile loading failed, using manual settings");
+			//	} else {
+			//		g_log.Message(Refactoring::LogType::Error, "EDID profile loading failed and fallback disabled");
+			//	}
+			//}
 		}
 		
 		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");

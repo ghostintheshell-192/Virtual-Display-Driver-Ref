@@ -223,5 +223,4 @@ struct MonitorProfile
 	} primaries;
 };
 
-
 } // namespace Refactoring
