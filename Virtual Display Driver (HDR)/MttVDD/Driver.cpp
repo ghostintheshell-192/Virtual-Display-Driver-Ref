@@ -41,6 +41,7 @@ Environment:
 #include <cwchar>
 #include <map>
 #include <set>
+#include <functional>
 
 
 #define PIPE_NAME L"\\\\.\\pipe\\MTTVirtualDisplayPipe"
@@ -1256,65 +1257,72 @@ void HandleClient(HANDLE hPipe) {
 	auto str_buffer = Refactoring::WStringToString(buffer);
 	auto pipe_tokens = Refactoring::tokenize(str_buffer, ' ');
 
-	if (pipe_tokens.size() != 2)
-	{
-		return;
-	}
-
 	g_log.Message(Refactoring::LogType::Pipe, str_buffer.c_str());
 
 	struct elements
 	{
 		std::string xml_key;
-		std::string comment;
+		//std::string comment;
 		bool reload_pipe;
 	};
 
 	std::map<std::string, elements> entries;
 
-	entries.insert({"LOGGING", {"logging.logging", "Logging Enabled", false}});
-	entries.insert({"LOG_DEBUG", {"logging.debuglogging", "Debug Logs Enabled", false}});
-	entries.insert({"CUSTOMEDID", {"edid.CustomEdid", "Custom Edid Enabled", true}});
-	entries.insert({"PREVENTSPOOF", {"edid.PreventSpoof", "Prevent Spoof Enabled", true}});
-	entries.insert({"EdidCeaOverride", {"edid.EdidCeaOverride", "CEA Override Enabled", true}});
-	entries.insert({"HDRPLUS", {"colour.HDRPlus", "HDR Plus Enabled", true}});
-	entries.insert({"SDR10", {"colour.SDR10bit", "SDR 10 Enabled", true}});
-	entries.insert({"HARDWARECURSOR", {"cursor.HardwareCursor", "Hardware Cursor Enabled", true}});
+	entries.insert({"LOGGING", {"logging.logging", false}});
+	entries.insert({"LOG_DEBUG", {"logging.debuglogging", false}});
+	entries.insert({"CUSTOMEDID", {"edid.CustomEdid", true}});
+	entries.insert({"PREVENTSPOOF", {"edid.PreventSpoof", true}});
+	entries.insert({"EdidCeaOverride", {"edid.EdidCeaOverride", true}});
+	entries.insert({"HDRPLUS", {"colour.HDRPlus", true}});
+	entries.insert({"SDR10", {"colour.SDR10bit", true}});
+	entries.insert({"HARDWARECURSOR", {"cursor.HardwareCursor", true}});
+	entries.insert({"SETGPU", {"gpu.friendlyname", true}});
+	entries.insert({"SETDISPLAYCOUNT", {"monitors.count", true}});
+
+	std::map<std::string, std::function<void (std::vector<std::string>)>> prova;
+
+	if (pipe_tokens[0] == "PING")
+	{
+		g_log.SendToPipe("PONG");
+		g_log.Message(Refactoring::LogType::Pipe, "Heartbeat Ping");
+		return;
+	}
+
+	if (pipe_tokens[0] == "RELOAD_DRIVER")
+	{
+		g_log.Message(Refactoring::LogType::Companion, "Reloading the driver");
+		ReloadDriver(hPipe);
+	}
 
 	auto it = entries.find(pipe_tokens[0]);
 	if (it != entries.end())
 	{
-		g_settings_manager.SetSetting(it->second.xml_key, pipe_tokens[1]);
+		if (!g_settings_manager.SetSetting(it->second.xml_key, pipe_tokens[1]))
+		{
+			g_log.Message(Refactoring::LogType::Companion, std::format("Set operation failed for {}", it->second.xml_key));
+		}
+
 		if (it->second.reload_pipe)
 			ReloadDriver(hPipe);
+
 		if (pipe_tokens[0] == "LOGGING")
 		{
-			g_settings.logs.enable_standard_logs = Refactoring::convert_setting<bool>(pipe_tokens[1]);
 			g_log.ToggleStandardLogs(g_settings.logs.enable_standard_logs);
 		}
 		else if (pipe_tokens[0] == "LOG_DEBUG")
 		{
-			g_settings.logs.enable_debug_logs = Refactoring::convert_setting<bool>(pipe_tokens[1]);
 			g_log.ToggleDebugLogs(g_settings.logs.enable_debug_logs);
 		}
-		g_log.Message(Refactoring::LogType::Companion, it->second.comment);
+		g_log.Message(Refactoring::LogType::Companion, std::format("{} new value: {}", it->first, pipe_tokens[1]));
 		return;
 	}
-
-
 
 	if (result && bytesRead != 0) {
 		buffer[bytesRead / sizeof(wchar_t)] = L'\0';
 		g_log.Message(Refactoring::LogType::Pipe, Refactoring::WStringToString(buffer).c_str());
 
-		//RELOAD THE DRIVER + LOGS
-		if (wcsncmp(buffer, L"RELOAD_DRIVER", 13) == 0) {
-			g_log.Message(Refactoring::LogType::Companion, "Reloading the driver");
-			ReloadDriver(hPipe);
-			
-		}
 		// D3DDEVICEGPU: LOGS, initializeD3DDeviceAndLogGPU
-		else if (wcsncmp(buffer, L"D3DDEVICEGPU", 12) == 0) {
+		if (wcsncmp(buffer, L"D3DDEVICEGPU", 12) == 0) {
 			g_log.Message(Refactoring::LogType::Companion, "Retrieving D3D GPU (This information may be inaccurate without reloading the driver first)");
 			InitializeD3DDeviceAndLogGPU();
 			g_log.Message(Refactoring::LogType::Companion, "Retrieved D3D GPU");
@@ -1337,39 +1345,6 @@ void HandleClient(HANDLE hPipe) {
 			logAvailableGPUs();
 			g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
 		}
-		// SETGPU: updatesettings, LOGS, RELOAD DRIVER
-		else if (wcsncmp(buffer, L"SETGPU", 6) == 0) {
-			std::wstring gpuName = buffer + 7;
-			gpuName = gpuName.substr(1, gpuName.size() - 2); 
-
-			g_log.Message(Refactoring::LogType::Companion, std::format("Setting GPU to: {}", Refactoring::WStringToString(gpuName)).c_str());
-			if (UpdateXmlSetting(gpuName, L"friendlyname"))
-			{
-				g_log.Message(Refactoring::LogType::Companion, "Gpu Changed, Restarting Driver");
-			}
-			else {
-				g_log.Message(Refactoring::LogType::Error, "Failed to update GPU setting in XML. Restarting anyway");
-			}
-			ReloadDriver(hPipe);
-		}
-		// SETDISPLAYCOUNT: updatesettings, LOGS, RELOAD DRIVER
-		else if (wcsncmp(buffer, L"SETDISPLAYCOUNT", 15) == 0) {
-			g_log.Message(Refactoring::LogType::Info, "Setting Display Count");
-
-			int newDisplayCount = 1;
-			swscanf_s(buffer + 15, L"%d", &newDisplayCount);
-
-			g_log.Message(Refactoring::LogType::Companion, std::format("Setting display count  to {}", newDisplayCount).c_str());
-
-			if (UpdateXmlSetting(std::to_wstring(newDisplayCount), L"count"))
-			{
-				g_log.Message(Refactoring::LogType::Companion, "Display Count Changed, Restarting Driver");
-			}
-			else {
-				g_log.Message(Refactoring::LogType::Error, "Failed to update display count setting in XML. Restarting anyway");
-			}
-			ReloadDriver(hPipe);
-		}
 		// GETSETTINGS: recupera il valore salvato per i log, e... lo stampa a video? (writefile)
 		else if (wcsncmp(buffer, L"GETSETTINGS", 11) == 0) {
 			//query and return settings
@@ -1384,15 +1359,6 @@ void HandleClient(HANDLE hPipe) {
 			DWORD bytesToWrite = static_cast<DWORD>((settingsResponse.length() + 1) * sizeof(wchar_t));
 			WriteFile(hPipe, settingsResponse.c_str(), bytesToWrite, &bytesWritten, NULL);
 
-		}
-		// PING: LOGS
-		else if (wcsncmp(buffer, L"PING", 4) == 0) {
-			g_log.SendToPipe("PONG");
-			g_log.Message(Refactoring::LogType::Pipe, "Heartbeat Ping");
-		}
-		else {
-			g_log.Message(Refactoring::LogType::Error, "Unknown command");
-			g_log.Message(Refactoring::LogType::Error, Refactoring::WStringToString(buffer).c_str());
 		}
 	}
 	DisconnectNamedPipe(hPipe);
