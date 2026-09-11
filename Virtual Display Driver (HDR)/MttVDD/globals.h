@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <variant>
+#include <vector>
 
 /* DriverSettings(una istanza globale : g_settings)
 ├── LogSettings(logs, debug, send_through_pipe)
@@ -45,7 +46,7 @@ struct EdidSettings
 
 struct EdidIntegrationSettings
 {
-	std::string profile_path = "EDID/monitor_profile.xm";
+	std::string profile_path = "EDID/monitor_profile.xml";
 	bool override_manual_settings = false;
 	bool fallback_on_error = true;
 	bool enabled = false;
@@ -178,5 +179,49 @@ struct DataElements
 	std::string key;
 	SettingValuePtr container;
 };
+
+struct Resolution
+{
+	int width = 1920;
+	int height = 1080;
+	int refresh_num = 6000;
+	int refresh_den = 100;
+
+	Resolution() = default;
+	Resolution(int w, int h, int num, int den) : width(w), height(h), refresh_num(num), refresh_den(den) {};
+};
+
+struct MonitorProfile
+{
+	bool hdr10_plus_supported = false;
+	bool hdr10_supported = false;
+	bool dolby_vision_supported = false;
+
+	//hdr advanced
+	double max_mastering_luminance = 0.0;
+	double min_mastering_luminance = 0.0;
+
+	//monitor resolution
+	Resolution preferred_res{};
+
+	std::vector<Resolution> modes;
+
+	//color_space
+	std::string primary_color_space = "sRGB"; //sRGB, DCI-P3, etc...
+	double gamma_correction = 2.2;
+
+	struct ColorPrimaries
+	{
+		double redX = 0.64;
+		double redY = 0.33;
+		double greenX = 0.30;
+		double greenY = 0.60;
+		double blueX = 0.15;
+		double blueY = 0.06;
+		double whiteX = 0.3127;
+		double whiteY = 0.3290;
+	} primaries;
+};
+
 
 } // namespace Refactoring

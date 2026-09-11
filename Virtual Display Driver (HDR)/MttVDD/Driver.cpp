@@ -93,7 +93,7 @@ struct
 {
 	AdapterOption Adapter;
 } Options;
-vector<tuple<int, int, int, int>> monitorModes;
+vector<Refactoring::Resolution> monitorModes;
 vector< DISPLAYCONFIG_VIDEO_SIGNAL_INFO> s_KnownMonitorModes2;
 UINT numVirtualDisplays;
 wstring gpuname;
@@ -112,10 +112,10 @@ namespace
 		{
 			s_KnownMonitorModes2.push_back(
 				dispinfo(
-					std::get<0>(mode),
-					std::get<1>(mode),
-					std::get<2>(mode),
-					std::get<3>(mode)));
+					mode.width,
+					mode.height,
+					mode.refresh_num,
+					mode.refresh_den));
 		}
 	}
 }
@@ -153,7 +153,7 @@ struct IndirectDeviceContextWrapper
 
 // === EDID PROFILE LOADING FUNCTION ===
 struct EdidProfileData {
-	vector<tuple<int, int, int, int>> modes;
+	std::vector<Refactoring::Resolution> modes;
 	bool hdr10Supported = false;
 	bool dolbyVisionSupported = false;
 	bool hdr10PlusSupported = false;
@@ -431,8 +431,8 @@ VddHdrMetadata ConvertManualToSmpteMetadata() {
 // === ENHANCED MODE MANAGEMENT FUNCTIONS ===
 
 // Generate modes from EDID with advanced filtering and optimization
-vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& profile) {
-    vector<tuple<int, int, int, int>> generatedModes;
+std::vector<Refactoring::Resolution> GenerateModesFromEdid(const EdidProfileData& profile) {
+    std::vector<Refactoring::Resolution> generatedModes;
     
     if (!g_settings.auto_resolutions.enabled) {
         g_log.Message(Refactoring::LogType::Info, "Auto resolutions disabled, skipping EDID mode generation");
@@ -440,32 +440,32 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
     }
     
     for (const auto& mode : profile.modes) {
-        int width = get<0>(mode);
-        int height = get<1>(mode);
-        int refreshRateMultiplier = get<2>(mode);
-        int nominalRefreshRate = get<3>(mode);
+        //int width = get<0>(mode);
+        //int height = get<1>(mode);
+        //int refreshRateMultiplier = get<2>(mode);
+        //int nominalRefreshRate = get<3>(mode);
         
         // Apply comprehensive filtering
         bool passesFilter = true;
         
         // Resolution range filtering
-		if (width < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_width ||
-			width > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_width ||
-			height < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_height ||
-			height > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_height)
+		if (mode.width < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_width ||
+			mode.width > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_width ||
+			mode.height < g_settings.auto_resolutions.edid_mode_filtering.min_resolution_height ||
+			mode.height > g_settings.auto_resolutions.edid_mode_filtering.max_resolution_height)
 		{
             passesFilter = false;
         }
         
         // Refresh rate filtering
-		if (nominalRefreshRate < g_settings.auto_resolutions.edid_mode_filtering.min_refresh_rate ||
-			nominalRefreshRate > g_settings.auto_resolutions.edid_mode_filtering.max_refresh_rate)
+		if (mode.refresh_den < g_settings.auto_resolutions.edid_mode_filtering.min_refresh_rate ||
+			mode.refresh_den > g_settings.auto_resolutions.edid_mode_filtering.max_refresh_rate)
 		{
             passesFilter = false;
         }
         
         // Fractional rate filtering
-		if (g_settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates && refreshRateMultiplier != 1000)
+		if (g_settings.auto_resolutions.edid_mode_filtering.exclude_fractional_rates && mode.refresh_num != 1000)
 		{
             passesFilter = false;
         }
@@ -473,7 +473,7 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
         // Add custom quality filtering
         if (passesFilter) {
             // Prefer standard aspect ratios for better compatibility
-            double aspectRatio = static_cast<double>(width) / height;
+            double aspectRatio = static_cast<double>(mode.width) / mode.height;
             bool isStandardAspect = (abs(aspectRatio - 16.0/9.0) < 0.01) ||  // 16:9
                                    (abs(aspectRatio - 16.0/10.0) < 0.01) ||  // 16:10
                                    (abs(aspectRatio - 4.0/3.0) < 0.01) ||    // 4:3
@@ -482,7 +482,7 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
             // Log non-standard aspect ratios for information
             if (!isStandardAspect) {
                 stringstream ss;
-                ss << "Including non-standard aspect ratio mode: " << width << "x" << height 
+                ss << "Including non-standard aspect ratio mode: " << mode.width << "x" << mode.height 
                    << " (ratio: " << fixed << setprecision(2) << aspectRatio << ")";
                 g_log.Message(Refactoring::LogType::Debug, ss.str().c_str());
             }
@@ -490,32 +490,29 @@ vector<tuple<int, int, int, int>> GenerateModesFromEdid(const EdidProfileData& p
             generatedModes.push_back(mode);
         }
     }
-    
-    // Sort modes by preference (resolution, then refresh rate)
-    sort(generatedModes.begin(), generatedModes.end(), 
-         [](const tuple<int, int, int, int>& a, const tuple<int, int, int, int>& b) {
-             // Primary sort: resolution (area)
-             int areaA = get<0>(a) * get<1>(a);
-             int areaB = get<0>(b) * get<1>(b);
-             if (areaA != areaB) return areaA > areaB;  // Larger resolution first
-             
-             // Secondary sort: refresh rate
-             return get<3>(a) > get<3>(b);  // Higher refresh rate first
-         });
+	// Sort modes by preference (resolution, then refresh rate)
+	sort(generatedModes.begin(), generatedModes.end(), [](const Refactoring::Resolution &a, const Refactoring::Resolution &b) {
+		// Primary sort: resolution (area)
+		int areaA = a.width * a.height;
+		int areaB = b.width * b.height;
+		if (areaA != areaB)
+			return areaA > areaB; // Larger resolution first
+
+		// Secondary sort: refresh rate
+		return a.refresh_den > a.refresh_den; // Higher refresh rate first
+	});
 	g_log.Message(Refactoring::LogType::Info, std::format("Generated {} modes from EDID (filtered from {} total)", generatedModes.size(), profile.modes.size()).c_str());
     
     return generatedModes;
 }
 
 // Find and validate preferred mode from EDID
-tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profile, 
-                                                   const vector<tuple<int, int, int, int>>& availableModes) {
+Refactoring::Resolution FindPreferredModeFromEdid(const EdidProfileData& profile, 
+                                                   const vector<Refactoring::Resolution>& availableModes) {
     // Default fallback mode
-	tuple<int, int, int, int> preferredMode =
-		make_tuple(g_settings.auto_resolutions.preferred_mode.fallback_width,
-				   g_settings.auto_resolutions.preferred_mode.fallback_height,
-				   1000,
-				   g_settings.auto_resolutions.preferred_mode.fallback_refresh);
+	Refactoring::Resolution preferredMode =
+		Refactoring::Resolution(g_settings.auto_resolutions.preferred_mode.fallback_width, g_settings.auto_resolutions.preferred_mode.fallback_height,
+								1000, g_settings.auto_resolutions.preferred_mode.fallback_refresh);
     
     if (!g_settings.auto_resolutions.preferred_mode.preferred)
 	{
@@ -525,12 +522,12 @@ tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profi
     
     // Look for EDID preferred mode in available modes
     for (const auto& mode : availableModes) {
-        if (get<0>(mode) == profile.preferredWidth && 
-            get<1>(mode) == profile.preferredHeight) {
+        if (mode.width == profile.preferredWidth && 
+            mode.height == profile.preferredHeight) {
             // Found matching resolution, use it
             preferredMode = mode;
 			g_log.Message(Refactoring::LogType::Info,
-				   std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferredWidth, profile.preferredHeight, get<3>(mode)).c_str());
+				   std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferredWidth, profile.preferredHeight, mode.refresh_den).c_str());
             break;
         }
     }
@@ -539,9 +536,9 @@ tuple<int, int, int, int> FindPreferredModeFromEdid(const EdidProfileData& profi
 }
 
 // Merge and optimize mode lists
-vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, int, int, int>>& manualModes,
-                                                        const vector<tuple<int, int, int, int>>& edidModes) {
-    vector<tuple<int, int, int, int>> mergedModes;
+vector<Refactoring::Resolution> MergeAndOptimizeModes(const vector<Refactoring::Resolution>& manualModes,
+                                                        const vector<Refactoring::Resolution>& edidModes) {
+    vector<Refactoring::Resolution> mergedModes;
     
     if (g_settings.auto_resolutions.source_priority == "edid")
 	{
@@ -562,9 +559,9 @@ vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, 
         for (const auto& edidMode : edidModes) {
             bool isDuplicate = false;
             for (const auto& manualMode : manualModes) {
-                if (get<0>(edidMode) == get<0>(manualMode) && 
-                    get<1>(edidMode) == get<1>(manualMode) && 
-                    get<3>(edidMode) == get<3>(manualMode)) {
+                if (edidMode.width == manualMode.width && 
+                    edidMode.height == manualMode.height && 
+                    edidMode.refresh_den == manualMode.refresh_den) {
                     isDuplicate = true;
                     break;
                 }
@@ -581,17 +578,17 @@ vector<tuple<int, int, int, int>> MergeAndOptimizeModes(const vector<tuple<int, 
 }
 
 // Optimize mode list for performance and compatibility
-vector<tuple<int, int, int, int>> OptimizeModeList(const vector<tuple<int, int, int, int>>& modes,
-                                                   const tuple<int, int, int, int>& preferredMode) {
-    vector<tuple<int, int, int, int>> optimizedModes = modes;
+vector<Refactoring::Resolution> OptimizeModeList(const vector<Refactoring::Resolution>& modes,
+                                                   const Refactoring::Resolution& preferredMode) {
+    vector<Refactoring::Resolution> optimizedModes = modes;
     
     // Remove preferred mode from list if it exists, we'll add it at the front
     optimizedModes.erase(
         remove_if(optimizedModes.begin(), optimizedModes.end(),
-                  [&preferredMode](const tuple<int, int, int, int>& mode) {
-                      return get<0>(mode) == get<0>(preferredMode) && 
-                             get<1>(mode) == get<1>(preferredMode) &&
-                             get<3>(mode) == get<3>(preferredMode);
+                  [&preferredMode](const Refactoring::Resolution& mode) {
+                      return mode.width == preferredMode.width && 
+                             mode.height == preferredMode.height &&
+                             mode.refresh_den == preferredMode.refresh_den;
                   }),
         optimizedModes.end());
     
@@ -599,12 +596,15 @@ vector<tuple<int, int, int, int>> OptimizeModeList(const vector<tuple<int, int, 
     optimizedModes.insert(optimizedModes.begin(), preferredMode);
     
     // Remove duplicate modes (same resolution and refresh rate)
-    sort(optimizedModes.begin(), optimizedModes.end());
+	std::sort(optimizedModes.begin(), optimizedModes.end(),[](const Refactoring::Resolution &a, const Refactoring::Resolution &b){
+		return a.width > b.width && a.height > b.height && a.refresh_den > b.refresh_den;
+	});
+
     optimizedModes.erase(unique(optimizedModes.begin(), optimizedModes.end(),
-                                [](const tuple<int, int, int, int>& a, const tuple<int, int, int, int>& b) {
-                                    return get<0>(a) == get<0>(b) && 
-                                           get<1>(a) == get<1>(b) && 
-                                           get<3>(a) == get<3>(b);
+                                [](const Refactoring::Resolution& a, const Refactoring::Resolution& b) {
+                                    return a.width == b.width && 
+                                           a.height == b.height && 
+                                           a.refresh_den == b.refresh_den;
                                 }),
                          optimizedModes.end());
     
@@ -619,7 +619,7 @@ vector<tuple<int, int, int, int>> OptimizeModeList(const vector<tuple<int, int, 
 }
 
 // Enhanced mode validation with detailed reporting
-bool ValidateModeList(const vector<tuple<int, int, int, int>>& modes) {
+bool ValidateModeList(const vector<Refactoring::Resolution>& modes) {
     if (modes.empty()) {
         g_log.Message(Refactoring::LogType::Error, "Mode list is empty - this will cause display driver failure");
         return false;
@@ -634,15 +634,15 @@ bool ValidateModeList(const vector<tuple<int, int, int, int>>& modes) {
     map<int, int> refreshRateCount;
     
     for (const auto& mode : modes) {
-        pair<int, int> resolution = {get<0>(mode), get<1>(mode)};
+        pair<int, int> resolution = {mode.width, mode.height};
         resolutionCount[resolution]++;
-        refreshRateCount[get<3>(mode)]++;
+        refreshRateCount[mode.refresh_den]++;
     }
     
     validationReport << "Unique resolutions: " << resolutionCount.size() << "\n";
     validationReport << "Unique refresh rates: " << refreshRateCount.size() << "\n";
-    validationReport << "Preferred mode: " << get<0>(modes[0]) << "x" << get<1>(modes[0]) 
-                    << "@" << get<3>(modes[0]) << "Hz";
+    validationReport << "Preferred mode: " << modes[0].width << "x" << modes[0].width
+                    << "@" << modes[0].refresh_den << "Hz";
     
     g_log.Message(Refactoring::LogType::Info, validationReport.str().c_str());
     
@@ -687,7 +687,7 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 	std::wstring currentSection;
 	
 	// Temporary mode data
-	int tWidth = 0, tHeight = 0, tRefreshRateMultiplier = 1000, tNominalRefreshRate = 60;
+	int tWidth = 0, tHeight = 0, refresh_num = 1000, refresh_den = 60;
 
 	while (S_OK == (hr = pReader->Read(&nodeType))) {
 		switch (nodeType) {
@@ -718,17 +718,17 @@ bool LoadEdidProfile(const wstring& profilePath, EdidProfileData& profile) {
 					tHeight = stoi(value);
 				}
 				else if (currentElement == L"RefreshRateMultiplier") {
-					tRefreshRateMultiplier = stoi(value);
+					refresh_num = stoi(value);
 				}
 				else if (currentElement == L"NominalRefreshRate") {
-					tNominalRefreshRate = stoi(value);
+					refresh_den = stoi(value);
 					// Complete mode entry
 					if (tWidth > 0 && tHeight > 0)
 					{
 						profile.modes.push_back(
-							make_tuple(tWidth, tHeight, tRefreshRateMultiplier, tNominalRefreshRate));
-						g_log.Message(Refactoring::LogType::Debug, std::format("EDID Mode: {}x{} @{}/{}Hz", tWidth, tHeight, tRefreshRateMultiplier,
-												tNominalRefreshRate)
+							Refactoring::Resolution(tWidth, tHeight, refresh_num, refresh_den));
+						g_log.Message(Refactoring::LogType::Debug, std::format("EDID Mode: {}x{} @{}/{}Hz", tWidth, tHeight, refresh_num,
+												refresh_den)
 										.c_str());
 					}
 				}
@@ -814,16 +814,16 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 	// === ENHANCED MODE MANAGEMENT ===
 	if (g_settings.auto_resolutions.enabled) {
 		// Store original manual modes
-		vector<tuple<int, int, int, int>> originalModes = monitorModes;
+		vector<Refactoring::Resolution> originalModes = monitorModes;
 		
 		// Generate optimized modes from EDID
-		vector<tuple<int, int, int, int>> edidModes = GenerateModesFromEdid(profile);
+		vector<Refactoring::Resolution> edidModes = GenerateModesFromEdid(profile);
 		
 		// Find preferred mode from EDID
-		tuple<int, int, int, int> preferredMode = FindPreferredModeFromEdid(profile, edidModes);
+		Refactoring::Resolution preferredMode = FindPreferredModeFromEdid(profile, edidModes);
 		
 		// Merge and optimize mode lists
-		vector<tuple<int, int, int, int>> finalModes = MergeAndOptimizeModes(originalModes, edidModes);
+		vector<Refactoring::Resolution> finalModes = MergeAndOptimizeModes(originalModes, edidModes);
 		
 		// Optimize final mode list with preferred mode priority
 		finalModes = OptimizeModeList(finalModes, preferredMode);
@@ -838,8 +838,8 @@ bool ApplyEdidProfile(const EdidProfileData& profile) {
 			   << "  Original manual modes: " << originalModes.size() << "\n"
 			   << "  Generated EDID modes: " << edidModes.size() << "\n"
 			   << "  Final optimized modes: " << finalModes.size() << "\n"
-			   << "  Preferred mode: " << get<0>(preferredMode) << "x" << get<1>(preferredMode) 
-			   << "@" << get<3>(preferredMode) << "Hz\n"
+			   << "  Preferred mode: " << preferredMode.width << "x" << preferredMode.height
+			   << "@" << preferredMode.refresh_den << "Hz\n"
 			   << "  Source priority: " << g_settings.auto_resolutions.source_priority;
 			g_log.Message(Refactoring::LogType::Info, ss.str().c_str());
 		} else {
@@ -1346,8 +1346,8 @@ void HandleClient(HANDLE hPipe) {
 		logAvailableGPUs();
 		g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
 	}
-	// GETSETTINGS: recupera il valore salvato per i log, e... lo stampa a video? (writefile)
-	else if (pipe_tokens[0] == "GETSETTINGS", 11)
+	// GETSETTINGS: recupera il valore salvato per i log, e lo manda alla pipe
+	else if (pipe_tokens[0] == "GETSETTINGS")
 	{
 		wstring settingsResponse =
 			std::format(L"SETTINGS DEBUG={:s} LOG={:s}", g_settings.logs.enable_debug_logs, g_settings.logs.enable_standard_logs);
@@ -1553,7 +1553,7 @@ void loadSettings() {
 		UINT cwchValue;
 		wstring currentElement;
 		wstring width, height, refreshRate;
-		vector<tuple<int, int, int, int>> res;
+		vector<Refactoring::Resolution> res;
 		wstring gpuFriendlyName;
 		UINT monitorcount = 1;
 		set<tuple<int, int>> resolutions;
@@ -1604,7 +1604,7 @@ void loadSettings() {
 					int vsync_num, vsync_den;
 					float_to_vsync(stof(refreshRate), vsync_num, vsync_den);
 
-					res.push_back(make_tuple(stoi(width), stoi(height), vsync_num, vsync_den));
+					res.push_back(Refactoring::Resolution(stoi(width), stoi(height), vsync_num, vsync_den));
 					stringstream ss;
 					ss << "Added: " << stoi(width) << "x" << stoi(height) << " @ " << vsync_num << "/" << vsync_den << "Hz";
 					g_log.Message(Refactoring::LogType::Debug, ss.str().c_str());
@@ -1640,7 +1640,7 @@ void loadSettings() {
 
 				int vsync_num, vsync_den;
 				float_to_vsync(static_cast<float>(globalRate), vsync_num, vsync_den);
-				res.push_back(make_tuple(global_width, global_height, vsync_num, vsync_den));
+				res.push_back(Refactoring::Resolution(global_width, global_height, vsync_num, vsync_den));
 			}
 		}
 
@@ -1693,7 +1693,7 @@ void loadSettings() {
 		if (getline(ifs, line) && !line.empty())
 		{
 			numVirtualDisplays = stoi(line);
-			vector<tuple<int, int, int, int>> res;
+			vector<Refactoring::Resolution> res;
 
 			while (getline(ifs, line))
 			{
@@ -1711,9 +1711,8 @@ void loadSettings() {
 			RebuildKnownMonitorModesCache();
 			for (const auto &mode : res)
 			{
-				int width, height, vsync_num, vsync_den;
-				tie(width, height, vsync_num, vsync_den) = mode;
-				g_log.Message(Refactoring::LogType::Debug, std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
+				g_log.Message(Refactoring::LogType::Debug,
+							  std::format("Resolution: {}x{} @ {}/{} Hz", mode.width, mode.height, mode.refresh_num, mode.refresh_den).c_str());
 			}
 			return;
 		}
@@ -1725,7 +1724,7 @@ void loadSettings() {
 
 
 	numVirtualDisplays = 1;
-	vector<tuple<int, int, int, int>> res;
+	vector<Refactoring::Resolution> res;
 	vector<tuple<int, int, float>> fallbackRes = {
 		{800, 600, 30.0f},
 		{800, 600, 60.0f},
@@ -1775,7 +1774,7 @@ void loadSettings() {
 		int vsync_num, vsync_den;
 		float_to_vsync(refreshRate, vsync_num, vsync_den);
 
-		res.push_back(make_tuple(width, height, vsync_num, vsync_den));
+		res.push_back(Refactoring::Resolution(width, height, vsync_num, vsync_den));
 
 		g_log.Message(Refactoring::LogType::Debug, std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
 	}
@@ -3007,12 +3006,12 @@ NTSTATUS VirtualDisplayDriverMonitorQueryModes(IDDCX_MONITOR MonitorObject, cons
 	// report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
 	for (int i = 0; i < monitorModes.size(); i++) {
-		CreateTargetMode(TargetModes[i], std::get<0>(monitorModes[i]), std::get<1>(monitorModes[i]), std::get<2>(monitorModes[i]), std::get<3>(monitorModes[i]));
+		CreateTargetMode(TargetModes[i], monitorModes[i].width, monitorModes[i].height, monitorModes[i].refresh_num, monitorModes[i].refresh_den);
 
 		logStream.str("");
-		logStream << "Created target mode " << i << ": Width = " << std::get<0>(monitorModes[i])
-			<< ", Height = " << std::get<1>(monitorModes[i])
-			<< ", VSync = " << std::get<2>(monitorModes[i]);
+		logStream << "Created target mode " << i << ": Width = " << monitorModes[i].width
+			<< ", Height = " << monitorModes[i].height
+			<< ", VSync = " << monitorModes[i].refresh_num; //qui è sbagliato
 		g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 	}
 
@@ -3200,7 +3199,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 	for (const auto& mode : monitorModes)
 	{
 		g_log.Message(Refactoring::LogType::Debug,
-			   std::format("\n Mode - Width : {}, Height: {}, RefreshRate: {}", std::get<0>(mode), std::get<1>(mode), std::get<2>(mode)).c_str());
+			   std::format("\n Mode - Width : {}, Height: {}, RefreshRate: {}", mode.width, mode.height, mode.refresh_num).c_str());
 	}
 
 	RebuildKnownMonitorModesCache();
@@ -3287,8 +3286,8 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 
 	for (int i = 0; i < monitorModes.size(); i++)
 	{
-		CreateTargetMode2(TargetModes[i], std::get<0>(monitorModes[i]), 
-			std::get<1>(monitorModes[i]), std::get<2>(monitorModes[i]), std::get<3>(monitorModes[i]));
+		CreateTargetMode2(TargetModes[i], monitorModes[i].width, 
+			monitorModes[i].height, monitorModes[i].refresh_num, monitorModes[i].refresh_den);
 	}
 
 	pOutArgs->TargetModeBufferOutputCount = (UINT)TargetModes.size();
