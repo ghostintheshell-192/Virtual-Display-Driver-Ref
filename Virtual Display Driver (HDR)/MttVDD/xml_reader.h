@@ -20,6 +20,8 @@ class XmlReader
 
   protected:
   private:
+	tinyxml2::XMLElement *TraverseXml(const std::string &value, const SettingValuePtr &result);
+
 	tinyxml2::XMLDocument settings_file;
 	Logger *m_log;
 };

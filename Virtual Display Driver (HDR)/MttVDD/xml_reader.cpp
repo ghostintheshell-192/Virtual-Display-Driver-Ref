@@ -15,15 +15,14 @@ bool Refactoring::XmlReader::OpenFile(std::string path)
 	return false;
 }
 
-bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingValuePtr &result)
+tinyxml2::XMLElement* Refactoring::XmlReader::TraverseXml(const std::string& value, const SettingValuePtr& result)
 {
 	std::vector<std::string> values = tokenize(value, '.');
-	std::string raw_value;
 
 	tinyxml2::XMLElement *current = settings_file.RootElement();
 
 	if (!current)
-		return false;
+		return nullptr;
 
 	for (const auto &segment : values)
 	{
@@ -31,16 +30,25 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 		if (!current)
 		{
 			m_log->Message(LogType::Error, "[XmlReader] Node not found in xml: " + segment + "\n");
-			return false;
+			return nullptr;
 		}
 	}
+	return current;
+}
+
+bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingValuePtr &result)
+{
+	tinyxml2::XMLElement *current = TraverseXml(value, result);
+
+	if (!current)
+		return false;
 
 	const char * text = current->GetText();
 
 	if (!text)
 		return false;
 
-	raw_value = text;
+	std::string raw_value = text;
 
 	if (raw_value.empty())
 		return false;
@@ -61,23 +69,9 @@ bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingV
 
 bool Refactoring::XmlReader::SetSetting(const std::string& value, const std::string& pipe_value, const SettingValuePtr& result)
 {
-	std::vector<std::string> values = tokenize(value, '.');
-	std::string raw_value;
-
-	tinyxml2::XMLElement *current = settings_file.RootElement();
-
+	tinyxml2::XMLElement * current = TraverseXml(value, result);
 	if (!current)
 		return false;
-
-	for (const auto &segment : values)
-	{
-		current = current->FirstChildElement(segment.c_str());
-		if (!current)
-		{
-			m_log->Message(LogType::Error, "[XmlReader] Node not found in xml: " + segment + "\n");
-			return false;
-		}
-	}
 
 	current->SetText(pipe_value.c_str());
 
