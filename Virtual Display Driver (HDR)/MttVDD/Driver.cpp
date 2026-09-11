@@ -1361,6 +1361,10 @@ void HandleClient(HANDLE hPipe) {
 		DWORD bytesToWrite = static_cast<DWORD>((settingsResponse.length() + 1) * sizeof(wchar_t));
 		WriteFile(hPipe, settingsResponse.c_str(), bytesToWrite, &bytesWritten, NULL);
 	}
+	else
+	{
+		g_log.Message(Refactoring::LogType::Warning, "Command not recognized.");
+	}
 
 	DisconnectNamedPipe(hPipe);
 	CloseHandle(hPipe);
