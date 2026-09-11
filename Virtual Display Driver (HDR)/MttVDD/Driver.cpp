@@ -1318,27 +1318,27 @@ void HandleClient(HANDLE hPipe) {
 	}
 
 	// D3DDEVICEGPU: LOGS, initializeD3DDeviceAndLogGPU
-	if (wcsncmp(buffer, L"D3DDEVICEGPU", 12) == 0)
+	if (pipe_tokens[0] == "D3DDEVICEGPU")
 	{
 		g_log.Message(Refactoring::LogType::Companion, "Retrieving D3D GPU (This information may be inaccurate without reloading the driver first)");
 		InitializeD3DDeviceAndLogGPU();
 		g_log.Message(Refactoring::LogType::Companion, "Retrieved D3D GPU");
 	}
 	// IDDCXVERSION: LOGS, LogIddCxVersion
-	else if (wcsncmp(buffer, L"IDDCXVERSION", 12) == 0)
+	else if (pipe_tokens[0] == "IDDCXVERSION")
 	{
 		g_log.Message(Refactoring::LogType::Companion, "Logging iddcx version");
 		LogIddCxVersion();
 	}
 	// GETASSIGNEDGPU: LOGS, GetGpuInfo
-	else if (wcsncmp(buffer, L"GETASSIGNEDGPU", 14) == 0)
+	else if (pipe_tokens[0] == "GETASSIGNEDGPU")
 	{
 		g_log.Message(Refactoring::LogType::Companion, "Retrieving Assigned GPU");
 		GetGpuInfo();
 		g_log.Message(Refactoring::LogType::Companion, "Retrieved Assigned GPU");
 	}
 	// GETALLGPUS: LOGS, logAvailableGPUs
-	else if (wcsncmp(buffer, L"GETALLGPUS", 10) == 0)
+	else if (pipe_tokens[0] == "GETALLGPUS")
 	{
 		g_log.Message(Refactoring::LogType::Companion, "Logging all GPUs");
 		g_log.Message(Refactoring::LogType::Info,
@@ -1347,7 +1347,7 @@ void HandleClient(HANDLE hPipe) {
 		g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
 	}
 	// GETSETTINGS: recupera il valore salvato per i log, e... lo stampa a video? (writefile)
-	else if (wcsncmp(buffer, L"GETSETTINGS", 11) == 0)
+	else if (pipe_tokens[0] == "GETSETTINGS", 11)
 	{
 		// query and return settings
 		bool debugEnabled = g_settings.logs.enable_debug_logs;
