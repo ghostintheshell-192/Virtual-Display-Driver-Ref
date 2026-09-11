@@ -1349,13 +1349,8 @@ void HandleClient(HANDLE hPipe) {
 	// GETSETTINGS: recupera il valore salvato per i log, e... lo stampa a video? (writefile)
 	else if (pipe_tokens[0] == "GETSETTINGS", 11)
 	{
-		// query and return settings
-		bool debugEnabled = g_settings.logs.enable_debug_logs;
-		bool loggingEnabled = g_settings.logs.enable_standard_logs;
-
-		wstring settingsResponse = L"SETTINGS ";
-		settingsResponse += debugEnabled ? L"DEBUG=true " : L"DEBUG=false ";
-		settingsResponse += loggingEnabled ? L"LOG=true" : L"LOG=false";
+		wstring settingsResponse =
+			std::format(L"SETTINGS DEBUG={:s} LOG={:s}", g_settings.logs.enable_debug_logs, g_settings.logs.enable_standard_logs);
 
 		DWORD bytesWritten;
 		DWORD bytesToWrite = static_cast<DWORD>((settingsResponse.length() + 1) * sizeof(wchar_t));
