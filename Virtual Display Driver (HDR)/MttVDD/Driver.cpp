@@ -1317,50 +1317,51 @@ void HandleClient(HANDLE hPipe) {
 		return;
 	}
 
-	if (result && bytesRead != 0) {
-		buffer[bytesRead / sizeof(wchar_t)] = L'\0';
-		g_log.Message(Refactoring::LogType::Pipe, Refactoring::WStringToString(buffer).c_str());
-
-		// D3DDEVICEGPU: LOGS, initializeD3DDeviceAndLogGPU
-		if (wcsncmp(buffer, L"D3DDEVICEGPU", 12) == 0) {
-			g_log.Message(Refactoring::LogType::Companion, "Retrieving D3D GPU (This information may be inaccurate without reloading the driver first)");
-			InitializeD3DDeviceAndLogGPU();
-			g_log.Message(Refactoring::LogType::Companion, "Retrieved D3D GPU");
-		}
-		// IDDCXVERSION: LOGS, LogIddCxVersion
-		else if (wcsncmp(buffer, L"IDDCXVERSION", 12) == 0) {
-			g_log.Message(Refactoring::LogType::Companion, "Logging iddcx version");
-			LogIddCxVersion(); 
-		}
-		// GETASSIGNEDGPU: LOGS, GetGpuInfo
-		else if (wcsncmp(buffer, L"GETASSIGNEDGPU", 14) == 0) {
-			g_log.Message(Refactoring::LogType::Companion, "Retrieving Assigned GPU");
-			GetGpuInfo();
-			g_log.Message(Refactoring::LogType::Companion, "Retrieved Assigned GPU");
-		}
-		// GETALLGPUS: LOGS, logAvailableGPUs
-		else if (wcsncmp(buffer, L"GETALLGPUS", 10) == 0) {
-			g_log.Message(Refactoring::LogType::Companion, "Logging all GPUs");
-			g_log.Message(Refactoring::LogType::Info, "If any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
-			logAvailableGPUs();
-			g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
-		}
-		// GETSETTINGS: recupera il valore salvato per i log, e... lo stampa a video? (writefile)
-		else if (wcsncmp(buffer, L"GETSETTINGS", 11) == 0) {
-			//query and return settings
-			bool debugEnabled = g_settings.logs.enable_debug_logs;
-			bool loggingEnabled = g_settings.logs.enable_standard_logs;
-
-			wstring settingsResponse = L"SETTINGS ";
-			settingsResponse += debugEnabled ? L"DEBUG=true " : L"DEBUG=false ";
-			settingsResponse += loggingEnabled ? L"LOG=true" : L"LOG=false";
-
-			DWORD bytesWritten;
-			DWORD bytesToWrite = static_cast<DWORD>((settingsResponse.length() + 1) * sizeof(wchar_t));
-			WriteFile(hPipe, settingsResponse.c_str(), bytesToWrite, &bytesWritten, NULL);
-
-		}
+	// D3DDEVICEGPU: LOGS, initializeD3DDeviceAndLogGPU
+	if (wcsncmp(buffer, L"D3DDEVICEGPU", 12) == 0)
+	{
+		g_log.Message(Refactoring::LogType::Companion, "Retrieving D3D GPU (This information may be inaccurate without reloading the driver first)");
+		InitializeD3DDeviceAndLogGPU();
+		g_log.Message(Refactoring::LogType::Companion, "Retrieved D3D GPU");
 	}
+	// IDDCXVERSION: LOGS, LogIddCxVersion
+	else if (wcsncmp(buffer, L"IDDCXVERSION", 12) == 0)
+	{
+		g_log.Message(Refactoring::LogType::Companion, "Logging iddcx version");
+		LogIddCxVersion();
+	}
+	// GETASSIGNEDGPU: LOGS, GetGpuInfo
+	else if (wcsncmp(buffer, L"GETASSIGNEDGPU", 14) == 0)
+	{
+		g_log.Message(Refactoring::LogType::Companion, "Retrieving Assigned GPU");
+		GetGpuInfo();
+		g_log.Message(Refactoring::LogType::Companion, "Retrieved Assigned GPU");
+	}
+	// GETALLGPUS: LOGS, logAvailableGPUs
+	else if (wcsncmp(buffer, L"GETALLGPUS", 10) == 0)
+	{
+		g_log.Message(Refactoring::LogType::Companion, "Logging all GPUs");
+		g_log.Message(Refactoring::LogType::Info,
+					  "If any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
+		logAvailableGPUs();
+		g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
+	}
+	// GETSETTINGS: recupera il valore salvato per i log, e... lo stampa a video? (writefile)
+	else if (wcsncmp(buffer, L"GETSETTINGS", 11) == 0)
+	{
+		// query and return settings
+		bool debugEnabled = g_settings.logs.enable_debug_logs;
+		bool loggingEnabled = g_settings.logs.enable_standard_logs;
+
+		wstring settingsResponse = L"SETTINGS ";
+		settingsResponse += debugEnabled ? L"DEBUG=true " : L"DEBUG=false ";
+		settingsResponse += loggingEnabled ? L"LOG=true" : L"LOG=false";
+
+		DWORD bytesWritten;
+		DWORD bytesToWrite = static_cast<DWORD>((settingsResponse.length() + 1) * sizeof(wchar_t));
+		WriteFile(hPipe, settingsResponse.c_str(), bytesToWrite, &bytesWritten, NULL);
+	}
+
 	DisconnectNamedPipe(hPipe);
 	CloseHandle(hPipe);
 	g_pipeHandle = INVALID_HANDLE_VALUE; // This value determines whether or not all data gets sent back through the pipe or just the handling pipe data
