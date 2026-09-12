@@ -154,24 +154,6 @@ struct IndirectDeviceContextWrapper
 	}
 };
 
-// === EDID PROFILE LOADING FUNCTION ===
-struct EdidProfileData {
-	std::vector<Refactoring::Resolution> modes;
-	bool hdr10Supported = false;
-	bool dolbyVisionSupported = false;
-	bool hdr10PlusSupported = false;
-	double maxLuminance = 0.0;
-	double minLuminance = 0.0;
-	std::string primaryColorSpace = "sRGB";
-	double gamma = 2.2;
-	double redX = 0.64, redY = 0.33;
-	double greenX = 0.30, greenY = 0.60;
-	double blueX = 0.15, blueY = 0.06;
-	double whiteX = 0.3127, whiteY = 0.3290;
-	int preferredWidth = 1920;
-	int preferredHeight = 1080;
-	double preferredRefresh = 60.0;
-};
 
 // Enhanced color format selection based on color space
 IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const string& colorSpace) {
@@ -209,7 +191,7 @@ IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const string& colorSpace) 
 }
 
 // Find and validate preferred mode from EDID
-Refactoring::Resolution FindPreferredModeFromEdid(const EdidProfileData &profile, const vector<Refactoring::Resolution> &availableModes)
+Refactoring::Resolution FindPreferredModeFromEdid(const Refactoring::MonitorProfile &profile, const vector<Refactoring::Resolution> &availableModes)
 {
 	// Default fallback mode
 	Refactoring::Resolution preferredMode =
@@ -228,13 +210,13 @@ Refactoring::Resolution FindPreferredModeFromEdid(const EdidProfileData &profile
 	// Look for EDID preferred mode in available modes
 	for (const auto &mode : availableModes)
 	{
-		if (mode.width == profile.preferredWidth && mode.height == profile.preferredHeight)
+		if (mode.width == profile.preferred_res.width && mode.height == profile.preferred_res.height)
 		{
 			// Found matching resolution, use it
 			preferredMode = mode;
 			g_log.Message(
 				Refactoring::LogType::Info,
-				std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferredWidth, profile.preferredHeight, mode.refresh_den).c_str());
+				std::format("Found EDID preferred mode: {}x{} @ {} Hz", profile.preferred_res.width, profile.preferred_res.height, mode.refresh_den).c_str());
 			break;
 		}
 	}
