@@ -85,6 +85,9 @@ Refactoring::DriverSettings g_settings;
 Refactoring::ColourSettingsIDDCX g_colours_iddcx;
 Refactoring::CursorSettingsIDDCX g_cursor_iddcx;
 
+Refactoring::MonitorProfile g_default_profile;
+Refactoring::MonitorProfile g_custom_profile;
+
 Refactoring::Logger g_log("C:\\VirtualDisplayDriver", true, false, true);
 
 Refactoring::SettingsLoader g_settings_manager(&g_log, &g_settings);
@@ -169,126 +172,6 @@ struct EdidProfileData {
 	int preferredHeight = 1080;
 	double preferredRefresh = 60.0;
 };
-
-// === COLOR SPACE AND GAMMA STRUCTURES ===
-struct VddColorMatrix {
-    FLOAT matrix[3][4] = {}; // 3x4 color space transformation matrix - zero initialized
-    bool isValid = false;
-};
-
-struct VddGammaRamp {
-    FLOAT gamma = 2.2f;
-    std::string colorSpace;
-    VddColorMatrix matrix = {};
-    bool useMatrix = false;
-    bool isValid = false;
-};
-
-// === GAMMA AND COLOR SPACE STORAGE ===
-std::map<IDDCX_MONITOR, VddGammaRamp> g_GammaRampStore;
-
-// === COLOR SPACE AND GAMMA CONVERSION FUNCTIONS ===
-
-// Convert gamma value to 3x4 color space transformation matrix
-VddColorMatrix ConvertGammaToMatrix(double gamma, const string& colorSpace) {
-    VddColorMatrix matrix = {};
-    
-    // Identity matrix as base
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 4; j++) {
-            matrix.matrix[i][j] = (i == j) ? 1.0f : 0.0f;
-        }
-    }
-    
-    // Apply gamma correction to diagonal elements
-    float gammaValue = static_cast<float>(gamma);
-    
-    if (colorSpace == "sRGB") {
-        // sRGB gamma correction (2.2)
-        matrix.matrix[0][0] = gammaValue / 2.2f;  // Red
-        matrix.matrix[1][1] = gammaValue / 2.2f;  // Green
-        matrix.matrix[2][2] = gammaValue / 2.2f;  // Blue
-    }
-    else if (colorSpace == "DCI-P3") {
-        // DCI-P3 color space transformation with gamma
-        // P3 to sRGB matrix with gamma correction
-        matrix.matrix[0][0] = 1.2249f * (gammaValue / 2.4f);
-        matrix.matrix[0][1] = -0.2247f;
-        matrix.matrix[0][2] = 0.0f;
-        matrix.matrix[1][0] = -0.0420f;
-        matrix.matrix[1][1] = 1.0419f * (gammaValue / 2.4f);
-        matrix.matrix[1][2] = 0.0f;
-        matrix.matrix[2][0] = -0.0196f;
-        matrix.matrix[2][1] = -0.0786f;
-        matrix.matrix[2][2] = 1.0982f * (gammaValue / 2.4f);
-    }
-    else if (colorSpace == "Rec.2020") {
-        // Rec.2020 to sRGB matrix with gamma correction
-        matrix.matrix[0][0] = 1.7347f * (gammaValue / 2.4f);
-        matrix.matrix[0][1] = -0.7347f;
-        matrix.matrix[0][2] = 0.0f;
-        matrix.matrix[1][0] = -0.1316f;
-        matrix.matrix[1][1] = 1.1316f * (gammaValue / 2.4f);
-        matrix.matrix[1][2] = 0.0f;
-        matrix.matrix[2][0] = -0.0241f;
-        matrix.matrix[2][1] = -0.1289f;
-        matrix.matrix[2][2] = 1.1530f * (gammaValue / 2.4f);
-    }
-    else if (colorSpace == "Adobe_RGB") {
-        // Adobe RGB with gamma correction
-        matrix.matrix[0][0] = 1.0f * (gammaValue / 2.2f);
-        matrix.matrix[1][1] = 1.0f * (gammaValue / 2.2f);
-        matrix.matrix[2][2] = 1.0f * (gammaValue / 2.2f);
-    }
-    else {
-        // Default to sRGB for unknown color spaces
-        matrix.matrix[0][0] = gammaValue / 2.2f;
-        matrix.matrix[1][1] = gammaValue / 2.2f;
-        matrix.matrix[2][2] = gammaValue / 2.2f;
-    }
-    
-    matrix.isValid = true;
-    return matrix;
-}
-
-// Convert EDID profile to gamma ramp
-VddGammaRamp ConvertEdidToGammaRamp(const EdidProfileData& profile) {
-    VddGammaRamp gammaRamp = {};
-    
-    gammaRamp.gamma = static_cast<FLOAT>(profile.gamma);
-    gammaRamp.colorSpace = profile.primaryColorSpace;
-    
-    // Generate matrix if matrix transforms are enabled
-	if (g_settings.hdr_advanced.color_space.enable_matrix_transform)
-	{
-        gammaRamp.matrix = ConvertGammaToMatrix(profile.gamma, profile.primaryColorSpace);
-        gammaRamp.useMatrix = gammaRamp.matrix.isValid;
-    }
-    
-    gammaRamp.isValid = g_settings.hdr_advanced.color_space.enabled;
-    
-    return gammaRamp;
-}
-
-// Convert manual settings to gamma ramp
-VddGammaRamp ConvertManualToGammaRamp() {
-    VddGammaRamp gammaRamp = {};
-    
-    gammaRamp.gamma = static_cast<FLOAT>(g_settings.hdr_advanced.color_space.gamma_correction);
-	gammaRamp.colorSpace = g_settings.hdr_advanced.color_space.primary_color_space;
-    
-    // Generate matrix if matrix transforms are enabled
-	if (g_settings.hdr_advanced.color_space.enable_matrix_transform)
-	{
-		gammaRamp.matrix = ConvertGammaToMatrix(g_settings.hdr_advanced.color_space.gamma_correction,
-												g_settings.hdr_advanced.color_space.primary_color_space);
-        gammaRamp.useMatrix = gammaRamp.matrix.isValid;
-    }
-    
-    gammaRamp.isValid = g_settings.hdr_advanced.color_space.enabled;
-    
-    return gammaRamp;
-}
 
 // Enhanced color format selection based on color space
 IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const string& colorSpace) {
@@ -2840,107 +2723,19 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterCommitModes2(
 	return STATUS_SUCCESS;
 }
 
-_Use_decl_annotations_
-NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(
-	IDDCX_MONITOR MonitorObject,
-	const IDARG_IN_SET_GAMMARAMP* pInArgs
-)
+_Use_decl_annotations_ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(IDDCX_MONITOR MonitorObject, const IDARG_IN_SET_GAMMARAMP *pInArgs)
 {
-	stringstream logStream;
-	g_log.Message(Refactoring::LogType::Debug, "=== PROCESSING GAMMA RAMP REQUEST ===\n\n");
-	g_log.Message(Refactoring::LogType::Debug, std::format("Monitor Object: {:p}\nColor Space Enabled: {}, Matrix Transform Enabled: {}", static_cast<void *>(MonitorObject),
-							(g_settings.hdr_advanced.color_space.enabled ? "Yes" : "No"),
-							(g_settings.hdr_advanced.color_space.enable_matrix_transform ? "Yes" : "No"))
-					.c_str());
-
 	// Check if color space processing is enabled
 	if (!g_settings.hdr_advanced.color_space.enabled)
 	{
-		g_log.Message(Refactoring::LogType::Info, "Color space processing is disabled, skipping gamma ramp configuration");
 		return STATUS_SUCCESS;
 	}
 
-	VddGammaRamp gammaRamp = {};
-	bool hasValidGammaRamp = false;
+	// Quando il percorso interattivo dalla companion app sarà implementato,
+	// distinguere enabled (profilo caricato) da auto_configure (applica all'avvio)
 
-	// Priority 1: Use EDID-derived gamma settings if available
-	if (g_settings.edid_integration.enabled && g_settings.edid_integration.auto_configure) {
-		// First check for monitor-specific gamma ramp
-		auto storeIt = g_GammaRampStore.find(MonitorObject);
-		if (storeIt != g_GammaRampStore.end() && storeIt->second.isValid) {
-			gammaRamp = storeIt->second;
-			hasValidGammaRamp = true;
-			g_log.Message(Refactoring::LogType::Info, "Using monitor-specific EDID-derived gamma ramp");
-		}
-		// If no monitor-specific gamma ramp, check for template from EDID profile
-		else {
-			auto templateIt = g_GammaRampStore.find(reinterpret_cast<IDDCX_MONITOR>(0));
-			if (templateIt != g_GammaRampStore.end() && templateIt->second.isValid) {
-				gammaRamp = templateIt->second;
-				hasValidGammaRamp = true;
-				// Store it for this specific monitor for future use
-				g_GammaRampStore[MonitorObject] = gammaRamp;
-				g_log.Message(Refactoring::LogType::Info, "Using template EDID-derived gamma ramp and storing for monitor");
-			}
-		}
-	}
-
-	// Priority 2: Use manual configuration if no EDID data or manual override
-	if (!hasValidGammaRamp || g_settings.edid_integration.override_manual_settings) {
-		gammaRamp = ConvertManualToGammaRamp();
-		hasValidGammaRamp = gammaRamp.isValid;
-		g_log.Message(Refactoring::LogType::Info, "Using manually configured gamma ramp");
-	}
-
-	// If we still don't have valid gamma settings, return early
-	if (!hasValidGammaRamp) {
-		g_log.Message(Refactoring::LogType::Warning, "No valid gamma ramp available, skipping configuration");
-		return STATUS_SUCCESS;
-	}
-
-	// Log the gamma ramp values being applied
-	g_log.Message(Refactoring::LogType::Info, std::format("=== APPLYING GAMMA RAMP AND COLOR SPACE TRANSFORM ===\n").c_str());
-	g_log.Message(Refactoring::LogType::Info, std::format("Gamma Value: {}\nColor Space: {}\nUse Matrix Transform: {}", gammaRamp.gamma,
-							gammaRamp.colorSpace, gammaRamp.useMatrix ? "Yes" : "No")
-					.c_str());
-
-	// Apply gamma ramp based on type
-	if (pInArgs->Type == IDDCX_GAMMARAMP_TYPE_3x4_COLORSPACE_TRANSFORM && gammaRamp.useMatrix) {
-		// Apply 3x4 color space transformation matrix
-		logStream.str("");
-		logStream << "Applying 3x4 Color Space Matrix:\n"
-				  << "  [" << gammaRamp.matrix.matrix[0][0] << ", " << gammaRamp.matrix.matrix[0][1] << ", " << gammaRamp.matrix.matrix[0][2] << ", " << gammaRamp.matrix.matrix[0][3] << "]\n"
-				  << "  [" << gammaRamp.matrix.matrix[1][0] << ", " << gammaRamp.matrix.matrix[1][1] << ", " << gammaRamp.matrix.matrix[1][2] << ", " << gammaRamp.matrix.matrix[1][3] << "]\n"
-				  << "  [" << gammaRamp.matrix.matrix[2][0] << ", " << gammaRamp.matrix.matrix[2][1] << ", " << gammaRamp.matrix.matrix[2][2] << ", " << gammaRamp.matrix.matrix[2][3] << "]";
-		g_log.Message(Refactoring::LogType::Info, logStream.str().c_str());
-
-		// Store the matrix for this monitor
-		g_GammaRampStore[MonitorObject] = gammaRamp;
-
-		// In a full implementation, you would apply the matrix to the rendering pipeline here
-		// The exact API calls would depend on IddCx version and hardware capabilities
-		
-		g_log.Message(Refactoring::LogType::Info, std::format("3x4 matrix transform applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
-	}
-	else if (pInArgs->Type == IDDCX_GAMMARAMP_TYPE_RGB256x3x16)
-	{
-		// Apply traditional RGB gamma ramp
-		g_log.Message(Refactoring::LogType::Info, std::format("Applying RGB 256x3x16 gamma ramp with gamma {}", gammaRamp.gamma).c_str());
-
-		// In a full implementation, you would generate and apply RGB lookup tables here
-		// Based on the gamma value and color space
-		g_log.Message(Refactoring::LogType::Info, std::format("RGB gamma ramp applied successfully for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
-	}
-	else
-	{
-		g_log.Message(Refactoring::LogType::Warning, std::format("Unsupported gamma ramp type: {}, using default gamma processing", static_cast<int>(pInArgs->Type)).c_str());
-	}
-
-	// Store the final gamma ramp for this monitor
-	g_GammaRampStore[MonitorObject] = gammaRamp;
-
-	g_log.Message(Refactoring::LogType::Info, std::format("Gamma ramp configuration completed for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
-
+	// Virtual display: nessun hardware su cui applicare la gamma ramp.
+	// Le caratteristiche colore del monitor sono comunicate via EDID/monitor description.
 	return STATUS_SUCCESS;
 }
 
