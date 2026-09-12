@@ -194,7 +194,6 @@ struct Resolution
 struct ColorMatrix
 {
 	FLOAT matrix[3][4];
-	bool isValid = false;
 
 	ColorMatrix()
 	{
@@ -245,7 +244,6 @@ struct MonitorProfile
 		t_matrix.matrix[0][0] = gamma_correction / 2.2f; // Red
 		t_matrix.matrix[1][1] = gamma_correction / 2.2f; // Green
 		t_matrix.matrix[2][2] = gamma_correction / 2.2f; // Blue
-		t_matrix.isValid = hdr10_plus_supported;
 		return t_matrix;
 	}
 	ColorMatrix Get_DCI_P3()
@@ -260,7 +258,6 @@ struct MonitorProfile
 		t_matrix.matrix[2][0] = -0.0196f;
 		t_matrix.matrix[2][1] = -0.0786f;
 		t_matrix.matrix[2][2] = 1.0982f * (gamma_correction / 2.4f);
-		t_matrix.isValid = hdr10_supported;
 		return t_matrix;
 	}
 	ColorMatrix Get_REC_2020()
@@ -275,7 +272,6 @@ struct MonitorProfile
 		t_matrix.matrix[2][0] = -0.0241f;
 		t_matrix.matrix[2][1] = -0.1289f;
 		t_matrix.matrix[2][2] = 1.1530f * (gamma_correction / 2.4f);
-		t_matrix.isValid = hdr10_supported;
 		return t_matrix;
 	}
 	ColorMatrix Get_Adobe_RGB()
@@ -284,7 +280,6 @@ struct MonitorProfile
 		t_matrix.matrix[0][0] = 1.0f * (gamma_correction / 2.2f);
 		t_matrix.matrix[1][1] = 1.0f * (gamma_correction / 2.2f);
 		t_matrix.matrix[2][2] = 1.0f * (gamma_correction / 2.2f);
-		t_matrix.isValid = hdr10_supported;
 		return t_matrix;
 	};
 };
