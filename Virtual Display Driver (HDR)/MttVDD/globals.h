@@ -2,7 +2,7 @@
 #include <string>
 #include <variant>
 #include <vector>
-
+#include <windows.h>
 /* DriverSettings(una istanza globale : g_settings)
 ├── LogSettings(logs, debug, send_through_pipe)
 ├── EdidSettings(custom_edid, prevent_spoof, cea_override)
