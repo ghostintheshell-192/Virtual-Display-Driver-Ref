@@ -242,45 +242,49 @@ struct MonitorProfile
 	ColorMatrix Get_sRGB()
 	{
 		ColorMatrix t_matrix;
-		t_matrix[0][0] = gamma_correction / 2.2f; // Red
-		t_matrix[1][1] = gamma_correction / 2.2f; // Green
-		t_matrix[2][2] = gamma_correction / 2.2f; // Blue
-
+		t_matrix.matrix[0][0] = gamma_correction / 2.2f; // Red
+		t_matrix.matrix[1][1] = gamma_correction / 2.2f; // Green
+		t_matrix.matrix[2][2] = gamma_correction / 2.2f; // Blue
+		t_matrix.isValid = hdr10_plus_supported;
 		return t_matrix;
 	}
 	ColorMatrix Get_DCI_P3()
 	{
 		ColorMatrix t_matrix;
-		t_matrix[0][0] = 1.2249f * (gamma_correction / 2.4f);
-		t_matrix[0][1] = -0.2247f;
-		t_matrix[0][2] = 0.0f;
-		t_matrix[1][0] = -0.0420f;
-		t_matrix[1][1] = 1.0419f * (gamma_correction / 2.4f);
-		t_matrix[1][2] = 0.0f;
-		t_matrix[2][0] = -0.0196f;
-		t_matrix[2][1] = -0.0786f;
-		t_matrix[2][2] = 1.0982f * (gamma_correction / 2.4f);
+		t_matrix.matrix[0][0] = 1.2249f * (gamma_correction / 2.4f);
+		t_matrix.matrix[0][1] = -0.2247f;
+		t_matrix.matrix[0][2] = 0.0f;
+		t_matrix.matrix[1][0] = -0.0420f;
+		t_matrix.matrix[1][1] = 1.0419f * (gamma_correction / 2.4f);
+		t_matrix.matrix[1][2] = 0.0f;
+		t_matrix.matrix[2][0] = -0.0196f;
+		t_matrix.matrix[2][1] = -0.0786f;
+		t_matrix.matrix[2][2] = 1.0982f * (gamma_correction / 2.4f);
+		t_matrix.isValid = hdr10_supported;
+		return t_matrix;
 	}
 	ColorMatrix Get_REC_2020()
 	{
 		ColorMatrix t_matrix;
-		t_matrix[0][0] = 1.7347f * (gamma_correction / 2.4f);
-		t_matrix[0][1] = -0.7347f;
-		t_matrix[0][2] = 0.0f;
-		t_matrix[1][0] = -0.1316f;
-		t_matrix[1][1] = 1.1316f * (gamma_correction / 2.4f);
-		t_matrix[1][2] = 0.0f;
-		t_matrix[2][0] = -0.0241f;
-		t_matrix[2][1] = -0.1289f;
-		t_matrix[2][2] = 1.1530f * (gamma_correction / 2.4f);
+		t_matrix.matrix[0][0] = 1.7347f * (gamma_correction / 2.4f);
+		t_matrix.matrix[0][1] = -0.7347f;
+		t_matrix.matrix[0][2] = 0.0f;
+		t_matrix.matrix[1][0] = -0.1316f;
+		t_matrix.matrix[1][1] = 1.1316f * (gamma_correction / 2.4f);
+		t_matrix.matrix[1][2] = 0.0f;
+		t_matrix.matrix[2][0] = -0.0241f;
+		t_matrix.matrix[2][1] = -0.1289f;
+		t_matrix.matrix[2][2] = 1.1530f * (gamma_correction / 2.4f);
+		t_matrix.isValid = hdr10_supported;
 		return t_matrix;
 	}
 	ColorMatrix Get_Adobe_RGB()
 	{
 		ColorMatrix t_matrix;
-		t_matrix[0][0] = 1.0f * (gamma_correction / 2.2f);
-		t_matrix[1][1] = 1.0f * (gamma_correction / 2.2f);
-		t_matrix[2][2] = 1.0f * (gamma_correction / 2.2f);
+		t_matrix.matrix[0][0] = 1.0f * (gamma_correction / 2.2f);
+		t_matrix.matrix[1][1] = 1.0f * (gamma_correction / 2.2f);
+		t_matrix.matrix[2][2] = 1.0f * (gamma_correction / 2.2f);
+		t_matrix.isValid = hdr10_supported;
 		return t_matrix;
 	};
 };
