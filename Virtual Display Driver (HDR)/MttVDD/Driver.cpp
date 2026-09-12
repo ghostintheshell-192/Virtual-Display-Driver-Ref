@@ -155,40 +155,7 @@ struct IndirectDeviceContextWrapper
 };
 
 
-// Enhanced color format selection based on color space
-IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const string& colorSpace) {
-    if (g_settings.color_advanced.bit_depth_management.auto_select_from_color_space) {
-        if (colorSpace == "Rec.2020") {
-            return IDDCX_BITS_PER_COMPONENT_10;  // HDR10 - 10-bit for wide color gamut
-        } else if (colorSpace == "DCI-P3") {
-            return IDDCX_BITS_PER_COMPONENT_10;  // Wide color gamut - 10-bit
-        } else if (colorSpace == "Adobe_RGB") {
-            return IDDCX_BITS_PER_COMPONENT_10;  // Professional - 10-bit
-        } else {
-            return IDDCX_BITS_PER_COMPONENT_8;   // sRGB - 8-bit
-        }
-    }
-    
-    // Manual bit depth override
-	if (g_settings.color_advanced.bit_depth_management.force_bit_depth == "8")
-	{
-        return IDDCX_BITS_PER_COMPONENT_8;
-	}
-	else if (g_settings.color_advanced.bit_depth_management.force_bit_depth == "10")
-	{
-        return IDDCX_BITS_PER_COMPONENT_10;
-	}
-	else if (g_settings.color_advanced.bit_depth_management.force_bit_depth == "12")
-	{
-        return IDDCX_BITS_PER_COMPONENT_12;
-    }
-    
-    // Default to existing color depth logic
-	return g_settings.colours.hdr_plus
-			   ? IDDCX_BITS_PER_COMPONENT_12
-			   : 
-           (g_settings.colours.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8);
-}
+
 
 // Find and validate preferred mode from EDID
 Refactoring::Resolution FindPreferredModeFromEdid(const Refactoring::MonitorProfile &profile, const vector<Refactoring::Resolution> &availableModes)
@@ -892,23 +859,6 @@ void loadSettings() {
 			}
 		}
 
-		/*
-		* This is for res testing, stores each resolution then iterates through each global adding a res for each one
-		* 
-		
-		for (const auto& resTuple : resolutions) {
-			stringstream ss;
-			ss << get<0>(resTuple) << "x" << get<1>(resTuple);
-			g_log.Message("t", ss.str().c_str());
-		}
-
-		for (const auto& globalRate : globalRefreshRates) {
-			stringstream ss;
-			ss << globalRate << " Hz";
-			g_log.Message("t", ss.str().c_str());
-		}
-		*/
-
 		for (int globalRate : globalRefreshRates) {
 			for (const auto& resTuple : resolutions) {
 				int global_width = get<0>(resTuple);
@@ -920,44 +870,10 @@ void loadSettings() {
 			}
 		}
 
-		/*
-		* logging all resolutions after added global
-		* 
-		for (const auto& tup : res) {
-			stringstream ss;
-			ss << "("
-				<< get<0>(tup) << ", "
-				<< get<1>(tup) << ", "
-				<< get<2>(tup) << ", "
-				<< get<3>(tup) << ")";
-			g_log.Message("t", ss.str().c_str());
-		}
-		
-		*/
-
-
 		numVirtualDisplays = monitorcount;
 		gpuname = gpuFriendlyName;
 		monitorModes = res;
 		RebuildKnownMonitorModesCache();
-		
-		// === APPLY EDID INTEGRATION ===
-		if (g_settings.edid_integration.enabled && g_settings.edid_integration.auto_configure) {
-			//EdidProfileData edidProfile;
-			//if (LoadEdidProfile(Refactoring::StringToWstring(g_settings.edid_integration.profile_path), edidProfile)) {
-			//	if (ApplyEdidProfile(edidProfile)) {
-			//		g_log.Message(Refactoring::LogType::Info, "EDID profile applied successfully");
-			//	} else {
-			//		g_log.Message(Refactoring::LogType::Warning, "EDID profile loaded but not applied (integration disabled)");
-			//	}
-			//} else {
-			//	if (g_settings.edid_integration.fallback_on_error) {
-			//		g_log.Message(Refactoring::LogType::Warning, "EDID profile loading failed, using manual settings");
-			//	} else {
-			//		g_log.Message(Refactoring::LogType::Error, "EDID profile loading failed and fallback disabled");
-			//	}
-			//}
-		}
 		
 		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");
 		return;
