@@ -2725,6 +2725,8 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterCommitModes2(
 
 _Use_decl_annotations_ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetGammaRamp(IDDCX_MONITOR MonitorObject, const IDARG_IN_SET_GAMMARAMP *pInArgs)
 {
+	UNREFERENCED_PARAMETER(MonitorObject);
+	UNREFERENCED_PARAMETER(pInArgs);
 	// Check if color space processing is enabled
 	if (!g_settings.hdr_advanced.color_space.enabled)
 	{
