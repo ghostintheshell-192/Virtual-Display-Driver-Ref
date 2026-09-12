@@ -208,109 +208,6 @@ IDDCX_BITS_PER_COMPONENT SelectBitDepthFromColorSpace(const string& colorSpace) 
            (g_settings.colours.sdr10 ? IDDCX_BITS_PER_COMPONENT_10 : IDDCX_BITS_PER_COMPONENT_8);
 }
 
-// === SMPTE ST.2086 HDR METADATA STRUCTURE ===
-struct VddHdrMetadata {
-    // SMPTE ST.2086 Display Primaries (scaled 0-50000) - zero initialized
-    UINT16 display_primaries_x[3] = {};      // R, G, B chromaticity x coordinates
-    UINT16 display_primaries_y[3] = {};      // R, G, B chromaticity y coordinates
-    UINT16 white_point_x = 0;               // White point x coordinate
-    UINT16 white_point_y = 0;               // White point y coordinate
-    
-    // Luminance values (0.0001 cd/m² units for SMPTE ST.2086)
-    UINT32 max_display_mastering_luminance = 0;
-    UINT32 min_display_mastering_luminance = 0;
-    
-    // Content light level (nits)
-    UINT16 max_content_light_level = 0;
-    UINT16 max_frame_avg_light_level = 0;
-    
-    // Validation flag
-    bool isValid = false;
-};
-
-// === HDR METADATA STORAGE ===
-std::map<IDDCX_MONITOR, VddHdrMetadata> g_HdrMetadataStore;
-
-// === HDR METADATA CONVERSION FUNCTIONS ===
-
-// Convert EDID chromaticity (0.0-1.0) to SMPTE ST.2086 format (0-50000)
-UINT16 ConvertChromaticityToSmpte(double edidValue) {
-    // Clamp to valid range
-    if (edidValue < 0.0) edidValue = 0.0;
-    if (edidValue > 1.0) edidValue = 1.0;
-    
-    return static_cast<UINT16>(edidValue * 50000.0);
-}
-
-// Convert EDID luminance (nits) to SMPTE ST.2086 format (0.0001 cd/m² units)
-UINT32 ConvertLuminanceToSmpte(double nits) {
-    // Clamp to reasonable range (0.0001 to 10000 nits)
-    if (nits < 0.0001) nits = 0.0001;
-    if (nits > 10000.0) nits = 10000.0;
-    
-    return static_cast<UINT32>(nits * 10000.0);
-}
-
-// Convert EDID profile data to SMPTE ST.2086 HDR metadata
-VddHdrMetadata ConvertEdidToSmpteMetadata(const EdidProfileData& profile) {
-    VddHdrMetadata metadata = {};
-    
-    // Convert chromaticity coordinates
-    metadata.display_primaries_x[0] = ConvertChromaticityToSmpte(profile.redX);     // Red
-    metadata.display_primaries_y[0] = ConvertChromaticityToSmpte(profile.redY);
-    metadata.display_primaries_x[1] = ConvertChromaticityToSmpte(profile.greenX);   // Green  
-    metadata.display_primaries_y[1] = ConvertChromaticityToSmpte(profile.greenY);
-    metadata.display_primaries_x[2] = ConvertChromaticityToSmpte(profile.blueX);    // Blue
-    metadata.display_primaries_y[2] = ConvertChromaticityToSmpte(profile.blueY);
-    
-    // Convert white point
-    metadata.white_point_x = ConvertChromaticityToSmpte(profile.whiteX);
-    metadata.white_point_y = ConvertChromaticityToSmpte(profile.whiteY);
-    
-    // Convert luminance values
-    metadata.max_display_mastering_luminance = ConvertLuminanceToSmpte(profile.maxLuminance);
-    metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(profile.minLuminance);
-    
-    // Use configured content light levels (from vdd_settings.xml)
-	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_content_light_level);
-	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_frame_avg_light_level);
-    
-    // Mark as valid if we have HDR10 support
-    metadata.isValid = profile.hdr10Supported && g_settings.hdr_advanced.static_metadata_enabled;
-    
-    return metadata;
-}
-
-// Convert manual settings to SMPTE ST.2086 HDR metadata
-VddHdrMetadata ConvertManualToSmpteMetadata() {
-    VddHdrMetadata metadata = {};
-    
-    // Convert manual chromaticity coordinates
-    metadata.display_primaries_x[0] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.redX);     // Red
-    metadata.display_primaries_y[0] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.redY);
-    metadata.display_primaries_x[1] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.greenX);   // Green  
-    metadata.display_primaries_y[1] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.greenY);
-    metadata.display_primaries_x[2] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.blueX);    // Blue
-    metadata.display_primaries_y[2] = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.blueY);
-    
-    // Convert manual white point
-    metadata.white_point_x = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.whiteX);
-    metadata.white_point_y = ConvertChromaticityToSmpte(g_settings.hdr_advanced.color_primaries.whiteY);
-    
-    // Convert manual luminance values
-    metadata.max_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr_advanced.max_display_mastering_luminance);
-    metadata.min_display_mastering_luminance = ConvertLuminanceToSmpte(g_settings.hdr_advanced.min_display_mastering_luminance);
-    
-    // Use configured content light levels
-	metadata.max_content_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_content_light_level);
-	metadata.max_frame_avg_light_level = static_cast<UINT16>(g_settings.hdr_advanced.max_frame_avg_light_level);
-    
-    // Mark as valid if HDR10 metadata is enabled and color primaries are enabled
-    metadata.isValid = g_settings.hdr_advanced.static_metadata_enabled && g_settings.hdr_advanced.color_primaries.primaries_enabled;
-    
-    return metadata;
-}
-
 // Find and validate preferred mode from EDID
 Refactoring::Resolution FindPreferredModeFromEdid(const EdidProfileData &profile, const vector<Refactoring::Resolution> &availableModes)
 {
@@ -2499,81 +2396,20 @@ NTSTATUS VirtualDisplayDriverEvtIddCxAdapterQueryTargetInfo(
 	return STATUS_SUCCESS;
 }
 
-_Use_decl_annotations_
-NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(
-	IDDCX_MONITOR MonitorObject,
-	const IDARG_IN_MONITOR_SET_DEFAULT_HDR_METADATA* pInArgs
-)
+_Use_decl_annotations_ 
+NTSTATUS VirtualDisplayDriverEvtIddCxMonitorSetDefaultHdrMetadata(IDDCX_MONITOR MonitorObject,
+																						 const IDARG_IN_MONITOR_SET_DEFAULT_HDR_METADATA *pInArgs)
 {
+	UNREFERENCED_PARAMETER(MonitorObject);
 	UNREFERENCED_PARAMETER(pInArgs);
-	
-	stringstream logStream;
-	g_log.Message(Refactoring::LogType::Debug, "=== PROCESSING HDR METADATA REQUEST ===");
-	
-	auto msg = std::format("Monitor Object: {:p}, HDR10 Metadata Enabled: {}, Color Primaries Enabled: {}", static_cast<void *>(MonitorObject),
-						   (g_settings.hdr_advanced.static_metadata_enabled ? "Yes" : "No"),
-						   (g_settings.hdr_advanced.color_primaries.primaries_enabled ? "Yes" : "No"));
-	g_log.Message(Refactoring::LogType::Debug, msg.c_str());
 
 	// Check if HDR metadata processing is enabled
 	if (!g_settings.hdr_advanced.static_metadata_enabled) {
-		g_log.Message(Refactoring::LogType::Info, "HDR10 static metadata is disabled, skipping metadata configuration");
 		return STATUS_SUCCESS;
 	}
 
-	VddHdrMetadata metadata = {};
-	bool hasValidMetadata = false;
-
-	// Priority 1: Use EDID-derived metadata if available
-	if (g_settings.edid_integration.enabled && g_settings.edid_integration.auto_configure) {
-		// First check for monitor-specific metadata
-		auto storeIt = g_HdrMetadataStore.find(MonitorObject);
-		if (storeIt != g_HdrMetadataStore.end() && storeIt->second.isValid) {
-			metadata = storeIt->second;
-			hasValidMetadata = true;
-			g_log.Message(Refactoring::LogType::Info, "Using monitor-specific EDID-derived HDR metadata");
-		}
-		// If no monitor-specific metadata, check for template metadata from EDID profile
-		else {
-			auto templateIt = g_HdrMetadataStore.find(reinterpret_cast<IDDCX_MONITOR>(0));
-			if (templateIt != g_HdrMetadataStore.end() && templateIt->second.isValid) {
-				metadata = templateIt->second;
-				hasValidMetadata = true;
-				// Store it for this specific monitor for future use
-				g_HdrMetadataStore[MonitorObject] = metadata;
-				g_log.Message(Refactoring::LogType::Info, "Using template EDID-derived HDR metadata and storing for monitor");
-			}
-		}
-	}
-
-	// Priority 2: Use manual configuration if no EDID data or manual override
-	if (!hasValidMetadata || g_settings.edid_integration.override_manual_settings) {
-		if (g_settings.hdr_advanced.color_primaries.primaries_enabled) {
-			metadata = ConvertManualToSmpteMetadata();
-			hasValidMetadata = metadata.isValid;
-			g_log.Message(Refactoring::LogType::Info, "Using manually configured HDR metadata");
-		}
-	}
-
-	// If we still don't have valid metadata, return early
-	if (!hasValidMetadata) {
-		g_log.Message(Refactoring::LogType::Warning, "No valid HDR metadata available, skipping configuration");
-		return STATUS_SUCCESS;
-	}
-
-	// APPLYING SMPTE ST.2086 HDR METADATA for this monitor
-	g_HdrMetadataStore[MonitorObject] = metadata;
-
-	// Convert our metadata to the IddCx expected format
-	// Note: The actual HDR metadata structure would depend on the IddCx version
-	// For now, we log that the metadata has been processed and stored
-	
-	g_log.Message(Refactoring::LogType::Info, std::format("HDR metadata successfully configured and stored for monitor {:p}", static_cast<void *>(MonitorObject)).c_str());
-
-	// In a full implementation, you would pass the metadata to the IddCx framework here
-	// The exact API calls would depend on IddCx version and HDR implementation details
-	// For Phase 2, we focus on the metadata preparation and storage
-
+	// Virtual display: nessun hardware su cui applicare la hdr metadata.
+	// Le caratteristiche hdr del monitor sono comunicate via EDID/monitor description.
 	return STATUS_SUCCESS;
 }
 
