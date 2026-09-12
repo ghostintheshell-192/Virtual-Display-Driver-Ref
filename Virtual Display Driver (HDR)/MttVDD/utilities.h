@@ -28,6 +28,22 @@ template <> static std::string convert_setting<std::string>(const std::string &v
 	return value;
 }
 
+template <>
+static Refactoring::ColorSpaceType convert_setting<Refactoring::ColorSpaceType>(const std::string& value)
+{
+	if (value == "sRGB" || value == "SRGB")
+		return Refactoring::ColorSpaceType::sRGB;
+	if (value == "DCI_P3" || value == "DCI-P3")
+		return Refactoring::ColorSpaceType::DCI_P3;
+	if (value == "REC_2020" || value == "REC.2020")
+		return Refactoring::ColorSpaceType::REC_2020;
+	if (value == "Adobe_RGB" || value == "ADOBE_RGB")
+		return Refactoring::ColorSpaceType::ADOBE_RGB;
+
+	//default, always valid
+	return Refactoring::ColorSpaceType::sRGB;
+}
+
 static std::vector<std::string> tokenize(std::string str, char divider)
 {
 

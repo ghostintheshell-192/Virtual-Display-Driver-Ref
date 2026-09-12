@@ -19,6 +19,15 @@ namespace Refactoring
 
 typedef std::variant<bool *, int *, double *, std::string *> SettingValuePtr;
 
+enum class ColorSpaceType
+{
+	NONE = 0,
+	sRGB = 1,
+	DCI_P3 = 2,
+	REC_2020 = 3,
+	ADOBE_RGB = 4
+};
+
 struct LogSettings
 {
 	bool enable_standard_logs = false;
