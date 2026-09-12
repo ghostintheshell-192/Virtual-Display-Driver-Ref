@@ -73,4 +73,13 @@ static std::wstring StringToWstring(const std::string &str)
 
 	return wstrTo;
 }
+
+template <typename T> T apply_range(double value, double min, double max, double multiplier)
+{
+	if (value < min)
+		value = min;
+	if (value > max)
+		value = max;
+	return static_cast<T>(value * multiplier);
+}
 } // namespace Refactoring

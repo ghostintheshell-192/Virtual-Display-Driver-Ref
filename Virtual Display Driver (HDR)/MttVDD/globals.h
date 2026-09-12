@@ -191,6 +191,23 @@ struct Resolution
 	Resolution(int w, int h, int num, int den) : width(w), height(h), refresh_num(num), refresh_den(den) {};
 };
 
+struct ColorMatrix
+{
+	FLOAT matrix[3][4];
+	bool isValid = false;
+
+	ColorMatrix()
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				matrix[i][j] = (i == j) ? 1.0f : 0.0f;
+			}
+		}
+	}
+};
+
 struct MonitorProfile
 {
 	bool hdr10_plus_supported = false;
@@ -200,6 +217,7 @@ struct MonitorProfile
 	//hdr advanced
 	double max_mastering_luminance = 0.0;
 	double min_mastering_luminance = 0.0;
+	double gamma_correction = 2.2;
 
 	//monitor resolution
 	Resolution preferred_res{};
@@ -207,8 +225,7 @@ struct MonitorProfile
 	std::vector<Resolution> modes;
 
 	//color_space
-	std::string primary_color_space = "sRGB"; //sRGB, DCI-P3, etc...
-	double gamma_correction = 2.2;
+	std::string primary_color_space = "sRGB"; //sRGB, DCI-P3, etc
 
 	struct ColorPrimaries
 	{
@@ -221,6 +238,51 @@ struct MonitorProfile
 		double whiteX = 0.3127;
 		double whiteY = 0.3290;
 	} primaries;
+
+	ColorMatrix Get_sRGB()
+	{
+		ColorMatrix t_matrix;
+		t_matrix[0][0] = gamma_correction / 2.2f; // Red
+		t_matrix[1][1] = gamma_correction / 2.2f; // Green
+		t_matrix[2][2] = gamma_correction / 2.2f; // Blue
+
+		return t_matrix;
+	}
+	ColorMatrix Get_DCI_P3()
+	{
+		ColorMatrix t_matrix;
+		t_matrix[0][0] = 1.2249f * (gamma_correction / 2.4f);
+		t_matrix[0][1] = -0.2247f;
+		t_matrix[0][2] = 0.0f;
+		t_matrix[1][0] = -0.0420f;
+		t_matrix[1][1] = 1.0419f * (gamma_correction / 2.4f);
+		t_matrix[1][2] = 0.0f;
+		t_matrix[2][0] = -0.0196f;
+		t_matrix[2][1] = -0.0786f;
+		t_matrix[2][2] = 1.0982f * (gamma_correction / 2.4f);
+	}
+	ColorMatrix Get_REC_2020()
+	{
+		ColorMatrix t_matrix;
+		t_matrix[0][0] = 1.7347f * (gamma_correction / 2.4f);
+		t_matrix[0][1] = -0.7347f;
+		t_matrix[0][2] = 0.0f;
+		t_matrix[1][0] = -0.1316f;
+		t_matrix[1][1] = 1.1316f * (gamma_correction / 2.4f);
+		t_matrix[1][2] = 0.0f;
+		t_matrix[2][0] = -0.0241f;
+		t_matrix[2][1] = -0.1289f;
+		t_matrix[2][2] = 1.1530f * (gamma_correction / 2.4f);
+		return t_matrix;
+	}
+	ColorMatrix Get_Adobe_RGB()
+	{
+		ColorMatrix t_matrix;
+		t_matrix[0][0] = 1.0f * (gamma_correction / 2.2f);
+		t_matrix[1][1] = 1.0f * (gamma_correction / 2.2f);
+		t_matrix[2][2] = 1.0f * (gamma_correction / 2.2f);
+		return t_matrix;
+	};
 };
 
 } // namespace Refactoring
