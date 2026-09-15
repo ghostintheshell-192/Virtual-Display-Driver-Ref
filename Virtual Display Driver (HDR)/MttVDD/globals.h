@@ -247,7 +247,7 @@ struct MonitorProfile
 		double whiteY = 0.3290;
 	} primaries;
 
-	ColorMatrix Get_sRGB()
+	ColorMatrix Get_sRGB() const
 	{
 		ColorMatrix t_matrix;
 		t_matrix.matrix[0][0] = static_cast<float>(gamma_correction) / 2.2f; // Red
@@ -255,7 +255,7 @@ struct MonitorProfile
 		t_matrix.matrix[2][2] = static_cast<float>(gamma_correction) / 2.2f; // Blue
 		return t_matrix;
 	}
-	ColorMatrix Get_DCI_P3()
+	ColorMatrix Get_DCI_P3() const
 	{
 		ColorMatrix t_matrix;
 		t_matrix.matrix[0][0] = 1.2249f * (static_cast<float>(gamma_correction) / 2.4f);
@@ -269,7 +269,7 @@ struct MonitorProfile
 		t_matrix.matrix[2][2] = 1.0982f * (static_cast<float>(gamma_correction) / 2.4f);
 		return t_matrix;
 	}
-	ColorMatrix Get_REC_2020()
+	ColorMatrix Get_REC_2020() const
 	{
 		ColorMatrix t_matrix;
 		t_matrix.matrix[0][0] = 1.7347f * (static_cast<float>(gamma_correction) / 2.4f);
@@ -283,7 +283,7 @@ struct MonitorProfile
 		t_matrix.matrix[2][2] = 1.1530f * (static_cast<float>(gamma_correction) / 2.4f);
 		return t_matrix;
 	}
-	ColorMatrix Get_Adobe_RGB()
+	ColorMatrix Get_Adobe_RGB() const
 	{
 		ColorMatrix t_matrix;
 		t_matrix.matrix[0][0] = 1.0f * (static_cast<float>(gamma_correction) / 2.2f);
