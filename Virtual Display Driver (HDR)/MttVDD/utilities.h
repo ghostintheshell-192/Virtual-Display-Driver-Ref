@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <algorithm>
 
 namespace Refactoring
 {
@@ -62,6 +63,12 @@ static std::vector<std::string> tokenize(std::string str, char divider)
 	}
 
 	return tokens;
+}
+
+static void vector_trim(std::vector<std::string>& tokens, char ch)
+{
+	for (auto & tok : tokens)
+		tok.erase(std::remove(tok.begin(), tok.end(), ch), tok.end());
 }
 
 static std::string WStringToString(const std::wstring &wstr)

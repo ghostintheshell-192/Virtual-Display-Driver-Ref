@@ -498,13 +498,13 @@ void HandleClient(HANDLE hPipe) {
 	buffer[bytesRead / sizeof(wchar_t)] = L'\0';
 	auto str_buffer = Refactoring::WStringToString(buffer);
 	auto pipe_tokens = Refactoring::tokenize(str_buffer, ' ');
+	Refactoring::vector_trim(pipe_tokens, '"');
 
 	g_log.Message(Refactoring::LogType::Pipe, str_buffer.c_str());
 
 	struct elements
 	{
 		std::string xml_key;
-		//std::string comment;
 		bool reload_pipe;
 	};
 
@@ -521,7 +521,7 @@ void HandleClient(HANDLE hPipe) {
 	entries.insert({"SETGPU", {"gpu.friendlyname", true}});
 	entries.insert({"SETDISPLAYCOUNT", {"monitors.count", true}});
 
-	std::map<std::string, std::function<void (std::vector<std::string>)>> prova;
+	//std::map<std::string, std::function<void (std::vector<std::string>)>> prova;
 
 	if (pipe_tokens[0] == "PING")
 	{
