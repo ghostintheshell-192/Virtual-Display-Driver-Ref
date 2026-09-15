@@ -109,9 +109,9 @@ namespace
 	void RebuildKnownMonitorModesCache()
 	{
 		s_KnownMonitorModes2.clear();
-		s_KnownMonitorModes2.reserve(monitorModes.size());
+		s_KnownMonitorModes2.reserve(g_default_profile.modes.size());
 
-		for (const auto& mode : monitorModes)
+		for (const auto &mode : g_default_profile.modes)
 		{
 			s_KnownMonitorModes2.push_back(
 				dispinfo(
