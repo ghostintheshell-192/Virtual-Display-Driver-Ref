@@ -2036,21 +2036,22 @@ NTSTATUS VirtualDisplayDriverParseMonitorDescription(const IDARG_IN_PARSEMONITOR
 	g_log.Message(Refactoring::LogType::Debug, std::format("Parsing monitor description. Input buffer count: {}", pInArgs->MonitorModeBufferInputCount).c_str());
 
 	RebuildKnownMonitorModesCache();
-	pOutArgs->MonitorModeBufferOutputCount = (UINT)monitorModes.size();
+	pOutArgs->MonitorModeBufferOutputCount = (UINT)g_default_profile.modes.size();
 
-	g_log.Message(Refactoring::LogType::Debug, std::format("Number of monitor modes generated: {}", monitorModes.size()).c_str());
+	g_log.Message(Refactoring::LogType::Debug, std::format("Number of monitor modes generated: {}", g_default_profile.modes.size()).c_str());
 
-	if (pInArgs->MonitorModeBufferInputCount < monitorModes.size())
+	if (pInArgs->MonitorModeBufferInputCount < g_default_profile.modes.size())
 	{
-		g_log.Message(Refactoring::LogType::Warning,
-			   std::format("Buffer too small. Input count: {}, Required: {}", pInArgs->MonitorModeBufferInputCount, monitorModes.size()).c_str());
+		g_log.Message(Refactoring::LogType::Warning, std::format("Buffer too small. Input count: {}, Required: {}",
+																 pInArgs->MonitorModeBufferInputCount, g_default_profile.modes.size())
+														 .c_str());
 		// Return success if there was no buffer, since the caller was only asking for a count of modes
 		return (pInArgs->MonitorModeBufferInputCount > 0) ? STATUS_BUFFER_TOO_SMALL : STATUS_SUCCESS;
 	}
 	else
 	{
 		// Copy the known modes to the output buffer
-		for (DWORD ModeIndex = 0; ModeIndex < monitorModes.size(); ModeIndex++)
+		for (DWORD ModeIndex = 0; ModeIndex < g_default_profile.modes.size(); ModeIndex++)
 		{
 			pInArgs->pMonitorModes[ModeIndex].Size = sizeof(IDDCX_MONITOR_MODE);
 			pInArgs->pMonitorModes[ModeIndex].Origin = IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR;
@@ -2151,23 +2152,25 @@ NTSTATUS VirtualDisplayDriverMonitorQueryModes(IDDCX_MONITOR MonitorObject, cons
 {
 	UNREFERENCED_PARAMETER(MonitorObject);
 
-	vector<IDDCX_TARGET_MODE> TargetModes(monitorModes.size());
+	vector<IDDCX_TARGET_MODE> TargetModes(g_default_profile.modes.size());
 
 	stringstream logStream;
-	logStream << "Creating target modes. Number of monitor modes: " << monitorModes.size();
+	logStream << "Creating target modes. Number of monitor modes: " << g_default_profile.modes.size();
 	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 	// Create a set of modes supported for frame processing and scan-out. These are typically not based on the
 	// monitor's descriptor and instead are based on the static processing capability of the device. The OS will
 	// report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
-	for (int i = 0; i < monitorModes.size(); i++) {
-		CreateTargetMode(TargetModes[i], monitorModes[i].width, monitorModes[i].height, monitorModes[i].refresh_num, monitorModes[i].refresh_den);
+	for (int i = 0; i < g_default_profile.modes.size(); i++)
+	{
+		CreateTargetMode(TargetModes[i], g_default_profile.modes[i].width, g_default_profile.modes[i].height, g_default_profile.modes[i].refresh_num,
+						 g_default_profile.modes[i].refresh_den);
 
 		logStream.str("");
-		logStream << "Created target mode " << i << ": Width = " << monitorModes[i].width
-			<< ", Height = " << monitorModes[i].height
-			<< ", VSync = " << monitorModes[i].refresh_num; //qui è sbagliato
+		logStream << "Created target mode " << i << ": Width = " << g_default_profile.modes[i].width
+				  << ", Height = " << g_default_profile.modes[i].height
+			<< ", VSync = " << g_default_profile.modes[i].refresh_num; //qui è sbagliato
 		g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 	}
 
@@ -2291,16 +2294,16 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 						   pInArgs->MonitorModeBufferInputCount, pInArgs->pMonitorModes ? "Valid" : "Null");
 	g_log.Message(Refactoring::LogType::Debug, msg1.c_str());
 	g_log.Message(Refactoring::LogType::Info, "Monitor Modes:");
-	for (const auto& mode : monitorModes)
+	for (const auto &mode : g_default_profile.modes)
 	{
 		g_log.Message(Refactoring::LogType::Debug,
 			   std::format("\n Mode - Width : {}, Height: {}, RefreshRate: {}", mode.width, mode.height, mode.refresh_num).c_str());
 	}
 
 	RebuildKnownMonitorModesCache();
-	pOutArgs->MonitorModeBufferOutputCount = (UINT)monitorModes.size();
+	pOutArgs->MonitorModeBufferOutputCount = (UINT)g_default_profile.modes.size();
 
-	if (pInArgs->MonitorModeBufferInputCount < monitorModes.size())
+	if (pInArgs->MonitorModeBufferInputCount < g_default_profile.modes.size())
 	{
 		// Return success if there was no buffer, since the caller was only asking for a count of modes
 		return (pInArgs->MonitorModeBufferInputCount > 0) ? STATUS_BUFFER_TOO_SMALL : STATUS_SUCCESS;
@@ -2315,7 +2318,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 		
 
 		g_log.Message(Refactoring::LogType::Info, "Writing monitor modes to output buffer:");
-		for (DWORD ModeIndex = 0; ModeIndex < monitorModes.size(); ModeIndex++)
+		for (DWORD ModeIndex = 0; ModeIndex < g_default_profile.modes.size(); ModeIndex++)
 		{
 			pInArgs->pMonitorModes[ModeIndex].Size = sizeof(IDDCX_MONITOR_MODE2);
 			pInArgs->pMonitorModes[ModeIndex].Origin = IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR;
@@ -2371,7 +2374,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 						   static_cast<void *>(MonitorObject), pInArgs->TargetModeBufferInputCount);
 	g_log.Message(Refactoring::LogType::Debug, msg1.c_str());
 
-	vector<IDDCX_TARGET_MODE2> TargetModes(monitorModes.size());
+	vector<IDDCX_TARGET_MODE2> TargetModes(g_default_profile.modes.size());
 
 	// Create a set of modes supported for frame processing and scan-out. These are typically not based on the
 	// monitor's descriptor and instead are based on the static processing capability of the device. The OS will
@@ -2379,10 +2382,12 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 
 	g_log.Message(Refactoring::LogType::Debug, "Creating target modes:");
 
-	for (int i = 0; i < monitorModes.size(); i++)
+	for (int i = 0; i < g_default_profile.modes.size(); i++)
 	{
-		CreateTargetMode2(TargetModes[i], monitorModes[i].width, 
-			monitorModes[i].height, monitorModes[i].refresh_num, monitorModes[i].refresh_den);
+		CreateTargetMode2(TargetModes[i], g_default_profile.modes[i].width, 
+			g_default_profile.modes[i].height, 
+			g_default_profile.modes[i].refresh_num,
+			g_default_profile.modes[i].refresh_den);
 	}
 
 	pOutArgs->TargetModeBufferOutputCount = (UINT)TargetModes.size();
