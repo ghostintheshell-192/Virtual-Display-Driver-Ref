@@ -96,7 +96,6 @@ struct
 {
 	AdapterOption Adapter;
 } Options;
-vector<Refactoring::Resolution> monitorModes;
 vector< DISPLAYCONFIG_VIDEO_SIGNAL_INFO> s_KnownMonitorModes2;
 UINT numVirtualDisplays;
 wstring gpuname;
@@ -872,7 +871,6 @@ void loadSettings() {
 		numVirtualDisplays = monitorcount;
 		gpuname = gpuFriendlyName;
 		g_default_profile.modes = res;
-		monitorModes = g_default_profile.modes;
 		RebuildKnownMonitorModesCache();
 		
 		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");
@@ -900,7 +898,6 @@ void loadSettings() {
 
 			g_log.Message(Refactoring::LogType::Info, "Using option.txt");
 			g_default_profile.modes = res;
-			monitorModes = g_default_profile.modes;
 			RebuildKnownMonitorModesCache();
 			for (const auto &mode : res)
 			{
@@ -942,8 +939,6 @@ void loadSettings() {
 	}
 
 	g_default_profile.modes = res;
-
-	monitorModes = g_default_profile.modes;
 	RebuildKnownMonitorModesCache();
 	return;
 }
