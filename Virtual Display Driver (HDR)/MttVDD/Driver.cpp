@@ -871,7 +871,7 @@ void loadSettings() {
 
 		numVirtualDisplays = monitorcount;
 		gpuname = gpuFriendlyName;
-		monitorModes = res;
+		g_default_profile.modes = res;
 		RebuildKnownMonitorModesCache();
 		
 		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");
@@ -898,7 +898,7 @@ void loadSettings() {
 			}
 
 			g_log.Message(Refactoring::LogType::Info, "Using option.txt");
-			monitorModes = res;
+			g_default_profile.modes = res;
 			RebuildKnownMonitorModesCache();
 			for (const auto &mode : res)
 			{
@@ -939,7 +939,9 @@ void loadSettings() {
 		g_log.Message(Refactoring::LogType::Debug, std::format("Resolution: {}x{} @ {}/{} Hz", width, height, vsync_num, vsync_den).c_str());
 	}
 
-	monitorModes = res;
+	g_default_profile.modes = res;
+
+	monitorModes = g_default_profile.modes;
 	RebuildKnownMonitorModesCache();
 	return;
 }
