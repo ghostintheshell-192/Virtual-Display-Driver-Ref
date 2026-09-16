@@ -90,10 +90,8 @@ Refactoring::Logger g_log("C:\\VirtualDisplayDriver", true, false, true);
 
 Refactoring::SettingsLoader g_settings_manager(&g_log, &g_settings);
 
-struct
-{
-	AdapterOption Adapter;
-} Options;
+
+AdapterOption Adapter;
 vector< DISPLAYCONFIG_VIDEO_SIGNAL_INFO> s_KnownMonitorModes2;
 UINT numVirtualDisplays;
 wstring gpuname;
@@ -297,7 +295,7 @@ extern "C" BOOL WINAPI DllMain(
 }
 
 LUID getSetAdapterLuid() {
-	AdapterOption& adapterOption = Options.Adapter;
+	AdapterOption& adapterOption = Adapter;
 
 	if (!adapterOption.hasTargetAdapter) {
 		g_log.Message(Refactoring::LogType::Error,"No Gpu Found/Selected");
@@ -309,7 +307,7 @@ LUID getSetAdapterLuid() {
 
 void GetGpuInfo()
 {
-	AdapterOption& adapterOption = Options.Adapter;
+	AdapterOption& adapterOption = Adapter;
 
 	if (!adapterOption.hasTargetAdapter) {
 		g_log.Message(Refactoring::LogType::Error, "No GPU found or set.");
@@ -854,11 +852,11 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 
 	if (gpuname.empty() || gpuname == L"default") {
 		const wstring adaptername = confpath + L"\\adapter.txt";
-		Options.Adapter.load(adaptername.c_str());
+		Adapter.load(adaptername.c_str());
 		g_log.Message(Refactoring::LogType::Info, "Attempting to Load GPU from adapter.txt");
 	}
 	else {
-		Options.Adapter.xmlprovide(gpuname);
+		Adapter.xmlprovide(gpuname);
 		g_log.Message(Refactoring::LogType::Info, "Loading GPU from vdd_settings.xml");
 	}
 
@@ -1651,7 +1649,7 @@ void IndirectDeviceContext::InitAdapter()
 
 void IndirectDeviceContext::FinishInit()
 {
-	Options.Adapter.apply(m_Adapter);
+	Adapter.apply(m_Adapter);
 	g_log.Message(Refactoring::LogType::Info, "Applied Adapter configs.");
 	for (unsigned int i = 0; i < numVirtualDisplays; i++) {
 		CreateMonitor(i);
