@@ -298,122 +298,6 @@ extern "C" BOOL WINAPI DllMain(
 	return TRUE;
 }
 
-
-bool UpdateXmlSetting(std::wstring value, const wchar_t* variable) {
-	const wstring settingsname = confpath + L"\\vdd_settings.xml";
-	CComPtr<IStream> pFileStream;
-	HRESULT hr = SHCreateStreamOnFileEx(settingsname.c_str(), STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &pFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: XML file could not be opened.");
-		return false;
-	}
-
-	CComPtr<IXmlReader> pReader;
-	hr = CreateXmlReader(__uuidof(IXmlReader), (void**)&pReader, nullptr);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML reader.");
-		return false;
-	}
-	hr = pReader->SetInput(pFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML reader input.");
-		return false;
-	}
-
-	CComPtr<IStream> pOutFileStream;
-	wstring tempFileName = settingsname + L".temp";
-	hr = SHCreateStreamOnFileEx(tempFileName.c_str(), STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &pOutFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create output file stream.");
-		return false;
-	}
-
-	CComPtr<IXmlWriter> pWriter;
-	hr = CreateXmlWriter(__uuidof(IXmlWriter), (void**)&pWriter, nullptr);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to create XML writer.");
-		return false;
-	}
-	hr = pWriter->SetOutput(pOutFileStream);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to set XML writer output.");
-		return false;
-	}
-	hr = pWriter->WriteStartDocument(XmlStandalone_Omit);
-	if (FAILED(hr)) {
-		g_log.Message(Refactoring::LogType::Error, "UpdatingXML: Failed to write start of the document.");
-		return false;
-	}
-
-	XmlNodeType nodeType;
-	const wchar_t* pwszLocalName;
-	const wchar_t* pwszValue;
-	bool variableElementFound = false;
-
-	while (S_OK == pReader->Read(&nodeType)) {
-		switch (nodeType) {
-		case XmlNodeType_Element:
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			pWriter->WriteStartElement(nullptr, pwszLocalName, nullptr);
-			break;
-
-		case XmlNodeType_EndElement:
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			pWriter->WriteEndElement();
-			break;
-
-		case XmlNodeType_Text:
-			pReader->GetValue(&pwszValue, nullptr);
-			if (variableElementFound) {
-				pWriter->WriteString(value.c_str());
-				variableElementFound = false;
-			}
-			else {
-				pWriter->WriteString(pwszValue);
-			}
-			break;
-
-		case XmlNodeType_Whitespace:
-			pReader->GetValue(&pwszValue, nullptr);
-			pWriter->WriteWhitespace(pwszValue);
-			break;
-
-		case XmlNodeType_Comment:
-			pReader->GetValue(&pwszValue, nullptr);
-			pWriter->WriteComment(pwszValue);
-			break;
-		}
-
-		if (nodeType == XmlNodeType_Element) {
-			pReader->GetLocalName(&pwszLocalName, nullptr);
-			if (pwszLocalName != nullptr && wcscmp(pwszLocalName, variable) == 0) {
-				variableElementFound = true;
-			}
-		}
-	}
-
-	if (variableElementFound) {
-		pWriter->WriteStartElement(nullptr, variable, nullptr);
-		pWriter->WriteString(value.c_str());
-		pWriter->WriteEndElement();
-	}
-
-	hr = pWriter->WriteEndDocument();
-	if (FAILED(hr)) {
-		return false;
-	}
-
-	pFileStream.Release();
-	pOutFileStream.Release();
-	pWriter.Release();
-	pReader.Release();
-
-	if (!MoveFileExW(tempFileName.c_str(), settingsname.c_str(), MOVEFILE_REPLACE_EXISTING)) {
-		return false;
-	}
-	return true;
-}
-
 LUID getSetAdapterLuid() {
 	AdapterOption& adapterOption = Options.Adapter;
 
@@ -741,6 +625,7 @@ extern "C" NTSTATUS DriverEntry(
 	g_log.Message(Refactoring::LogType::Info, std::format("Selected Xor Cursor Support Level: {}", xorCursorSupportLevelName).c_str());
 	g_log.Message(Refactoring::LogType::Info, "Driver Starting");
 	g_log.Message(Refactoring::LogType::Info, Refactoring::WStringToString(confpath).c_str());
+
 	LogIddCxVersion();
 
 	Status = WdfDriverCreate(pDriverObject, pRegistryPath, &Attributes, &Config, WDF_NO_HANDLE);
