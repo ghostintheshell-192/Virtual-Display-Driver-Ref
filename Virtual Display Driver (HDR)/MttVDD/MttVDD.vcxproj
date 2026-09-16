@@ -42,6 +42,7 @@
     <ClCompile Include="xml_reader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="adapter_resolver.h" />
     <ClInclude Include="driver.h" />
     <ClInclude Include="globals.h" />
     <ClInclude Include="globals_iddcx.h" />
@@ -258,7 +259,7 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <EnablePREfast>true</EnablePREfast>
       <AdditionalOptions>/D_ATL_NO_WIN_SUPPORT /DUMDF_DRIVER /DIDDCX_VERSION_MAJOR=1 /DIDDCX_VERSION_MINOR=4 /DIDDCX_MINIMUM_VERSION_REQUIRED=4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(WindowsSdkDir)Include\wdf\umdf\$(UMDF_VERSION_MAJOR).$(UMDF_VERSION_MINOR);$(WindowsSdkDir)Include\$(WindowsTargetPlatformVersion)\wdf\umdf\$(UMDF_VERSION_MAJOR).$(UMDF_VERSION_MINOR);$(ProjectDir)..\..\ThirdParty\Windows-Driver-Frameworks\src\publicinc\wdf\umdf\2.15;$(ProjectDir)..\..\Common\Include;$(WindowsSdkDir)Include\$(WindowsTargetPlatformVersion)\um\iddcx\$(IDDCX_VERSION_MAJOR).$(IDDCX_VERSION_MINOR);$(ProjectDir)..\redist\tinyxml2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WindowsSdkDir)Include\wdf\umdf\$(UMDF_VERSION_MAJOR).$(UMDF_VERSION_MINOR);$(WindowsSdkDir)Include\$(WindowsTargetPlatformVersion)\wdf\umdf\$(UMDF_VERSION_MAJOR).$(UMDF_VERSION_MINOR);$(ProjectDir)..\..\ThirdParty\Windows-Driver-Frameworks\src\publicinc\wdf\umdf\2.15;$(WindowsSdkDir)Include\$(WindowsTargetPlatformVersion)\um\iddcx\$(IDDCX_VERSION_MAJOR).$(IDDCX_VERSION_MINOR);$(ProjectDir)..\redist\tinyxml2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <DisableSpecificWarnings>4471;4499;4505;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>

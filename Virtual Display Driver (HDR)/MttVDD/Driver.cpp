@@ -15,16 +15,15 @@ Environment:
 #include "driver.h"
 #include "utilities.h"
 #include "settings_loader.h"
-//#include "Driver.tmh"
-#include<fstream>
-#include<sstream>
-#include<string>
-#include<tuple>
-#include<vector>
-#include<algorithm>
-#include<iomanip>
-#include<chrono>
-#include <AdapterOption.h>
+#include "adapter_resolver.h"
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <vector>
+#include <algorithm>
+#include <iomanip>
+#include <chrono>
 #include <xmllite.h>
 #include <shlwapi.h>
 #include <atlbase.h>
@@ -49,7 +48,7 @@ Environment:
 
 HANDLE hPipeThread = NULL;
 bool g_Running = true;
-mutex g_Mutex;
+std::mutex g_Mutex;
 HANDLE g_pipeHandle = INVALID_HANDLE_VALUE;
 
 using namespace std;
@@ -91,8 +90,32 @@ Refactoring::Logger g_log("C:\\VirtualDisplayDriver", true, false, true);
 Refactoring::SettingsLoader g_settings_manager(&g_log, &g_settings);
 
 
-AdapterOption Adapter;
+Refactoring::ResolvedAdapter adp;
+
 wstring confpath = L"C:\\VirtualDisplayDriver";
+
+// adapter
+void apply(const IDDCX_ADAPTER &adapter)
+{
+	if (adp.hasTargetAdapter && IDD_IS_FUNCTION_AVAILABLE(IddCxAdapterSetRenderAdapter))
+	{
+		IDARG_IN_ADAPTERSETRENDERADAPTER arg{};
+		arg.PreferredRenderAdapter = adp.adapterLuid;
+		IddCxAdapterSetRenderAdapter(adapter, &arg);
+	}
+}
+
+void GetGpuInfo()
+{
+	if (!adp.hasTargetAdapter)
+	{
+		g_log.Message(Refactoring::LogType::Error, "No GPU found or set.");
+		return;
+	}
+
+	g_log.Message(Refactoring::LogType::Info,
+				  std::format("ASSIGNED GPU: {} (LUID: {}-{})", adp.target_name, adp.adapterLuid.LowPart, adp.adapterLuid.HighPart).c_str());
+}
 
 /// <summary>
 /// Creates a target mode from the fundamental mode attributes.
@@ -348,64 +371,6 @@ extern "C" BOOL WINAPI DllMain(
 	return TRUE;
 }
 
-LUID getSetAdapterLuid() {
-	AdapterOption& adapterOption = Adapter;
-
-	if (!adapterOption.hasTargetAdapter) {
-		g_log.Message(Refactoring::LogType::Error,"No Gpu Found/Selected");
-	}
-
-	return adapterOption.adapterLuid;
-}
-
-
-void GetGpuInfo()
-{
-	AdapterOption& adapterOption = Adapter;
-
-	if (!adapterOption.hasTargetAdapter) {
-		g_log.Message(Refactoring::LogType::Error, "No GPU found or set.");
-		return;
-	}
-
-	try {
-		string utf8_desc = Refactoring::WStringToString(adapterOption.target_name);
-		LUID luid = getSetAdapterLuid();
-		string logtext = "ASSIGNED GPU: " + utf8_desc +
-			" (LUID: " + std::to_string(luid.LowPart) + "-" + std::to_string(luid.HighPart) + ")";
-		g_log.Message(Refactoring::LogType::Info, logtext.c_str());
-	}
-	catch (const exception& e) {
-		g_log.Message(Refactoring::LogType::Error, ("Error: " + string(e.what())).c_str());
-	}
-}
-
-void logAvailableGPUs() {
-	vector<GPUInfo> gpus;
-	ComPtr<IDXGIFactory1> factory;
-	if (!SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) {
-		return;
-	}
-	for (UINT i = 0;; i++) {
-		ComPtr<IDXGIAdapter> adapter;
-		if (!SUCCEEDED(factory->EnumAdapters(i, &adapter))) {
-			break;
-		}
-		DXGI_ADAPTER_DESC desc;
-		if (!SUCCEEDED(adapter->GetDesc(&desc))) {
-			continue;
-		}
-		GPUInfo info{ desc.Description, adapter, desc };
-		gpus.push_back(info);
-	}
-	for (const auto& gpu : gpus) {
-		auto memorysize = gpu.desc.DedicatedVideoMemory / (1024 * 1024);
-
-		g_log.Message(Refactoring::LogType::Companion,
-					  std::format("GPU Name: {} Memory: {} MB", Refactoring::WStringToString(gpu.desc.Description), memorysize).c_str());
-	}
-}
-
 void ReloadDriver(HANDLE hPipe) {
 	auto* pContext = WdfObjectGet_IndirectDeviceContextWrapper(hPipe);
 	if (pContext && pContext->pContext) {
@@ -511,16 +476,20 @@ void HandleClient(HANDLE hPipe) {
 	{
 		g_log.Message(Refactoring::LogType::Companion, "Retrieving Assigned GPU");
 		GetGpuInfo();
-		g_log.Message(Refactoring::LogType::Companion, "Retrieved Assigned GPU");
 	}
 	// GETALLGPUS: LOGS, logAvailableGPUs
 	else if (pipe_tokens[0] == "GETALLGPUS")
 	{
-		g_log.Message(Refactoring::LogType::Companion, "Logging all GPUs");
-		g_log.Message(Refactoring::LogType::Info,
-					  "If any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
-		logAvailableGPUs();
-		g_log.Message(Refactoring::LogType::Companion, "Logged all GPUs");
+		g_log.Message(
+			Refactoring::LogType::Info,
+			"Logging all GPUs.\nIf any GPUs which shows twice but you only have one, it will most likely be the GPU the driver is attached to");
+
+		auto gpus = Refactoring::getAvailableGPUs();
+		for (const auto &gpu : gpus)
+		{
+			auto memorysize = gpu.desc.DedicatedVideoMemory / (1024 * 1024);
+			g_log.Message(Refactoring::LogType::Companion, std::format("GPU Name: {} Memory: {} MB", gpu.name, memorysize).c_str());
+		}
 	}
 	// GETSETTINGS: recupera il valore salvato per i log, e lo manda alla pipe
 	else if (pipe_tokens[0] == "GETSETTINGS")
@@ -886,16 +855,11 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 
 	loadSettings();
 
-	if (g_settings.gpu.friendly_name.empty() || g_settings.gpu.friendly_name == "default")
-	{
-		const wstring adaptername = confpath + L"\\adapter.txt";
-		Adapter.load(adaptername.c_str());
-		g_log.Message(Refactoring::LogType::Info, "Attempting to Load GPU from adapter.txt");
-	}
-	else {
-		Adapter.xmlprovide(Refactoring::StringToWstring(g_settings.gpu.friendly_name));
-		g_log.Message(Refactoring::LogType::Info, "Loading GPU from vdd_settings.xml");
-	}
+	std::string gpu_name = g_settings.gpu.friendly_name;
+	if (gpu_name.empty() || gpu_name == "default")
+		gpu_name = Refactoring::selectBestGPU();
+
+	Refactoring::findAndSetAdapter(gpu_name, adp);
 
 	GetGpuInfo();
 
@@ -1664,7 +1628,7 @@ void IndirectDeviceContext::InitAdapter()
 
 void IndirectDeviceContext::FinishInit()
 {
-	Adapter.apply(m_Adapter);
+	apply(m_Adapter);
 	g_log.Message(Refactoring::LogType::Info, "Applied Adapter configs.");
 	for (int i = 0; i < g_settings.gpu.monitor_count; i++) {
 		CreateMonitor(i);
