@@ -51,15 +51,15 @@ static std::vector<std::string> tokenize(std::string str, char divider)
 	std::vector<std::string> tokens;
 	size_t pos = 0;
 
-	while (pos != std::string::npos)
+	while (pos < std::string::npos)
 	{
-		pos = 0;
 		pos = str.find(divider);
+		tokens.push_back(str.substr(0, pos));
 
-		std::string new_str = str.substr(0, pos);
+		if (pos == std::string::npos)
+			break;
+
 		str = str.substr(pos + 1, str.size());
-
-		tokens.push_back(new_str);
 	}
 
 	return tokens;

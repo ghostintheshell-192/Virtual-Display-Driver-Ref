@@ -34,8 +34,6 @@ Environment:
 #include <cstdio>
 #include <sddl.h>
 #include <mutex>
-#include <chrono>
-#include <iomanip>
 #include <cerrno>
 #include <locale>
 #include <cwchar>
@@ -639,16 +637,6 @@ extern "C" NTSTATUS DriverEntry(
 	return Status;
 }
 
-vector<string> split(string& input, char delimiter)
-{
-	istringstream stream(input);
-	string field;
-	vector<string> result;
-	while (getline(stream, field, delimiter)) {
-		result.push_back(field);
-	}
-	return result;
-}
 
 
 void loadSettings() {
@@ -773,7 +761,7 @@ void loadSettings() {
 
 			while (getline(ifs, line))
 			{
-				vector<string> strvec = split(line, ',');
+				vector<string> strvec = Refactoring::tokenize(line, ',');
 				if (strvec.size() == 3 && strvec[0].substr(0, 1) != "#")
 				{
 					int vsync_num, vsync_den;
