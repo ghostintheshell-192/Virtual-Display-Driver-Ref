@@ -86,6 +86,7 @@ bool Refactoring::XmlReader::SetSetting(const std::string& value, const std::str
 		return false;
 
 	current->SetText(pipe_value.c_str());
+	settings_file.SaveFile(file_path.c_str(), false);
 
     std::visit(
 		[&pipe_value, &value, this](auto *ptr) {
