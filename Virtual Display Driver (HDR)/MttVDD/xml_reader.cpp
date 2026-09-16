@@ -1,7 +1,7 @@
 #include "xml_reader.h"
 #include "utilities.h"
 
-void Refactoring::XmlReader::SetConfigurationFile(std::string path)
+void Refactoring::XmlReader::SetConfigurationFile(const std::string & path)
 {
 	file_path = path;
 	m_log->Message(LogType::Info, "[XmlReader] Reading XML file: " + file_path + "\n");

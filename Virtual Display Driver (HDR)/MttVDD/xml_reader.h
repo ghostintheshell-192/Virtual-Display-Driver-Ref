@@ -12,7 +12,7 @@ class XmlReader
 	XmlReader(Logger * log) : settings_file(), file_path(), m_log(log) {};
 	~XmlReader() = default;
 
-	void SetConfigurationFile(std::string path);
+	void SetConfigurationFile(const std::string &path);
 
 	bool OpenFile();
 
