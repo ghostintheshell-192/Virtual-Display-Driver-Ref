@@ -791,6 +791,7 @@ void loadSettings() {
 	ifstream ifs(optionsname);
 	if (ifs.is_open()) {
 		string line;
+		//trying to completely remove the use of option.txt; removed the line reading of "monitor count" as it was not used anyway.
 		if (getline(ifs, line) && !line.empty())
 		{
 			vector<Refactoring::Resolution> res;
