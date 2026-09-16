@@ -92,31 +92,9 @@ Refactoring::SettingsLoader g_settings_manager(&g_log, &g_settings);
 
 
 AdapterOption Adapter;
-//vector< DISPLAYCONFIG_VIDEO_SIGNAL_INFO> s_KnownMonitorModes2;
 UINT numVirtualDisplays;
 wstring gpuname;
 wstring confpath = L"C:\\VirtualDisplayDriver";
-
-constexpr DISPLAYCONFIG_VIDEO_SIGNAL_INFO dispinfo(UINT32 h, UINT32 v, UINT32 rn, UINT32 rd);
-
-//namespace
-//{
-//	void RebuildKnownMonitorModesCache()
-//	{
-//		s_KnownMonitorModes2.clear();
-//		s_KnownMonitorModes2.reserve(g_default_profile.modes.size());
-//
-//		for (const auto &mode : g_default_profile.modes)
-//		{
-//			s_KnownMonitorModes2.push_back(
-//				dispinfo(
-//					mode.width,
-//					mode.height,
-//					mode.refresh_num,
-//					mode.refresh_den));
-//		}
-//	}
-//}
 
 /// <summary>
 /// Creates a target mode from the fundamental mode attributes.
@@ -230,9 +208,6 @@ struct IndirectDeviceContextWrapper
 		pContext = nullptr;
 	}
 };
-
-
-
 
 // Find and validate preferred mode from EDID
 Refactoring::Resolution FindPreferredModeFromEdid(const Refactoring::MonitorProfile &profile, const vector<Refactoring::Resolution> &availableModes)
@@ -359,7 +334,6 @@ void InitializeD3DDeviceAndLogGPU() {
 	string logtext = "Retrieving D3D Device GPU: " + utf8_desc;
 	g_log.Message(Refactoring::LogType::Info, logtext.c_str());
 }
-
 
 // This macro creates the methods for accessing an IndirectDeviceContextWrapper as a context for a WDF object
 WDF_DECLARE_CONTEXT_TYPE(IndirectDeviceContextWrapper);
@@ -825,7 +799,6 @@ void loadSettings() {
 		numVirtualDisplays = monitorcount;
 		gpuname = gpuFriendlyName;
 		g_default_profile.modes = res;
-		//RebuildKnownMonitorModesCache();
 		
 		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");
 		return;
@@ -852,7 +825,6 @@ void loadSettings() {
 
 			g_log.Message(Refactoring::LogType::Info, "Using option.txt");
 			g_default_profile.modes = res;
-			//RebuildKnownMonitorModesCache();
 			for (const auto &mode : res)
 			{
 				g_log.Message(Refactoring::LogType::Debug,
@@ -893,7 +865,6 @@ void loadSettings() {
 	}
 
 	g_default_profile.modes = res;
-	//RebuildKnownMonitorModesCache();
 	return;
 }
 
@@ -1396,7 +1367,7 @@ void SwapChainProcessor::RunCore()
 			// ==============================
 
 			AcquiredBuffer.Reset();
-			//g_log.Message(Refactoring::LogType::Debug, "Reset buffer");
+
 			hr = IddCxSwapChainFinishedProcessingFrame(m_hSwapChain);
 			if (FAILED(hr))
 			{
@@ -1412,14 +1383,11 @@ void SwapChainProcessor::RunCore()
 		}
 		else
 		{
-			//logStream.str(""); // Clear the stream
 			if (hr == DXGI_ERROR_ACCESS_LOST && retryCount < maxRetries)
 			{
 				g_log.Message(
 					Refactoring::LogType::Warning,
 					std::format("DXGI_ERROR_ACCESS_LOST detected. Retry {}/{} after {} ms delay.", (retryCount + 1), maxRetries, retryDelay).c_str());
-				//logStream << "DXGI_ERROR_ACCESS_LOST detected. Retry " << (retryCount + 1) << "/" << maxRetries << " after " << retryDelay << "ms delay.";
-				//g_log.Message(Refactoring::LogType::Warning, logStream.str().c_str());
 				Sleep(retryDelay);
 				retryDelay = min(retryDelay * 2, maxRetryDelay);
 				retryCount++;
@@ -1450,19 +1418,6 @@ void SwapChainProcessor::RunCore()
 const UINT64 MHZ = 1000000;
 const UINT64 KHZ = 1000;
 
-//constexpr DISPLAYCONFIG_VIDEO_SIGNAL_INFO dispinfo(UINT32 h, UINT32 v, UINT32 rn, UINT32 rd) {
-//	const UINT32 clock_rate = rn * (v + 4) * (v + 4) / rd + 1000;
-//	return {
-//	  clock_rate,                                      // pixel clock rate [Hz]
-//	{ clock_rate, v + 4 },                         // fractional horizontal refresh rate [Hz]
-//	{ clock_rate, (v + 4) * (v + 4) },          // fractional vertical refresh rate [Hz]
-//	{ h, v },                                    // (horizontal, vertical) active pixel resolution
-//	{ h + 4, v + 4 },                         // (horizontal, vertical) total pixel resolution
-//	{ { 255, 0 }},                                   // video standard and vsync divider
-//	DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE
-//	};
-//}
-
 vector<BYTE> hardcodedEdid = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x36, 0x94, 0x37, 0x13, 0xe7, 0x1e, 0xe7, 0x1e, 0x1c, 0x22, 0x01, 0x03, 0x80, 0x32, 0x1f, 0x78,
 	0x07, 0xee, 0x95, 0xa3, 0x54, 0x4c, 0x99, 0x26, 0x0f, 0x50, 0x54, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -1476,7 +1431,6 @@ vector<BYTE> hardcodedEdid = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8c};
 
-
 void modifyEdid(vector<BYTE>& edid) {
 	if (edid.size() < 12) {
 		return;
@@ -1487,8 +1441,6 @@ void modifyEdid(vector<BYTE>& edid) {
 	edid[10] = 0x37;
 	edid[11] = 0x13;
 }
-
-
 
 BYTE calculateChecksum(const std::vector<BYTE>& edid) {
 	int sum = 0;
@@ -1906,7 +1858,6 @@ void IndirectDeviceContext::AssignSwapChain(IDDCX_MONITOR Monitor, IDDCX_SWAPCHA
 	}
 }
 
-
 void IndirectDeviceContext::UnassignSwapChain(IDDCX_MONITOR Monitor)
 {
 	std::unique_ptr<SwapChainProcessor> processorToStop;
@@ -1984,7 +1935,6 @@ NTSTATUS VirtualDisplayDriverParseMonitorDescription(const IDARG_IN_PARSEMONITOR
 	stringstream logStream;
 	g_log.Message(Refactoring::LogType::Debug, std::format("Parsing monitor description. Input buffer count: {}", pInArgs->MonitorModeBufferInputCount).c_str());
 
-	//RebuildKnownMonitorModesCache();
 	pOutArgs->MonitorModeBufferOutputCount = (UINT)g_default_profile.modes.size();
 
 	g_log.Message(Refactoring::LogType::Debug, std::format("Number of monitor modes generated: {}", g_default_profile.modes.size()).c_str());
@@ -2158,10 +2108,6 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 	// this sample driver, we hard-code the EDID, so this function can generate known modes.
 	// ==============================
 
-	//using g_default_profile.modes
-
-
-	//RebuildKnownMonitorModesCache();
 	pOutArgs->MonitorModeBufferOutputCount = (UINT)g_default_profile.modes.size();
 
 	if (pInArgs->MonitorModeBufferInputCount < g_default_profile.modes.size())
@@ -2177,16 +2123,13 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 			return STATUS_INVALID_PARAMETER;
 		}
 		
-
 		g_log.Message(Refactoring::LogType::Info, "Writing monitor modes to output buffer:");
 		for (DWORD ModeIndex = 0; ModeIndex < g_default_profile.modes.size(); ModeIndex++)
 		{
 			pInArgs->pMonitorModes[ModeIndex].Size = sizeof(IDDCX_MONITOR_MODE2);
 			pInArgs->pMonitorModes[ModeIndex].Origin = IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR;
 			CreateTargetMode(g_default_profile.modes[ModeIndex],
-							 pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo); // CreateTargetMode2 non va bene qui?
-			//pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo = s_KnownMonitorModes2[ModeIndex];
-
+							 pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo);
 
 			if (g_settings.colours.color_format == "RGB")
 			{
