@@ -719,6 +719,7 @@ extern "C" NTSTATUS DriverEntry(
 
 	Config.EvtDriverUnload = EvtDriverUnload;
 
+	g_settings_manager.SetConfigurationPath("C:\\data\\repos\\Sandbox\\Virtual-Display-Driver-Ref\\Virtual Display Driver (HDR)");
 	g_settings_manager.Init();
 	g_settings_manager.LoadSettings();
 

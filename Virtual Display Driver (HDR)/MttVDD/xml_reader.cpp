@@ -1,17 +1,29 @@
 #include "xml_reader.h"
 #include "utilities.h"
 
-bool Refactoring::XmlReader::OpenFile(std::string path)
+void Refactoring::XmlReader::SetConfigurationFile(std::string path)
 {
-	tinyxml2::XMLError err = settings_file.LoadFile(path.c_str());
+	file_path = path;
+	m_log->Message(LogType::Info, "[XmlReader] Reading XML file: " + file_path + "\n");
+}
+
+bool Refactoring::XmlReader::OpenFile()
+{
+	if (file_path.empty())
+	{
+		m_log->Message(LogType::Error, "[XmlReader] XML File to open not provided.\n");
+		return false;
+	}
+
+	tinyxml2::XMLError err = settings_file.LoadFile(file_path.c_str());
 
 	if (err == tinyxml2::XML_SUCCESS)
 	{
-		m_log->Message(LogType::Info, "[XmlReader] File open at path : " + path + "\n");
+		m_log->Message(LogType::Info, "[XmlReader] File open at path : " + file_path + "\n");
 		return true;
 	}
 
-	m_log->Message(LogType::Error, "[XmlReader] Failed to open file at path : " + path + "\n");
+	m_log->Message(LogType::Error, "[XmlReader] Failed to open file at path : " + file_path + "\n");
 	return false;
 }
 

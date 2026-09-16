@@ -14,6 +14,7 @@ namespace Refactoring
 		~SettingsLoader() = default;
 
 		void Init();
+		void SetConfigurationPath(std::string path);
 		void LoadSettings();
 
 		bool GetSetting(const std::string &value);

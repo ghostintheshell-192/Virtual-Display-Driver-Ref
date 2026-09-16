@@ -9,9 +9,6 @@ Refactoring::SettingsLoader::SettingsLoader(Logger *log, DriverSettings *g_setti
 
 void Refactoring::SettingsLoader::Init()
 {
-	conf_path = "C:\\data\\repos\\Sandbox\\Virtual-Display-Driver-Ref\\Virtual Display Driver (HDR)";
-	m_log->Message(LogType::Info, "[SettingsLoader] Config Path is at default value: " + conf_path + "\n");
-
 	check_registry = reg_reader.OpenRegistry();
 
 	if (check_registry)
@@ -19,8 +16,9 @@ void Refactoring::SettingsLoader::Init()
 		reg_reader.InitializePath(conf_path);
 		reg_reader.CloseRegistry();
 	}
+	xml_reader.SetConfigurationFile(conf_path + "\\vdd_settings.xml");
 
-	check_xml = xml_reader.OpenFile(conf_path + "\\vdd_settings.xml");
+	check_xml = xml_reader.OpenFile();
 
 	entries.push_back({"logging.logging", &(m_settings->logs.enable_standard_logs)});
 	entries.push_back({"logging.debuglogging", &(m_settings->logs.enable_debug_logs)});
@@ -100,6 +98,12 @@ void Refactoring::SettingsLoader::Init()
 	entries.push_back({"hdr_advanced.color_primaries.white_y", &(m_settings->hdr_advanced.color_primaries.whiteY)});
 	entries.push_back({"color_advanced.color_format_extended.sdr_white_level",
 					   &(m_settings->color_advanced.color_format_extended.sdr_white_level)});
+}
+
+void Refactoring::SettingsLoader::SetConfigurationPath(std::string path)
+{
+	conf_path = path;
+	m_log->Message(LogType::Info, "[SettingsLoader] Config Path is at default value: " + conf_path + "\n");
 }
 
 void Refactoring::SettingsLoader::LoadSettings()

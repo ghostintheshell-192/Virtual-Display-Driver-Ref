@@ -9,10 +9,12 @@ namespace Refactoring
 class XmlReader
 {
   public:
-	XmlReader(Logger * log) : settings_file(), m_log(log) {};
+	XmlReader(Logger * log) : settings_file(), file_path(), m_log(log) {};
 	~XmlReader() = default;
 
-	bool OpenFile(std::string path);
+	void SetConfigurationFile(std::string path);
+
+	bool OpenFile();
 
 	bool GetSetting(const std::string &value, const SettingValuePtr &result);
 
@@ -23,6 +25,7 @@ class XmlReader
 	tinyxml2::XMLElement *TraverseXml(const std::string &value);
 
 	tinyxml2::XMLDocument settings_file;
+	std::string file_path;
 	Logger *m_log;
 };
 } // namespace Refactoring
