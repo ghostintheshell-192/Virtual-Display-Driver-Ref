@@ -92,30 +92,112 @@ Refactoring::SettingsLoader g_settings_manager(&g_log, &g_settings);
 
 
 AdapterOption Adapter;
-vector< DISPLAYCONFIG_VIDEO_SIGNAL_INFO> s_KnownMonitorModes2;
+//vector< DISPLAYCONFIG_VIDEO_SIGNAL_INFO> s_KnownMonitorModes2;
 UINT numVirtualDisplays;
 wstring gpuname;
 wstring confpath = L"C:\\VirtualDisplayDriver";
 
 constexpr DISPLAYCONFIG_VIDEO_SIGNAL_INFO dispinfo(UINT32 h, UINT32 v, UINT32 rn, UINT32 rd);
 
-namespace
-{
-	void RebuildKnownMonitorModesCache()
-	{
-		s_KnownMonitorModes2.clear();
-		s_KnownMonitorModes2.reserve(g_default_profile.modes.size());
+//namespace
+//{
+//	void RebuildKnownMonitorModesCache()
+//	{
+//		s_KnownMonitorModes2.clear();
+//		s_KnownMonitorModes2.reserve(g_default_profile.modes.size());
+//
+//		for (const auto &mode : g_default_profile.modes)
+//		{
+//			s_KnownMonitorModes2.push_back(
+//				dispinfo(
+//					mode.width,
+//					mode.height,
+//					mode.refresh_num,
+//					mode.refresh_den));
+//		}
+//	}
+//}
 
-		for (const auto &mode : g_default_profile.modes)
-		{
-			s_KnownMonitorModes2.push_back(
-				dispinfo(
-					mode.width,
-					mode.height,
-					mode.refresh_num,
-					mode.refresh_den));
-		}
+/// <summary>
+/// Creates a target mode from the fundamental mode attributes.
+/// </summary>
+static void CreateTargetMode(Refactoring::Resolution res, DISPLAYCONFIG_VIDEO_SIGNAL_INFO &Mode)
+{
+	UINT total_horiz = res.width + 4; // adding a minimal amount of blanking
+	UINT total_vert = res.height + 4;
+
+	Mode.totalSize.cx = total_horiz;
+	Mode.activeSize.cx = res.width;
+	Mode.totalSize.cy = total_vert;
+	Mode.activeSize.cy = res.height;
+
+	CONST UINT32 pixel_clock = static_cast<UINT32>(std::floor(total_horiz * total_vert * res.refresh_num / res.refresh_den));
+
+	Mode.AdditionalSignalInfo.vSyncFreqDivider = 1;
+	Mode.AdditionalSignalInfo.videoStandard = 255;
+	Mode.vSyncFreq.Numerator = res.refresh_num;
+	Mode.vSyncFreq.Denominator = res.refresh_den;
+
+	/* from an arithmetic standpoint :
+	hSync = pixel_clock / total_horiz =>
+	hSync = total_vert *vSyncNum / vSyncDen =>
+	hSync.Num = total_vert *vSyncNum */
+
+	Mode.hSyncFreq.Numerator = total_vert * res.refresh_num;
+	Mode.hSyncFreq.Denominator = res.refresh_den;
+	Mode.scanLineOrdering = DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE;
+	Mode.pixelRate = pixel_clock;
+
+	stringstream logStream;
+	logStream << "[CreateTargetMode] Target mode configured with:"
+			  << "\n  Total Size: (" << Mode.totalSize.cx << ", " << Mode.totalSize.cy << ")"
+			  << "\n  Active Size: (" << Mode.activeSize.cx << ", " << Mode.activeSize.cy << ")"
+			  << "\n  vSync Frequency: " << Mode.vSyncFreq.Numerator << "/" << Mode.vSyncFreq.Denominator
+			  << "\n  hSync Frequency: " << Mode.hSyncFreq.Numerator << "/" << Mode.hSyncFreq.Denominator << "\n  Pixel Rate: " << Mode.pixelRate
+			  << "\n  Scan Line Ordering: " << Mode.scanLineOrdering;
+	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
+}
+
+static void CreateTargetMode(Refactoring::Resolution res, IDDCX_TARGET_MODE &Mode)
+{
+	Mode.Size = sizeof(Mode);
+	CreateTargetMode(res, Mode.TargetVideoSignalInfo.targetVideoSignalInfo);
+}
+
+static void CreateTargetMode2(Refactoring::Resolution res, IDDCX_TARGET_MODE2 &Mode)
+{
+	auto msg = std::format("[CreateTargetMode2] Creating IDDCX_TARGET_MODE2 with Width: {}, Height: {}, VSyncNum: {}, VSyncDen {}", res.width,
+						   res.height, res.refresh_num, res.refresh_den);
+	g_log.Message(Refactoring::LogType::Debug, msg.c_str());
+
+	Mode.Size = sizeof(Mode);
+
+	if (g_settings.colours.color_format == "RGB")
+	{
+		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
 	}
+	else if (g_settings.colours.color_format == "YCbCr444")
+	{
+		Mode.BitsPerComponent.YCbCr444 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
+	}
+	else if (g_settings.colours.color_format == "YCbCr422")
+	{
+		Mode.BitsPerComponent.YCbCr422 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
+	}
+	else if (g_settings.colours.color_format == "YCbCr420")
+	{
+		Mode.BitsPerComponent.YCbCr420 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
+	}
+	else
+	{
+		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
+	}
+
+	g_log.Message(
+		Refactoring::LogType::Debug,
+		std::format("IDDCX_TARGET_MODE2 configured with Size: {} and colour format {}", Mode.Size, g_settings.colours.color_format).c_str());
+
+	CreateTargetMode(res, Mode.TargetVideoSignalInfo.targetVideoSignalInfo);
 }
 
 const char* XorCursorSupportLevelToString(IDDCX_XOR_CURSOR_SUPPORT level) {
@@ -743,7 +825,7 @@ void loadSettings() {
 		numVirtualDisplays = monitorcount;
 		gpuname = gpuFriendlyName;
 		g_default_profile.modes = res;
-		RebuildKnownMonitorModesCache();
+		//RebuildKnownMonitorModesCache();
 		
 		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");
 		return;
@@ -770,7 +852,7 @@ void loadSettings() {
 
 			g_log.Message(Refactoring::LogType::Info, "Using option.txt");
 			g_default_profile.modes = res;
-			RebuildKnownMonitorModesCache();
+			//RebuildKnownMonitorModesCache();
 			for (const auto &mode : res)
 			{
 				g_log.Message(Refactoring::LogType::Debug,
@@ -811,7 +893,7 @@ void loadSettings() {
 	}
 
 	g_default_profile.modes = res;
-	RebuildKnownMonitorModesCache();
+	//RebuildKnownMonitorModesCache();
 	return;
 }
 
@@ -1368,18 +1450,18 @@ void SwapChainProcessor::RunCore()
 const UINT64 MHZ = 1000000;
 const UINT64 KHZ = 1000;
 
-constexpr DISPLAYCONFIG_VIDEO_SIGNAL_INFO dispinfo(UINT32 h, UINT32 v, UINT32 rn, UINT32 rd) {
-	const UINT32 clock_rate = rn * (v + 4) * (v + 4) / rd + 1000;
-	return {
-	  clock_rate,                                      // pixel clock rate [Hz]
-	{ clock_rate, v + 4 },                         // fractional horizontal refresh rate [Hz]
-	{ clock_rate, (v + 4) * (v + 4) },          // fractional vertical refresh rate [Hz]
-	{ h, v },                                    // (horizontal, vertical) active pixel resolution
-	{ h + 4, v + 4 },                         // (horizontal, vertical) total pixel resolution
-	{ { 255, 0 }},                                   // video standard and vsync divider
-	DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE
-	};
-}
+//constexpr DISPLAYCONFIG_VIDEO_SIGNAL_INFO dispinfo(UINT32 h, UINT32 v, UINT32 rn, UINT32 rd) {
+//	const UINT32 clock_rate = rn * (v + 4) * (v + 4) / rd + 1000;
+//	return {
+//	  clock_rate,                                      // pixel clock rate [Hz]
+//	{ clock_rate, v + 4 },                         // fractional horizontal refresh rate [Hz]
+//	{ clock_rate, (v + 4) * (v + 4) },          // fractional vertical refresh rate [Hz]
+//	{ h, v },                                    // (horizontal, vertical) active pixel resolution
+//	{ h + 4, v + 4 },                         // (horizontal, vertical) total pixel resolution
+//	{ { 255, 0 }},                                   // video standard and vsync divider
+//	DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE
+//	};
+//}
 
 vector<BYTE> hardcodedEdid = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x36, 0x94, 0x37, 0x13, 0xe7, 0x1e, 0xe7, 0x1e, 0x1c, 0x22, 0x01, 0x03, 0x80, 0x32, 0x1f, 0x78,
@@ -1902,7 +1984,7 @@ NTSTATUS VirtualDisplayDriverParseMonitorDescription(const IDARG_IN_PARSEMONITOR
 	stringstream logStream;
 	g_log.Message(Refactoring::LogType::Debug, std::format("Parsing monitor description. Input buffer count: {}", pInArgs->MonitorModeBufferInputCount).c_str());
 
-	RebuildKnownMonitorModesCache();
+	//RebuildKnownMonitorModesCache();
 	pOutArgs->MonitorModeBufferOutputCount = (UINT)g_default_profile.modes.size();
 
 	g_log.Message(Refactoring::LogType::Debug, std::format("Number of monitor modes generated: {}", g_default_profile.modes.size()).c_str());
@@ -1922,8 +2004,9 @@ NTSTATUS VirtualDisplayDriverParseMonitorDescription(const IDARG_IN_PARSEMONITOR
 		{
 			pInArgs->pMonitorModes[ModeIndex].Size = sizeof(IDDCX_MONITOR_MODE);
 			pInArgs->pMonitorModes[ModeIndex].Origin = IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR;
-			pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo = s_KnownMonitorModes2[ModeIndex];
-		}
+
+			CreateTargetMode(g_default_profile.modes[ModeIndex], pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo);
+		};
 
 		// Set the preferred mode as represented in the EDID
 		pOutArgs->PreferredMonitorModeIdx = 0;
@@ -1951,79 +2034,12 @@ NTSTATUS VirtualDisplayDriverMonitorGetDefaultModes(IDDCX_MONITOR MonitorObject,
 	return STATUS_NOT_IMPLEMENTED;
 }
 
-/// <summary>
-/// Creates a target mode from the fundamental mode attributes.
-/// </summary>
-void CreateTargetMode(DISPLAYCONFIG_VIDEO_SIGNAL_INFO& Mode, UINT Width, UINT Height, UINT VSyncNum, UINT VSyncDen)
-{
-	stringstream logStream;
-
-	Mode.totalSize.cx = Mode.activeSize.cx = Width;
-	Mode.totalSize.cy = Mode.activeSize.cy = Height;
-	Mode.AdditionalSignalInfo.vSyncFreqDivider = 1;
-	Mode.AdditionalSignalInfo.videoStandard = 255;
-	Mode.vSyncFreq.Numerator = VSyncNum;
-	Mode.vSyncFreq.Denominator = VSyncDen;
-	Mode.hSyncFreq.Numerator = VSyncNum * Height;
-	Mode.hSyncFreq.Denominator = VSyncDen;
-	Mode.scanLineOrdering = DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE;
-	Mode.pixelRate = VSyncNum * Width * Height / VSyncDen;
-
-	logStream << "[CreateTargetMode] Target mode configured with:"
-		<< "\n  Total Size: (" << Mode.totalSize.cx << ", " << Mode.totalSize.cy << ")"
-		<< "\n  Active Size: (" << Mode.activeSize.cx << ", " << Mode.activeSize.cy << ")"
-		<< "\n  vSync Frequency: " << Mode.vSyncFreq.Numerator << "/" << Mode.vSyncFreq.Denominator
-		<< "\n  hSync Frequency: " << Mode.hSyncFreq.Numerator << "/" << Mode.hSyncFreq.Denominator
-		<< "\n  Pixel Rate: " << Mode.pixelRate
-		<< "\n  Scan Line Ordering: " << Mode.scanLineOrdering;
-	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
-}
-
-void CreateTargetMode(IDDCX_TARGET_MODE& Mode, UINT Width, UINT Height, UINT VSyncNum, UINT VSyncDen)
-{
-	Mode.Size = sizeof(Mode);
-	CreateTargetMode(Mode.TargetVideoSignalInfo.targetVideoSignalInfo, Width, Height, VSyncNum, VSyncDen);
-}
-
-void CreateTargetMode2(IDDCX_TARGET_MODE2& Mode, UINT Width, UINT Height, UINT VSyncNum, UINT VSyncDen)
-{
-	auto msg = std::format("[CreateTargetMode2] Creating IDDCX_TARGET_MODE2 with Width: {}, Height: {}, VSyncNum: {}, VSyncDen {}", Width, Height, VSyncNum, VSyncDen);
-	g_log.Message(Refactoring::LogType::Debug, msg.c_str());
-
-	Mode.Size = sizeof(Mode);
-
-	if (g_settings.colours.color_format == "RGB")
-	{
-		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
-	}
-	else if (g_settings.colours.color_format == "YCbCr444") {
-		Mode.BitsPerComponent.YCbCr444 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR;
-	}
-	else if (g_settings.colours.color_format == "YCbCr422") {
-		Mode.BitsPerComponent.YCbCr422 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; 
-	}
-	else if (g_settings.colours.color_format == "YCbCr420") {
-		Mode.BitsPerComponent.YCbCr420 = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; 
-	}
-	else {
-		Mode.BitsPerComponent.Rgb = g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
-	}
-
-	g_log.Message(Refactoring::LogType::Debug, std::format("IDDCX_TARGET_MODE2 configured with Size: {} and colour format {}", Mode.Size, g_settings.colours.color_format).c_str());
-
-	CreateTargetMode(Mode.TargetVideoSignalInfo.targetVideoSignalInfo, Width, Height, VSyncNum, VSyncDen);
-}
-
 _Use_decl_annotations_
-NTSTATUS VirtualDisplayDriverMonitorQueryModes(IDDCX_MONITOR MonitorObject, const IDARG_IN_QUERYTARGETMODES* pInArgs, IDARG_OUT_QUERYTARGETMODES* pOutArgs)////////////////////////////////////////////////////////////////////////////////
+NTSTATUS VirtualDisplayDriverMonitorQueryModes(IDDCX_MONITOR MonitorObject, const IDARG_IN_QUERYTARGETMODES* pInArgs, IDARG_OUT_QUERYTARGETMODES* pOutArgs)
 {
 	UNREFERENCED_PARAMETER(MonitorObject);
 
 	vector<IDDCX_TARGET_MODE> TargetModes(g_default_profile.modes.size());
-
-	stringstream logStream;
-	logStream << "Creating target modes. Number of monitor modes: " << g_default_profile.modes.size();
-	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 	// Create a set of modes supported for frame processing and scan-out. These are typically not based on the
 	// monitor's descriptor and instead are based on the static processing capability of the device. The OS will
@@ -2031,34 +2047,20 @@ NTSTATUS VirtualDisplayDriverMonitorQueryModes(IDDCX_MONITOR MonitorObject, cons
 
 	for (int i = 0; i < g_default_profile.modes.size(); i++)
 	{
-		CreateTargetMode(TargetModes[i], g_default_profile.modes[i].width, g_default_profile.modes[i].height, g_default_profile.modes[i].refresh_num,
-						 g_default_profile.modes[i].refresh_den);
-
-		logStream.str("");
-		logStream << "Created target mode " << i << ": Width = " << g_default_profile.modes[i].width
-				  << ", Height = " << g_default_profile.modes[i].height
-			<< ", VSync = " << g_default_profile.modes[i].refresh_num; //qui è sbagliato
-		g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
+		CreateTargetMode(g_default_profile.modes[i], TargetModes[i]);
 	}
 
 	pOutArgs->TargetModeBufferOutputCount = (UINT)TargetModes.size();
 
-	logStream.str("");
-	logStream << "Number of target modes to output: " << pOutArgs->TargetModeBufferOutputCount;
-	g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
-
 	if (pInArgs->TargetModeBufferInputCount >= TargetModes.size())
 	{
-		logStream.str("");
-		logStream << "Copying target modes to output buffer.";
-		g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 		copy(TargetModes.begin(), TargetModes.end(), pInArgs->pTargetModes);
 	}
-	else {
-		logStream.str("");
-		logStream << "Input buffer too small. Required: " << TargetModes.size()
-			<< ", Provided: " << pInArgs->TargetModeBufferInputCount;
-		g_log.Message(Refactoring::LogType::Warning, logStream.str().c_str());
+	else
+	{
+		g_log.Message(
+			Refactoring::LogType::Warning,
+			std::format("Input buffer too small. Required: {}, provided {}", TargetModes.size(), pInArgs->TargetModeBufferInputCount).c_str());
 	}
 
 	return STATUS_SUCCESS;
@@ -2156,18 +2158,10 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 	// this sample driver, we hard-code the EDID, so this function can generate known modes.
 	// ==============================
 
-	stringstream logStream;
-	auto msg1 = std::format("Parsing monitor description:\n  MonitorModeBufferInputCount: {}\n  pMonitorModes: {}",
-						   pInArgs->MonitorModeBufferInputCount, pInArgs->pMonitorModes ? "Valid" : "Null");
-	g_log.Message(Refactoring::LogType::Debug, msg1.c_str());
-	g_log.Message(Refactoring::LogType::Info, "Monitor Modes:");
-	for (const auto &mode : g_default_profile.modes)
-	{
-		g_log.Message(Refactoring::LogType::Debug,
-			   std::format("\n Mode - Width : {}, Height: {}, RefreshRate: {}", mode.width, mode.height, mode.refresh_num).c_str());
-	}
+	//using g_default_profile.modes
 
-	RebuildKnownMonitorModesCache();
+
+	//RebuildKnownMonitorModesCache();
 	pOutArgs->MonitorModeBufferOutputCount = (UINT)g_default_profile.modes.size();
 
 	if (pInArgs->MonitorModeBufferInputCount < g_default_profile.modes.size())
@@ -2189,7 +2183,9 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 		{
 			pInArgs->pMonitorModes[ModeIndex].Size = sizeof(IDDCX_MONITOR_MODE2);
 			pInArgs->pMonitorModes[ModeIndex].Origin = IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR;
-			pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo = s_KnownMonitorModes2[ModeIndex];
+			CreateTargetMode(g_default_profile.modes[ModeIndex],
+							 pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo); // CreateTargetMode2 non va bene qui?
+			//pInArgs->pMonitorModes[ModeIndex].MonitorVideoSignalInfo = s_KnownMonitorModes2[ModeIndex];
 
 
 			if (g_settings.colours.color_format == "RGB")
@@ -2217,6 +2213,7 @@ NTSTATUS VirtualDisplayDriverEvtIddCxParseMonitorDescription2(
 				pInArgs->pMonitorModes[ModeIndex].BitsPerComponent.Rgb =
 					g_colours_iddcx.SDR_COLOR | g_colours_iddcx.HDR_COLOR; // Default to RGB
 			}
+
 			auto msg2 = std::format("\n  ModeIndex: {}\n  Size: {}\n  Origin: {}\n  Colour Format: {}", ModeIndex,
 								   pInArgs->pMonitorModes[ModeIndex].Size, static_cast<int>(pInArgs->pMonitorModes[ModeIndex].Origin), g_settings.colours.color_format);
 			g_log.Message(Refactoring::LogType::Debug, msg2.c_str());
@@ -2236,25 +2233,16 @@ NTSTATUS VirtualDisplayDriverEvtIddCxMonitorQueryTargetModes2(
 	IDARG_OUT_QUERYTARGETMODES* pOutArgs
 )
 {
-	//UNREFERENCED_PARAMETER(MonitorObject);
-	auto msg1 = std::format("Querying target modes:\n MonitorObject Handle: {:p}\n TargetModeBufferInputCount: {}",
-						   static_cast<void *>(MonitorObject), pInArgs->TargetModeBufferInputCount);
-	g_log.Message(Refactoring::LogType::Debug, msg1.c_str());
-
+	UNREFERENCED_PARAMETER(MonitorObject);
 	vector<IDDCX_TARGET_MODE2> TargetModes(g_default_profile.modes.size());
 
 	// Create a set of modes supported for frame processing and scan-out. These are typically not based on the
 	// monitor's descriptor and instead are based on the static processing capability of the device. The OS will
 	// report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
-	g_log.Message(Refactoring::LogType::Debug, "Creating target modes:");
-
 	for (int i = 0; i < g_default_profile.modes.size(); i++)
 	{
-		CreateTargetMode2(TargetModes[i], g_default_profile.modes[i].width, 
-			g_default_profile.modes[i].height, 
-			g_default_profile.modes[i].refresh_num,
-			g_default_profile.modes[i].refresh_den);
+		CreateTargetMode2(g_default_profile.modes[i], TargetModes[i]);
 	}
 
 	pOutArgs->TargetModeBufferOutputCount = (UINT)TargetModes.size();
