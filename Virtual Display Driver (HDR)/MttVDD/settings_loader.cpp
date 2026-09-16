@@ -37,57 +37,45 @@ void Refactoring::SettingsLoader::Init()
 	entries.push_back({"edid_integration.edid_profile_path", &(m_settings->edid_integration.profile_path)});
 	entries.push_back({"edid_integration.enabled", &(m_settings->edid_integration.enabled)});
 	entries.push_back({"edid_integration.auto_configure_from_edid", &(m_settings->edid_integration.auto_configure)});
-	entries.push_back(
-		{"edid_integration.override_manual_settings", &(m_settings->edid_integration.override_manual_settings)});
+	entries.push_back({"edid_integration.override_manual_settings", &(m_settings->edid_integration.override_manual_settings)});
 	entries.push_back({"edid_integration.fallback_on_error", &(m_settings->edid_integration.fallback_on_error)});
 	entries.push_back({"hdr_advanced.hdr10_static_metadata.enabled", &(m_settings->hdr_advanced.static_metadata_enabled)});
-	entries.push_back({"hdr_advanced.hdr10_static_metadata.max_display_mastering_luminance",
-					   &(m_settings->hdr_advanced.max_display_mastering_luminance)});
-	entries.push_back({"hdr_advanced.hdr10_static_metadata.min_display_mastering_luminance",
-					   &(m_settings->hdr_advanced.min_display_mastering_luminance)});
 	entries.push_back(
-		{"hdr_advanced.hdr10_static_metadata.max_content_light_level", &(m_settings->hdr_advanced.max_content_light_level)});
-	entries.push_back({"hdr_advanced.hdr10_static_metadata.max_frame_avg_light_level",
-					   &(m_settings->hdr_advanced.max_frame_avg_light_level)});
+		{"hdr_advanced.hdr10_static_metadata.max_display_mastering_luminance", &(m_settings->hdr_advanced.max_display_mastering_luminance)});
+	entries.push_back(
+		{"hdr_advanced.hdr10_static_metadata.min_display_mastering_luminance", &(m_settings->hdr_advanced.min_display_mastering_luminance)});
+	entries.push_back({"hdr_advanced.hdr10_static_metadata.max_content_light_level", &(m_settings->hdr_advanced.max_content_light_level)});
+	entries.push_back({"hdr_advanced.hdr10_static_metadata.max_frame_avg_light_level", &(m_settings->hdr_advanced.max_frame_avg_light_level)});
 	entries.push_back({"auto_resolutions.source_priority", &(m_settings->auto_resolutions.source_priority)});
 	entries.push_back({"auto_resolutions.enabled", &(m_settings->auto_resolutions.enabled)});
 	entries.push_back({"auto_resolutions.edid_mode_filtering.exclude_fractional_rates",
 					   &(m_settings->auto_resolutions.edid_mode_filtering.exclude_fractional_rates)});
-	entries.push_back({"auto_resolutions.edid_mode_filtering.min_refresh_rate",
-					   &(m_settings->auto_resolutions.edid_mode_filtering.min_refresh_rate)});
-	entries.push_back({"auto_resolutions.edid_mode_filtering.max_refresh_rate",
-					   &(m_settings->auto_resolutions.edid_mode_filtering.max_refresh_rate)});
-	entries.push_back({"auto_resolutions.edid_mode_filtering.min_resolution_width",
-					   &(m_settings->auto_resolutions.edid_mode_filtering.min_resolution_width)});
-	entries.push_back({"auto_resolutions.edid_mode_filtering.min_resolution_height",
-					   &(m_settings->auto_resolutions.edid_mode_filtering.min_resolution_height)});
-	entries.push_back({"auto_resolutions.edid_mode_filtering.max_resolution_width",
-					   &(m_settings->auto_resolutions.edid_mode_filtering.max_resolution_width)});
-	entries.push_back({"auto_resolutions.edid_mode_filtering.max_resolution_height",
-					   &(m_settings->auto_resolutions.edid_mode_filtering.max_resolution_height)});
 	entries.push_back(
-		{"auto_resolutions.preferred_mode.use_edid_preferred", &(m_settings->auto_resolutions.preferred_mode.preferred)});
+		{"auto_resolutions.edid_mode_filtering.min_refresh_rate", &(m_settings->auto_resolutions.edid_mode_filtering.min_refresh_rate)});
 	entries.push_back(
-		{"auto_resolutions.preferred_mode.fallback_width", &(m_settings->auto_resolutions.preferred_mode.fallback_width)});
+		{"auto_resolutions.edid_mode_filtering.max_refresh_rate", &(m_settings->auto_resolutions.edid_mode_filtering.max_refresh_rate)});
 	entries.push_back(
-		{"auto_resolutions.preferred_mode.fallback_height", &(m_settings->auto_resolutions.preferred_mode.fallback_height)});
-	entries.push_back({"auto_resolutions.preferred_mode.fallback_refresh",
-					   &(m_settings->auto_resolutions.preferred_mode.fallback_refresh)});
-	entries.push_back({"color_advanced.bit_depth_management.force_bit_depth",
-					   &(m_settings->color_advanced.bit_depth_management.force_bit_depth)});
+		{"auto_resolutions.edid_mode_filtering.min_resolution_width", &(m_settings->auto_resolutions.edid_mode_filtering.min_resolution_width)});
+	entries.push_back(
+		{"auto_resolutions.edid_mode_filtering.min_resolution_height", &(m_settings->auto_resolutions.edid_mode_filtering.min_resolution_height)});
+	entries.push_back(
+		{"auto_resolutions.edid_mode_filtering.max_resolution_width", &(m_settings->auto_resolutions.edid_mode_filtering.max_resolution_width)});
+	entries.push_back(
+		{"auto_resolutions.edid_mode_filtering.max_resolution_height", &(m_settings->auto_resolutions.edid_mode_filtering.max_resolution_height)});
+	entries.push_back({"auto_resolutions.preferred_mode.use_edid_preferred", &(m_settings->auto_resolutions.preferred_mode.preferred)});
+	entries.push_back({"auto_resolutions.preferred_mode.fallback_width", &(m_settings->auto_resolutions.preferred_mode.fallback_width)});
+	entries.push_back({"auto_resolutions.preferred_mode.fallback_height", &(m_settings->auto_resolutions.preferred_mode.fallback_height)});
+	entries.push_back({"auto_resolutions.preferred_mode.fallback_refresh", &(m_settings->auto_resolutions.preferred_mode.fallback_refresh)});
+	entries.push_back({"color_advanced.bit_depth_management.force_bit_depth", &(m_settings->color_advanced.bit_depth_management.force_bit_depth)});
 	entries.push_back({"color_advanced.bit_depth_management.auto_select_from_color_space",
 					   &(m_settings->color_advanced.bit_depth_management.auto_select_from_color_space)});
-	entries.push_back({"color_advanced.bit_depth_management.fp16_surface_support",
-					   &(m_settings->color_advanced.bit_depth_management.fp16_surface_support)});
 	entries.push_back(
-		{"hdr_advanced.color_space.primary_color_space", &(m_settings->hdr_advanced.color_space.primary_color_space)});
+		{"color_advanced.bit_depth_management.fp16_surface_support", &(m_settings->color_advanced.bit_depth_management.fp16_surface_support)});
+	entries.push_back({"hdr_advanced.color_space.primary_color_space", &(m_settings->hdr_advanced.color_space.primary_color_space)});
 	entries.push_back({"hdr_advanced.color_space.enabled", &(m_settings->hdr_advanced.color_space.enabled)});
-	entries.push_back(
-		{"hdr_advanced.color_space.gamma_correction", &(m_settings->hdr_advanced.color_space.gamma_correction)});
-	entries.push_back({"hdr_advanced.color_space.enable_matrix_transform",
-					   &(m_settings->hdr_advanced.color_space.enable_matrix_transform)});
-	entries.push_back(
-		{"hdr_advanced.color_primaries.enabled", &(m_settings->hdr_advanced.color_primaries.primaries_enabled)});
+	entries.push_back({"hdr_advanced.color_space.gamma_correction", &(m_settings->hdr_advanced.color_space.gamma_correction)});
+	entries.push_back({"hdr_advanced.color_space.enable_matrix_transform", &(m_settings->hdr_advanced.color_space.enable_matrix_transform)});
+	entries.push_back({"hdr_advanced.color_primaries.enabled", &(m_settings->hdr_advanced.color_primaries.primaries_enabled)});
 	entries.push_back({"hdr_advanced.color_primaries.red_x", &(m_settings->hdr_advanced.color_primaries.redX)});
 	entries.push_back({"hdr_advanced.color_primaries.red_y", &(m_settings->hdr_advanced.color_primaries.redY)});
 	entries.push_back({"hdr_advanced.color_primaries.green_x", &(m_settings->hdr_advanced.color_primaries.greenX)});
@@ -96,8 +84,9 @@ void Refactoring::SettingsLoader::Init()
 	entries.push_back({"hdr_advanced.color_primaries.blue_y", &(m_settings->hdr_advanced.color_primaries.blueY)});
 	entries.push_back({"hdr_advanced.color_primaries.white_x", &(m_settings->hdr_advanced.color_primaries.whiteX)});
 	entries.push_back({"hdr_advanced.color_primaries.white_y", &(m_settings->hdr_advanced.color_primaries.whiteY)});
-	entries.push_back({"color_advanced.color_format_extended.sdr_white_level",
-					   &(m_settings->color_advanced.color_format_extended.sdr_white_level)});
+	entries.push_back({"color_advanced.color_format_extended.sdr_white_level", &(m_settings->color_advanced.color_format_extended.sdr_white_level)});
+	entries.push_back({"gpu.friendlyname", &(m_settings->gpu.friendly_name)});
+	entries.push_back({"monitors.count", &(m_settings->gpu.monitor_count)});
 }
 
 void Refactoring::SettingsLoader::SetConfigurationPath(std::string path)

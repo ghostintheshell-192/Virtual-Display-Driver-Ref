@@ -92,8 +92,6 @@ Refactoring::SettingsLoader g_settings_manager(&g_log, &g_settings);
 
 
 AdapterOption Adapter;
-UINT numVirtualDisplays;
-wstring gpuname;
 wstring confpath = L"C:\\VirtualDisplayDriver";
 
 /// <summary>
@@ -723,8 +721,6 @@ void loadSettings() {
 		wstring currentElement;
 		wstring width, height, refreshRate;
 		vector<Refactoring::Resolution> res;
-		wstring gpuFriendlyName;
-		UINT monitorcount = 1;
 		set<tuple<int, int>> resolutions;
 		vector<int> globalRefreshRates;
 
@@ -742,17 +738,7 @@ void loadSettings() {
 				if (FAILED(hr)) {
 					return;
 				}
-				if (currentElement == L"count") {
-					monitorcount = stoi(wstring(pwszValue, cwchValue));
-					if (monitorcount == 0) {
-						monitorcount = 1;
-						g_log.Message(Refactoring::LogType::Info, "Loading singular monitor (Monitor Count is not valid)");
-					}
-				}
-				else if (currentElement == L"friendlyname") {
-					gpuFriendlyName = wstring(pwszValue, cwchValue);
-				}
-				else if (currentElement == L"width") {
+				if (currentElement == L"width") {
 					width = wstring(pwszValue, cwchValue);
 					if (width.empty()) {
 						width = L"800";
@@ -796,8 +782,6 @@ void loadSettings() {
 			}
 		}
 
-		numVirtualDisplays = monitorcount;
-		gpuname = gpuFriendlyName;
 		g_default_profile.modes = res;
 		
 		g_log.Message(Refactoring::LogType::Info,"Using vdd_settings.xml");
@@ -809,7 +793,6 @@ void loadSettings() {
 		string line;
 		if (getline(ifs, line) && !line.empty())
 		{
-			numVirtualDisplays = stoi(line);
 			vector<Refactoring::Resolution> res;
 
 			while (getline(ifs, line))
@@ -838,7 +821,6 @@ void loadSettings() {
 		}
 	}
 
-	numVirtualDisplays = 1;
 	vector<Refactoring::Resolution> res;
 	vector<tuple<int, int, float>> fallbackRes = {
 		{800, 600, 30.0f},	 {800, 600, 60.0f},	  {800, 600, 90.0f},   {800, 600, 120.0f},	 {800, 600, 144.0f},   {800, 600, 165.0f},
@@ -903,13 +885,14 @@ NTSTATUS VirtualDisplayDriverDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDevice
 
 	loadSettings();
 
-	if (gpuname.empty() || gpuname == L"default") {
+	if (g_settings.gpu.friendly_name.empty() || g_settings.gpu.friendly_name == "default")
+	{
 		const wstring adaptername = confpath + L"\\adapter.txt";
 		Adapter.load(adaptername.c_str());
 		g_log.Message(Refactoring::LogType::Info, "Attempting to Load GPU from adapter.txt");
 	}
 	else {
-		Adapter.xmlprovide(gpuname);
+		Adapter.xmlprovide(Refactoring::StringToWstring(g_settings.gpu.friendly_name));
 		g_log.Message(Refactoring::LogType::Info, "Loading GPU from vdd_settings.xml");
 	}
 
@@ -1256,7 +1239,6 @@ void SwapChainProcessor::RunCore()
 		return;
 	}
 	g_log.Message(Refactoring::LogType::Info, "DXGI device interface obtained successfully.");
-	//g_log.Message(Refactoring::LogType::Debug, logStream.str().c_str());
 
 
 	// Validate that our device is still valid before setting it
@@ -1604,7 +1586,6 @@ IndirectDeviceContext::~IndirectDeviceContext()
 void IndirectDeviceContext::InitAdapter()
 {
 	maincalc();
-	stringstream logStream;
 
 	// ==============================
 	// TODO: Update the below diagnostic information in accordance with the target hardware. The strings and version
@@ -1624,7 +1605,7 @@ void IndirectDeviceContext::InitAdapter()
 	}
 
 	// Declare basic feature support for the adapter (required)
-	AdapterCaps.MaxMonitorsSupported = numVirtualDisplays;
+	AdapterCaps.MaxMonitorsSupported = g_settings.gpu.monitor_count;
 	AdapterCaps.EndPointDiagnostics.Size = sizeof(AdapterCaps.EndPointDiagnostics);
 	AdapterCaps.EndPointDiagnostics.GammaSupport = IDDCX_FEATURE_IMPLEMENTATION_NONE;
 	AdapterCaps.EndPointDiagnostics.TransmissionType = IDDCX_TRANSMISSION_TYPE_WIRED_OTHER;
@@ -1664,7 +1645,6 @@ void IndirectDeviceContext::InitAdapter()
 	NTSTATUS Status = IddCxAdapterInitAsync(&AdapterInit, &AdapterInitOut);
 
 	g_log.Message(Refactoring::LogType::Debug, std::format("Adapter Initialization Status: {}", Status).c_str());
-	logStream.str("");
 
 	if (NT_SUCCESS(Status))
 	{
@@ -1685,7 +1665,7 @@ void IndirectDeviceContext::FinishInit()
 {
 	Adapter.apply(m_Adapter);
 	g_log.Message(Refactoring::LogType::Info, "Applied Adapter configs.");
-	for (unsigned int i = 0; i < numVirtualDisplays; i++) {
+	for (int i = 0; i < g_settings.gpu.monitor_count; i++) {
 		CreateMonitor(i);
 	}
 }

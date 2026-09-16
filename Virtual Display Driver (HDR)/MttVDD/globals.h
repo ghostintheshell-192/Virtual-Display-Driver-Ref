@@ -170,6 +170,12 @@ struct MonitorEmulationSettings
 	int physical_height = 287; // UoM: millimeters
 };
 
+struct GpuSettings
+{
+	int monitor_count = 1;
+	std::string friendly_name;
+};
+
 struct DriverSettings
 {
 	MonitorEmulationSettings monitor_emulation;
@@ -181,6 +187,7 @@ struct DriverSettings
 	EdidIntegrationSettings edid_integration;
 	CursorSettings cursor;
 	LogSettings logs;
+	GpuSettings gpu;
 };
 
 struct DataElements
