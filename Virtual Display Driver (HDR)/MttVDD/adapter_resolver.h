@@ -163,7 +163,7 @@ bool findAndSetAdapter(const std::string &adapterSpec, ResolvedAdapter &adp_opti
 	// Iterate through all available GPUs
 	for (const auto &gpu : gpus)
 	{
-		if (std::strcmp(gpu.name.c_str(), adapterSpec.c_str()) == 0)
+		if (_stricmp(gpu.name.c_str(), adapterSpec.c_str()) == 0)
 		{
 			adp_options.adapterLuid = gpu.desc.AdapterLuid; // Set the adapter LUID
 			adp_options.hasTargetAdapter = true;			// Indicate that a target adapter is selected
