@@ -113,10 +113,17 @@ bool Refactoring::RegistryReader::GetSetting(std::string value_key, const Settin
 		[&raw_reg_value, &value_key, this](auto *ptr) {
 			using T = std::remove_pointer_t<decltype(ptr)>;
 
-			T old_val = *ptr;
-			*ptr = convert_setting<T>(raw_reg_value);
-			if (old_val != *ptr)
-				m_log->Message(LogType::Debug, value_key + " now has value = " + raw_reg_value);
+			if constexpr (std::is_same_v<T, std::vector<int>>)
+			{
+				//do nothing
+			}
+			else
+			{
+				T old_val = *ptr;
+				*ptr = convert_setting<T>(raw_reg_value);
+				if (old_val != *ptr)
+					m_log->Message(LogType::Debug, value_key + " now has value = " + raw_reg_value);
+			}
 		},
 		result);
 	return true;

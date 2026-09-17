@@ -48,29 +48,62 @@ tinyxml2::XMLElement* Refactoring::XmlReader::TraverseXml(const std::string& val
 	return current;
 }
 
-bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingValuePtr &result)
+bool Refactoring::XmlReader::GetRawValue(tinyxml2::XMLElement* curr, std::string& res)
 {
-	tinyxml2::XMLElement *current = TraverseXml(value);
-
-	if (!current)
+	if (!curr)
 		return false;
 
-	const char * text = current->GetText();
+	const char *text = curr->GetText();
 
 	if (!text)
 		return false;
 
-	std::string raw_value = text;
+	res = text;
 
-	if (raw_value.empty())
+	if (res.empty())
 		return false;
 
+	return true;
+}
+
+bool Refactoring::XmlReader::GetSetting(const std::string &value, const SettingValuePtr &result)
+{
+	std::vector<std::string> raw_values = {};
+	std::string raw_value;
+
+	tinyxml2::XMLElement *current = TraverseXml(value);
+
+	if(!GetRawValue(current, raw_value))
+		return false;
+
+	raw_values.push_back(raw_value);
+
+	const char * element_name = current->Name();
+
+	tinyxml2::XMLElement *next = current->NextSiblingElement(element_name);
+
+	while (next != nullptr)
+	{
+		if (!GetRawValue(next, raw_value))
+			return false;
+
+		raw_values.push_back(raw_value);
+
+		element_name = next->Name();
+		next = next->NextSiblingElement(element_name);
+	}
+
 	std::visit(
-		[&raw_value, &value, this](auto *ptr) {
+		[&raw_value, &raw_values, &value, this](auto *ptr) {
 			using T = std::remove_pointer_t<decltype(ptr)>;
 
 			T old_val = *ptr;
-			*ptr = convert_setting<T>(raw_value);
+
+			if constexpr (std::is_same_v<T, std::vector<int>>)
+				*ptr = convert_setting<T>(raw_values);
+			else
+				*ptr = convert_setting<T>(raw_value);
+
 			if (old_val != *ptr)
 				m_log->Message(LogType::Debug, value + " now has value = " + raw_value);
 		},
@@ -92,10 +125,18 @@ bool Refactoring::XmlReader::SetSetting(const std::string& value, const std::str
 		[&pipe_value, &value, this](auto *ptr) {
 			using T = std::remove_pointer_t<decltype(ptr)>;
 
-			T old_val = *ptr;
-			*ptr = convert_setting<T>(pipe_value);
-			if (old_val != *ptr)
-				m_log->Message(LogType::Debug, value + " now has value = " + pipe_value);
+
+			if constexpr (std::is_same_v<T, std::vector<int>>)
+			{
+				// do nothing
+			}
+			else
+			{
+				T old_val = *ptr;
+				*ptr = convert_setting<T>(pipe_value);
+				if (old_val != *ptr)
+					m_log->Message(LogType::Debug, value + " now has value = " + pipe_value);
+			}
 		},
 		result);
 	return true;

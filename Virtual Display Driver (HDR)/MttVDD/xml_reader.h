@@ -24,6 +24,8 @@ class XmlReader
   private:
 	tinyxml2::XMLElement *TraverseXml(const std::string &value);
 
+	bool GetRawValue(tinyxml2::XMLElement *curr, std::string &res);
+
 	tinyxml2::XMLDocument settings_file;
 	std::string file_path;
 	Logger *m_log;

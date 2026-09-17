@@ -17,8 +17,6 @@
 namespace Refactoring
 {
 
-typedef std::variant<bool *, int *, double *, std::string *> SettingValuePtr;
-
 enum class ColorSpaceType
 {
 	NONE = 0,
@@ -190,12 +188,6 @@ struct DriverSettings
 	GpuSettings gpu;
 };
 
-struct DataElements
-{
-	std::string key;
-	SettingValuePtr container;
-};
-
 struct Resolution
 {
 	int width = 1920;
@@ -299,5 +291,15 @@ struct MonitorProfile
 		return t_matrix;
 	};
 };
+
+ typedef std::variant<bool *, int *, double *, std::string *, std::vector<int> *> SettingValuePtr;
+//typedef std::variant<std::vector<bool> *, std::vector<int> *, std::vector<double> *, std::vector<std::string> *, std::vector<Resolution> *>
+//	SettingValuePtr;
+
+ struct DataElements
+ {
+	 std::string key;
+	 SettingValuePtr container;
+ };
 
 } // namespace Refactoring

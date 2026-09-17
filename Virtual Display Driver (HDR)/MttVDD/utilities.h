@@ -6,6 +6,45 @@
 namespace Refactoring
 {
 
+template <typename T> static T convert_setting(const std::vector<std::string> &values) = delete;
+
+// specializzazioni:
+template <> static std::vector<bool> convert_setting<std::vector<bool>>(const std::vector<std::string> &values)
+{
+	std::vector<bool> result_vec;
+	result_vec.reserve(values.size());
+
+	for (const auto &value : values)
+		result_vec.emplace_back(strcmp(value.c_str(), "true") == 0 || value == "1");
+
+	return result_vec;
+}
+
+template <> static std::vector<int> convert_setting<std::vector<int>>(const std::vector<std::string> &values)
+{
+	std::vector<int> result_vec;
+	result_vec.reserve(values.size());
+	for (const auto &value : values)
+		result_vec.emplace_back(std::stoi(value));
+	return result_vec;
+}
+
+template <> static std::vector<double> convert_setting<std::vector<double>>(const std::vector<std::string> &values)
+{
+	std::vector<double> result_vec;
+	result_vec.reserve(values.size());
+
+	for (const auto &value : values)
+		result_vec.emplace_back(std::stod(value));
+
+	return result_vec;
+}
+
+template <> static std::vector<std::string> convert_setting<std::vector<std::string>>(const std::vector<std::string> &values)
+{
+	return values;
+}
+
 template <typename T> static T convert_setting(const std::string &value) = delete;
 
 // specializzazioni:
